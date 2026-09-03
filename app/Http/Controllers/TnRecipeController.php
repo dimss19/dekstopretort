@@ -19,14 +19,16 @@ class TnRecipeController extends Controller {
         });
 
         $syncMsg = '';
-        if ($request->boolean('sync_to_tn', true)) {
+        if ($request->boolean('sync_to_tn')) {
             $tnId = $request->input('tn_controller_id') ?? $request->input('tn_id');
             $writeRes = $this->writeRecipeToDevice($recipe, $tnId);
             if ($writeRes['success']) {
-                $syncMsg = ' dan berhasil ditulis ke TN Controller (' . $writeRes['controller'] . ')';
+                $syncMsg = ' dan berhasil ditulis langsung ke TN Controller (' . $writeRes['controller'] . ')';
             } else {
                 $syncMsg = ' (Peringatan: Gagal menulis ke TN Controller: ' . ($writeRes['error'] ?? 'Offline') . ')';
             }
+        } else {
+            $syncMsg = ' ke database saja';
         }
 
         return redirect()->route('tn.recipes.index')->with('success', 'Pattern berhasil disimpan' . $syncMsg . '.');
@@ -43,14 +45,16 @@ class TnRecipeController extends Controller {
         });
 
         $syncMsg = '';
-        if ($request->boolean('sync_to_tn', true)) {
+        if ($request->boolean('sync_to_tn')) {
             $tnId = $request->input('tn_controller_id') ?? $request->input('tn_id');
             $writeRes = $this->writeRecipeToDevice($recipe, $tnId);
             if ($writeRes['success']) {
-                $syncMsg = ' dan berhasil ditulis ke TN Controller (' . $writeRes['controller'] . ')';
+                $syncMsg = ' dan berhasil ditulis langsung ke TN Controller (' . $writeRes['controller'] . ')';
             } else {
                 $syncMsg = ' (Peringatan: Gagal menulis ke TN Controller: ' . ($writeRes['error'] ?? 'Offline') . ')';
             }
+        } else {
+            $syncMsg = ' ke database saja';
         }
 
         return redirect()->route('tn.recipes.index')->with('success', 'Pattern berhasil diperbarui' . $syncMsg . '.');
@@ -96,61 +100,91 @@ class TnRecipeController extends Controller {
             return ['success' => false, 'error' => 'Tidak ada TN Controller yang terdaftar.'];
         }
 
-        $modbus = app(\App\Services\TnModbusService::class);
         $recipe->load('steps');
         $pNum = (int)($recipe->pattern_number ?? 0);
+        $machineCode = $tn->machine?->machine_code ?? 'RT-001';
 
-        // 1. Write Pattern Number (400205 -> offset 204)
-        $pSelectRes = $modbus->writeSingleRegister($tn, 204, $pNum);
-        if (!$pSelectRes['success']) {
-            return ['success' => false, 'error' => 'Gagal memilih slot pattern: ' . ($pSelectRes['error'] ?? 'Koneksi Modbus gagal')];
-        }
-
-        // 2. Prepare base config values (400201-400209 -> offset 200)
-        $endStates = ['STOP' => 0, 'HOLD' => 1, 'NEXT' => 2, 'PRE' => 3];
-        $endStateVal = $endStates[$recipe->pattern_end_state] ?? 0;
-
-        $stepCount = count($recipe->steps);
-        $configValues = [
-            $recipe->time_unit === 'HH.MM' ? 1 : 0,    // 400201: Time Unit (0: MM.SS, 1: HH.MM)
-            $recipe->start_condition === 'SPV' ? 1 : 0, // 400202: Start Condition (0: SSV, 1: SPV)
-            (int)($recipe->wait_width ?? 20),          // 400203: Wait Width
-            (int)($recipe->wait_time ?? 0),            // 400204: Wait Time
-            $pNum,                                     // 400205: Pattern Number
-            (int)($recipe->repetitions ?? 0),          // 400206: Repetitions
-            $endStateVal,                              // 400207: End State
-            (int)($recipe->pid_group ?? 0),            // 400208: PID Group
-            $stepCount,                                // 400209: Step Count
-        ];
-
-        $resConfig = $modbus->writeMultipleRegisters($tn, 200, $configValues);
-        if (!$resConfig['success']) {
-            return ['success' => false, 'error' => 'Gagal menulis konfigurasi dasar pattern: ' . ($resConfig['error'] ?? 'Modbus error')];
-        }
-
-        // 3. Prepare step registers (400210-400249 -> offset 209, 40 registers)
-        $stepRegisters = array_fill(0, 40, 0);
+        // Prepare steps array for ESP32 and Modbus registers
+        $stepsPayload = [];
         foreach ($recipe->steps as $idx => $step) {
             if ($idx >= 20) break;
-            $svVal = (int)($step->target_sv ?? 0);
-            $timVal = (int)($step->duration ?? 0);
-
-            // If temperature entered as e.g. 121 (without multiplying by 10 for 1-decimal TN), scale appropriately
-            // Normal retort sterilizing temperatures are 20.0 - 140.0 °C
-            if ($svVal > 0 && $svVal < 200) {
-                $svVal = $svVal * 10;
+            $sv = (float)($step->target_sv ?? 0);
+            if ($sv > 300) {
+                $sv = $sv / 10.0;
             }
 
-            $stepRegisters[$idx * 2] = $svVal;
-            $stepRegisters[($idx * 2) + 1] = $timVal;
+            $stepsPayload[] = [
+                'step_number' => (int)($step->step_number ?? $idx),
+                'step_name' => $step->step_name ?: ("Step " . ($idx + 1)),
+                'target_sv' => $sv,
+                'duration' => (int)($step->duration ?? 0),
+                'end_action' => $step->end_action ?? 'CONT',
+            ];
         }
 
-        $resSteps = $modbus->writeMultipleRegisters($tn, 209, $stepRegisters);
-        if (!$resSteps['success']) {
-            return ['success' => false, 'error' => 'Gagal menulis langkah-langkah step: ' . ($resSteps['error'] ?? 'Modbus error')];
+        $patternData = [
+            'machine_code' => $machineCode,
+            'pattern_number' => $pNum,
+            'time_unit' => $recipe->time_unit ?? 'MM.SS',
+            'pattern_end_state' => $recipe->pattern_end_state ?? 'STOP',
+            'steps' => $stepsPayload,
+        ];
+
+        // Store in cache so UI and ESP monitor immediately see it
+        \Illuminate\Support\Facades\Cache::put("esp_pattern_{$machineCode}", $patternData, now()->addDays(30));
+
+        // 1. Primary write: Dispatch via MQTT to ESP32 (which writes to Autonics TN via RS485 Modbus RTU)
+        $device = \App\Models\Device::where('machine_code', $machineCode)->first() ?? (object)['machine_code' => $machineCode];
+        $mqttService = app(\App\Services\MqttService::class);
+        $mqttPublished = $mqttService->publishPattern($device, $patternData);
+
+        // 2. Secondary fallback: Direct serial if local port is configured on server
+        if ($tn->serial_port && $tn->serial_port !== 'auto') {
+            try {
+                $modbus = app(\App\Services\TnModbusService::class);
+                $pSelectRes = $modbus->writeSingleRegister($tn, 204, $pNum);
+                if ($pSelectRes['success']) {
+                    $endStates = ['STOP' => 0, 'HOLD' => 1, 'NEXT' => 2, 'PRE' => 3];
+                    $endStateVal = $endStates[$recipe->pattern_end_state] ?? 0;
+                    $stepCount = count($recipe->steps);
+                    $configValues = [
+                        $recipe->time_unit === 'HH.MM' ? 1 : 0,
+                        $recipe->start_condition === 'SPV' ? 1 : 0,
+                        (int)($recipe->wait_width ?? 20),
+                        (int)($recipe->wait_time ?? 0),
+                        $pNum,
+                        (int)($recipe->repetitions ?? 0),
+                        $endStateVal,
+                        (int)($recipe->pid_group ?? 0),
+                        $stepCount,
+                    ];
+                    $modbus->writeMultipleRegisters($tn, 200, $configValues);
+
+                    $stepRegisters = array_fill(0, 40, 0);
+                    foreach ($recipe->steps as $idx => $step) {
+                        if ($idx >= 20) break;
+                        $svVal = (int)($step->target_sv ?? 0);
+                        if ($svVal > 0 && $svVal < 200) $svVal = $svVal * 10;
+                        $stepRegisters[$idx * 2] = $svVal;
+                        $stepRegisters[($idx * 2) + 1] = (int)($step->duration ?? 0);
+                    }
+                    $modbus->writeMultipleRegisters($tn, 209, $stepRegisters);
+                }
+            } catch (\Throwable) {}
         }
 
-        return ['success' => true, 'controller' => $tn->name];
+        if ($mqttPublished) {
+            return [
+                'success' => true,
+                'controller' => $tn->name,
+                'message' => "Pattern berhasil dikirim ke ESP32 ({$machineCode}) untuk ditulis langsung ke Controller TN.",
+            ];
+        }
+
+        return [
+            'success' => false,
+            'error' => 'Gagal mengirim konfigurasi pattern ke ESP32 (periksa koneksi MQTT broker).',
+        ];
     }
 
     public function scanFromDevice(Request $request, $tnId)

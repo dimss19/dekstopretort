@@ -3,7 +3,6 @@ import { router } from '@inertiajs/react';
 import { PageProps, ScadaCanvas as ScadaCanvasType, ScadaMapping } from '@/types';
 import { TnController } from '@/types/tn';
 import RetortMonitorShell from '@/Components/Tn/RetortMonitorShell';
-import { webSerialDriver } from '@/Services/WebSerialModbus';
 import {
     buildRetortEvents,
     buildRetortTelemetry,
@@ -90,8 +89,6 @@ export default function Monitor({ controller, latestReading: initialReading }: P
         };
 
         const loadReadings = async (replaceLatest = false) => {
-            if (webSerialDriver.isConnected()) return;
-
             try {
                 const response = await fetch(route('tn.readings', controller.id), {
                     headers: { Accept: 'application/json' },
@@ -99,7 +96,7 @@ export default function Monitor({ controller, latestReading: initialReading }: P
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
                 const data = await response.json();
-                if (!isMounted || !Array.isArray(data) || webSerialDriver.isConnected()) return;
+                if (!isMounted || !Array.isArray(data)) return;
 
                 setHistory(data);
                 const latest = data[data.length - 1];
@@ -113,7 +110,7 @@ export default function Monitor({ controller, latestReading: initialReading }: P
                     setReading(latest);
                 }
             } catch {
-                if (isMounted && !webSerialDriver.isConnected()) setIsLiveOnline(false);
+                if (isMounted) setIsLiveOnline(false);
             }
         };
 
@@ -122,7 +119,6 @@ export default function Monitor({ controller, latestReading: initialReading }: P
         const echo = (window as any).Echo;
         const channel = echo?.channel(`tn.${controller.id}`);
         channel?.listen('.tn.data', (event: any) => {
-            if (webSerialDriver.isConnected()) return;
             applyReading({
                 pv: event.pv,
                 sv: event.sv,
@@ -144,52 +140,12 @@ export default function Monitor({ controller, latestReading: initialReading }: P
             });
         });
 
-        const handleWebSerialEvent = (e: any) => {
-            if (!isMounted || !e.detail) return;
-            const decoded = e.detail;
-            const formattedReading = {
-                id: Date.now(),
-                tn_controller_id: controller.id,
-                pv: decoded.pv,
-                decimal_point: decoded.decimal_point,
-                sv: decoded.sv,
-                heating_mv: decoded.heating_mv,
-                cooling_mv: decoded.cooling_mv,
-                status_flag: decoded.status_flag,
-                alarm_status: decoded.alarm_status,
-                event_status: decoded.event_status,
-                ct1_current: decoded.ct1_current,
-                ct2_current: decoded.ct2_current,
-                pattern_current: decoded.pattern_current,
-                step_current: decoded.step_current,
-                process_time: decoded.process_time,
-                rest_time: decoded.rest_time,
-                run_status: decoded.run_status,
-                auto_manual: decoded.auto_manual,
-                created_at: decoded.timestamp,
-                timestamp: decoded.timestamp,
-            };
-            setIsLiveOnline(true);
-            lastSeenAtRef.current = Date.now();
-            applyReading(formattedReading, true);
-        };
-
-        if (typeof window !== 'undefined') {
-            window.addEventListener('tn-webserial-reading', handleWebSerialEvent);
-        }
-
         const refreshIntervalId = window.setInterval(() => {
-            if (!webSerialDriver.isConnected()) {
-                loadReadings();
-            }
+            loadReadings();
         }, pollIntervalMs);
 
         const staleIntervalId = window.setInterval(() => {
             if (!isMounted) return;
-            if (webSerialDriver.isConnected()) {
-                setIsLiveOnline(true);
-                return;
-            }
             const lastSeenAt = lastSeenAtRef.current;
             setIsLiveOnline(lastSeenAt !== false && Date.now() - lastSeenAt <= staleAfterMs);
         }, 1000);
@@ -199,9 +155,6 @@ export default function Monitor({ controller, latestReading: initialReading }: P
             window.clearInterval(refreshIntervalId);
             window.clearInterval(staleIntervalId);
             channel?.stopListening('.tn.data');
-            if (typeof window !== 'undefined') {
-                window.removeEventListener('tn-webserial-reading', handleWebSerialEvent);
-            }
         };
     }, [controller.id, controller.polling_interval, initialReading]);
 

@@ -143,6 +143,65 @@ class EspMonitorController extends Controller
     }
 
     /**
+     * Server-Sent Events (SSE): Push real-time telemetry updates to browser sub-second.
+     */
+    public function stream(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $machineCode = $request->query('machine_code', 'RT-001');
+        $since = (int) $request->query('since', 0);
+
+        return response()->stream(function () use ($machineCode, $since) {
+            while (ob_get_level() > 0) {
+                ob_end_flush();
+            }
+
+            $lastSeq = $since;
+            $deadline = time() + 30; // 30-second cycle for SSE keepalive
+
+            $sendPayload = function () use ($machineCode) {
+                $latest = Cache::get("esp_latest_telemetry_{$machineCode}");
+                $lastSeen = Cache::get("device.{$machineCode}.last_seen");
+                $isOnline = $lastSeen && (now()->timestamp - $lastSeen < 30);
+                $history = Cache::get("esp_telemetry_history_{$machineCode}", []);
+                $seq = (int) Cache::get("esp_telemetry_seq_{$machineCode}", 0);
+
+                $payload = [
+                    'telemetry' => $latest,
+                    'is_online' => (bool) $isOnline,
+                    'history' => $history,
+                    'seq' => $seq,
+                ];
+
+                echo 'data: ' . json_encode($payload, JSON_UNESCAPED_UNICODE) . "\n\n";
+                flush();
+            };
+
+            // Send initial snapshot immediately so client gets current values
+            $sendPayload();
+            $lastSeq = (int) Cache::get("esp_telemetry_seq_{$machineCode}", 0);
+
+            while (! connection_aborted() && time() < $deadline) {
+                $currentSeq = (int) Cache::get("esp_telemetry_seq_{$machineCode}", 0);
+
+                if ($currentSeq > $lastSeq) {
+                    $sendPayload();
+                    $lastSeq = $currentSeq;
+                }
+
+                usleep(50000); // 50ms interval check
+            }
+
+            echo ": heartbeat\n\n";
+            flush();
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
      * Fallback API endpoint for polling or quick status check.
      */
     public function liveData(Request $request)
@@ -152,11 +211,13 @@ class EspMonitorController extends Controller
         $lastSeen = Cache::get("device.{$machineCode}.last_seen");
         $isOnline = $lastSeen && (now()->timestamp - $lastSeen < 30);
         $history = Cache::get("esp_telemetry_history_{$machineCode}", []);
+        $seq = (int) Cache::get("esp_telemetry_seq_{$machineCode}", 0);
 
         return response()->json([
             'telemetry' => $latest,
             'is_online' => (bool)$isOnline,
             'history' => $history,
+            'seq' => $seq,
         ]);
     }
 }

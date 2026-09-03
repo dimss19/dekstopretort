@@ -59,80 +59,127 @@ export default function EspMonitor({
     const [selectedBatch, setSelectedBatch] = useState<any>(null);
     const [activeMenu, setActiveMenu] = useState<number | null>(null);
 
-    // Realtime WebSocket Listener via Laravel Echo
-    useEffect(() => {
-        if (!window.Echo) return;
+    const lastSeqRef = useRef<number>(0);
 
-        const channel = window.Echo.private(`retort.${device.machine_code}`);
-        channel.listen('SensorDataReceived', (e: any) => {
-            const data = e?.data || e;
-            if (data) {
-                lastUpdateRef.current = Date.now();
-                setIsOnline(true);
-                setTelemetry(data);
+    const applyTelemetryPayload = (data: any) => {
+        if (!data) return;
+        lastUpdateRef.current = Date.now();
+        setIsOnline(true);
+        setTelemetry(data);
 
-                // Add to history for chart & logs
-                const historyEntry = {
-                    pv: data.pv ?? data.actual ?? 0,
-                    sv: data.sv ?? data.setting ?? 121.1,
-                    heating_mv: data.mv ?? 0,
-                    phase: data.phase ?? 'IDLE',
-                    created_at: data.ts ?? data.recorded_at ?? new Date().toISOString(),
-                };
-                setHistory(prev => [...prev.slice(-120), historyEntry]);
-
-                // Accumulate F0 lethality if temperature >= 100 C
-                const temp = Number(data.pv ?? data.actual ?? 0);
-                if (temp >= 100.0) {
-                    const lethality = calculateLethality(temp);
-                    setF0(prev => prev + (lethality / 60));
-                }
-            }
-        });
-
-        return () => {
-            window.Echo.leave(`retort.${device.machine_code}`);
+        // Add to history for chart & logs
+        const historyEntry = {
+            pv: data.pv ?? data.actual ?? 0,
+            sv: data.sv ?? data.setting ?? 121.1,
+            heating_mv: data.mv ?? 0,
+            phase: data.phase ?? 'IDLE',
+            created_at: data.ts ?? data.recorded_at ?? new Date().toISOString(),
         };
-    }, [device.machine_code]);
+        setHistory(prev => [...prev.slice(-120), historyEntry]);
 
-    // Fallback heartbeat checker and polling sync
+        // Accumulate F0 lethality if temperature >= 100 C
+        const temp = Number(data.pv ?? data.actual ?? 0);
+        if (temp >= 100.0) {
+            const lethality = calculateLethality(temp);
+            setF0(prev => prev + (lethality / 60));
+        }
+    };
+
+    // Primary: Real-time Server-Sent Events (SSE) Stream from Laravel
     useEffect(() => {
-        const interval = setInterval(async () => {
+        let active = true;
+        let es: EventSource | null = null;
+
+        const connectSSE = () => {
+            if (!active) return;
+            try {
+                es = new EventSource(route('esp.stream', { machine_code: device.machine_code, since: lastSeqRef.current }));
+
+                es.onmessage = (event) => {
+                    try {
+                        const payload = JSON.parse(event.data);
+                        if (payload.seq != null) {
+                            lastSeqRef.current = payload.seq;
+                        }
+                        if (payload.telemetry) {
+                            applyTelemetryPayload(payload.telemetry);
+                        }
+                        if (typeof payload.is_online === 'boolean') {
+                            setIsOnline(payload.is_online);
+                            if (payload.is_online) lastUpdateRef.current = Date.now();
+                        }
+                        if (Array.isArray(payload.history) && payload.history.length > 0) {
+                            const formatted = payload.history.map((h: any) => ({
+                                pv: h.pv ?? h.actual ?? 0,
+                                sv: h.sv ?? h.setting ?? 121.1,
+                                heating_mv: h.mv ?? 0,
+                                phase: h.phase ?? 'IDLE',
+                                created_at: h.ts ?? h.recorded_at ?? new Date().toISOString(),
+                            }));
+                            setHistory(formatted);
+                        }
+                    } catch (err) {
+                        // Ignore parse errors
+                    }
+                };
+
+                es.onerror = () => {
+                    es?.close();
+                    if (active) {
+                        setTimeout(connectSSE, 2000);
+                    }
+                };
+            } catch (err) {
+                // Fallback will handle polling
+            }
+        };
+
+        connectSSE();
+
+        // Also listen to Laravel Echo if configured
+        let channel: any = null;
+        if (window.Echo) {
+            channel = window.Echo.private(`retort.${device.machine_code}`);
+            channel.listen('SensorDataReceived', (e: any) => {
+                const data = e?.data || e;
+                if (data) applyTelemetryPayload(data);
+            });
+        }
+
+        // Fast fallback polling (every 2s) if SSE is offline
+        const pollInterval = setInterval(async () => {
             if (Date.now() - lastUpdateRef.current > 30000) {
                 setIsOnline(false);
             }
 
-            try {
-                const res = await fetch(route('esp.live', { machine_code: device.machine_code }), {
-                    headers: { Accept: 'application/json' },
-                });
-                if (res.ok) {
-                    const json = await res.json();
-                    if (json.telemetry) {
-                        setTelemetry(json.telemetry);
+            if (!es || es.readyState === EventSource.CLOSED) {
+                try {
+                    const res = await fetch(route('esp.live', { machine_code: device.machine_code }), {
+                        headers: { Accept: 'application/json' },
+                    });
+                    if (res.ok) {
+                        const json = await res.json();
+                        if (json.seq != null) lastSeqRef.current = json.seq;
+                        if (json.telemetry) applyTelemetryPayload(json.telemetry);
+                        if (typeof json.is_online === 'boolean') {
+                            setIsOnline(json.is_online);
+                            if (json.is_online) lastUpdateRef.current = Date.now();
+                        }
                     }
-                    if (typeof json.is_online === 'boolean') {
-                        setIsOnline(json.is_online);
-                        if (json.is_online) lastUpdateRef.current = Date.now();
-                    }
-                    if (Array.isArray(json.history) && json.history.length > 0) {
-                        const formatted = json.history.map((h: any) => ({
-                            pv: h.pv ?? h.actual ?? 0,
-                            sv: h.sv ?? h.setting ?? 121.1,
-                            heating_mv: h.mv ?? 0,
-                            phase: h.phase ?? 'IDLE',
-                            created_at: h.ts ?? h.recorded_at ?? new Date().toISOString(),
-                        }));
-                        setHistory(formatted);
-                    }
+                } catch {
+                    // Ignore silent poll error
                 }
-            } catch (err) {
-                // Ignore silent poll error
             }
-        }, 5000);
+        }, 2000);
 
-        return () => clearInterval(interval);
+        return () => {
+            active = false;
+            es?.close();
+            if (channel) window.Echo?.leave(`retort.${device.machine_code}`);
+            clearInterval(pollInterval);
+        };
     }, [device.machine_code]);
+
 
     // Map ESP telemetry to standard RetortTelemetry object for TnFaceplateDisplay
     const mappedTelemetry: RetortTelemetry = useMemo(() => {
@@ -347,7 +394,7 @@ export default function EspMonitor({
                             href={route('dashboard')}
                             className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
                         >
-                            ← Dashboard
+                            Dashboard
                         </Link>
                     </div>
                 </div>
@@ -587,17 +634,36 @@ export default function EspMonitor({
                                                                 <div className="absolute right-0 mt-1 w-44 rounded-2xl bg-white p-1.5 shadow-xl border border-slate-200 z-50 animate-in fade-in">
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => { setSelectedBatch(h); setActiveMenu(null); }}
-                                                                        className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left"
+                                                                        disabled={!h.end_time}
+                                                                        onClick={() => {
+                                                                            if (!h.end_time) return;
+                                                                            setSelectedBatch(h);
+                                                                            setActiveMenu(null);
+                                                                        }}
+                                                                        className={`w-full flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-colors text-left ${
+                                                                            !h.end_time
+                                                                                ? 'text-slate-400 bg-slate-50 cursor-not-allowed'
+                                                                                : 'text-slate-700 hover:bg-slate-100'
+                                                                        }`}
                                                                     >
-                                                                        <Eye size={14} className="text-blue-600" /> Lihat Detail Log
+                                                                        <Eye size={14} className={!h.end_time ? 'text-slate-400' : 'text-blue-600'} />
+                                                                        {!h.end_time ? 'Terkunci (Proses Berjalan)' : 'Lihat Detail Log'}
                                                                     </button>
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => { handleDownload(h, 'csv'); setActiveMenu(null); }}
-                                                                        className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left"
+                                                                        disabled={!h.end_time}
+                                                                        onClick={() => {
+                                                                            if (!h.end_time) return;
+                                                                            handleDownload(h, 'csv');
+                                                                            setActiveMenu(null);
+                                                                        }}
+                                                                        className={`w-full flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-colors text-left ${
+                                                                            !h.end_time
+                                                                                ? 'text-slate-400 bg-slate-50 cursor-not-allowed'
+                                                                                : 'text-slate-700 hover:bg-slate-100'
+                                                                        }`}
                                                                     >
-                                                                        <Download size={14} className="text-emerald-600" /> Export CSV
+                                                                        <Download size={14} className={!h.end_time ? 'text-slate-400' : 'text-emerald-600'} /> Export CSV
                                                                     </button>
                                                                     <button
                                                                         type="button"

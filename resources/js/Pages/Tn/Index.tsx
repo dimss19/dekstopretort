@@ -50,9 +50,8 @@ export default function Index() {
                                 <h2 className="mt-5 text-5xl font-black tracking-tight text-slate-900 group-hover:text-blue-700 transition-colors">{controller.model}</h2>
                                 <p className="mt-4 text-sm leading-relaxed text-slate-600">{controller.description}</p>
                             </div>
-                            <div className="mt-8 inline-flex items-center justify-between rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-4 py-3 text-sm font-extrabold text-slate-950 shadow-md group-hover:from-yellow-300 group-hover:to-amber-400 transition-all">
+                            <div className="mt-8 inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-4 py-3 text-sm font-extrabold text-slate-950 shadow-md group-hover:from-yellow-300 group-hover:to-amber-400 transition-all">
                                 <span>Buka Monitoring {controller.model}</span>
-                                <span className="transition-transform group-hover:translate-x-1 font-black">→</span>
                             </div>
                         </Link>
                     ))}

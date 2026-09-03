@@ -90,4 +90,89 @@ class TnRecipeFeatureTest extends TestCase
         $this->assertEquals(1, $steps[1]->event_link);
         $this->assertEquals(121, $steps[1]->target_sv);
     }
+
+    public function test_can_save_recipe_to_database_only_without_syncing(): void
+    {
+        $user = User::factory()->create();
+
+        $payload = [
+            'recipe_code' => 'DB-ONLY-01',
+            'name' => 'Database Only Recipe',
+            'product_name' => 'Test Product',
+            'revision' => 1,
+            'version' => '1.0',
+            'status' => 'Draft',
+            'time_unit' => 'MM.SS',
+            'start_condition' => 'SSV',
+            'pattern_end_state' => 'STOP',
+            'pattern_number' => 0,
+            'repetitions' => 0,
+            'pid_group' => 0,
+            'wait_width' => 2,
+            'wait_time' => 0,
+            'process_parameters' => ['type' => 'retort'],
+            'sync_to_tn' => false,
+            'steps' => [
+                [
+                    'step_number' => 1,
+                    'step_name' => 'Step 1',
+                    'target_sv' => 100,
+                    'duration' => 60,
+                    'end_action' => 'STOP',
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($user)->post(route('tn.recipes.store'), $payload);
+        $response->assertRedirect(route('tn.recipes.index'));
+        $response->assertSessionHas('success', 'Pattern berhasil disimpan ke database saja.');
+
+        $this->assertDatabaseHas('tn_recipe_templates', [
+            'recipe_code' => 'DB-ONLY-01',
+        ]);
+    }
+
+    public function test_can_apply_recipe_directly_to_tn_via_apply_endpoint(): void
+    {
+        $user = User::factory()->create();
+
+        \App\Models\TnController::create([
+            'name' => 'Autonics TNL',
+            'slave_id' => 1,
+            'model_type' => 'TNL',
+            'control_model' => 'program',
+            'is_online' => true,
+        ]);
+
+        $recipe = TnRecipeTemplate::create([
+            'recipe_code' => 'APPLY-TN-01',
+            'name' => 'Apply Direct Pattern',
+            'product_name' => 'Product 1',
+            'revision' => 1,
+            'version' => '1.0',
+            'status' => 'Draft',
+            'time_unit' => 'MM.SS',
+            'start_condition' => 'SSV',
+            'pattern_end_state' => 'STOP',
+            'pattern_number' => 0,
+            'repetitions' => 0,
+            'pid_group' => 0,
+            'wait_width' => 2,
+            'wait_time' => 0,
+            'step_count' => 1,
+            'process_parameters' => ['type' => 'retort'],
+            'created_by' => $user->id,
+        ]);
+        $recipe->steps()->create([
+            'step_number' => 1,
+            'step_name' => 'Sterilizing',
+            'target_sv' => 121,
+            'duration' => 900,
+            'end_action' => 'HOLD',
+        ]);
+
+        $response = $this->actingAs($user)->post(route('tn.recipes.apply', $recipe->id));
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+    }
 }

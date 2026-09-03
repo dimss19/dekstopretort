@@ -1,5 +1,9 @@
 #pragma once
+#include <stdint.h>
+#include <stdbool.h>
+#if __has_include(<Arduino.h>)
 #include <Arduino.h>
+#endif
 
 // ============================================================
 //  RetortTypes.h - Common structures and types
@@ -54,3 +58,6 @@ struct PatternStep {
   uint32_t duration;
   uint8_t  endAction; // 0=CONT, 1=HOLD, 2=STOP
 };
+
+bool tnlWritePattern(uint8_t patnNum, const PatternStep* steps, uint8_t stepCount, uint8_t timeUnit, uint8_t endState);
+

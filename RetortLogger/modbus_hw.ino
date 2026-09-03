@@ -43,12 +43,16 @@ extern RetortState state;
 static bool gDi1On = false;
 bool tnlDiIsActive() { return gDi1On; }
 
+static SemaphoreHandle_t gMbMutex = NULL;
 static uint16_t lastDp = 1;
 static uint8_t  gTimeUnit = 0;
 static uint8_t  gTuReloadSec = 0;
 static uint8_t  gDebugSec = 0;
 
 static bool mbRead(uint8_t fc, uint16_t addr, uint8_t count, uint16_t* out);
+static bool mbWriteSingle(uint16_t addr, uint16_t value);
+static bool mbWriteMultiple(uint16_t addr, uint8_t count, const uint16_t* values);
+
 
 static void tnlFormatTimeRaw(uint16_t raw, uint8_t timeUnit, char* out, size_t outLen) {
   uint16_t hi = raw / 100;
@@ -198,6 +202,163 @@ static float dpDivisor(uint16_t dp) {
   return div;
 }
 
+static bool mbWriteSingle(uint16_t addr, uint16_t value) {
+  mbInterFrameGap();
+
+  uint8_t req[8];
+  req[0] = TNL_SLAVE_ID;
+  req[1] = 0x06;
+  req[2] = (addr >> 8) & 0xFF;
+  req[3] = addr & 0xFF;
+  req[4] = (value >> 8) & 0xFF;
+  req[5] = value & 0xFF;
+  uint16_t c = mbCrc(req, 6);
+  req[6] = c & 0xFF;
+  req[7] = (c >> 8) & 0xFF;
+
+  while (Serial1.available()) Serial1.read();
+  mbTx();
+  Serial1.write(req, 8);
+  Serial1.flush();
+  mbRx();
+
+  uint8_t resp[8];
+  uint8_t got = 0;
+  uint32_t start = millis();
+  while (millis() - start < MB_TIMEOUT_MS) {
+    while (Serial1.available() && got < sizeof(resp)) resp[got++] = Serial1.read();
+    if (got >= 8) break;
+  }
+  if (got < 8) return false;
+  if (resp[0] != TNL_SLAVE_ID) return false;
+  if (resp[1] != 0x06) return false;
+  uint16_t calc  = mbCrc(resp, 6);
+  uint16_t rxcrc = resp[6] | (resp[7] << 8);
+  return (calc == rxcrc);
+}
+
+static bool mbWriteMultiple(uint16_t addr, uint8_t count, const uint16_t* values) {
+  if (count == 0 || count > 50) return false;
+  mbInterFrameGap();
+
+  uint8_t byteCount = count * 2;
+  uint8_t req[128];
+  req[0] = TNL_SLAVE_ID;
+  req[1] = 0x10; // FC16
+  req[2] = (addr >> 8) & 0xFF;
+  req[3] = addr & 0xFF;
+  req[4] = 0x00;
+  req[5] = count;
+  req[6] = byteCount;
+  for (uint8_t i = 0; i < count; i++) {
+    req[7 + i * 2]     = (values[i] >> 8) & 0xFF;
+    req[7 + i * 2 + 1] = values[i] & 0xFF;
+  }
+  uint8_t totalReqLen = 7 + byteCount;
+  uint16_t c = mbCrc(req, totalReqLen);
+  req[totalReqLen]     = c & 0xFF;
+  req[totalReqLen + 1] = (c >> 8) & 0xFF;
+
+  while (Serial1.available()) Serial1.read();
+  mbTx();
+  Serial1.write(req, totalReqLen + 2);
+  Serial1.flush();
+  mbRx();
+
+  uint8_t resp[8];
+  uint8_t got = 0;
+  uint32_t start = millis();
+  while (millis() - start < MB_TIMEOUT_MS) {
+    while (Serial1.available() && got < sizeof(resp)) resp[got++] = Serial1.read();
+    if (got >= 8) break;
+  }
+  if (got < 8) return false;
+  if (resp[0] != TNL_SLAVE_ID) return false;
+  if (resp[1] != 0x10) return false;
+  uint16_t calc  = mbCrc(resp, 6);
+  uint16_t rxcrc = resp[6] | (resp[7] << 8);
+  return (calc == rxcrc);
+}
+
+bool tnlWritePattern(uint8_t patnNum, const PatternStep* steps, uint8_t stepCount, uint8_t timeUnit, uint8_t endState) {
+  if (stepCount > 20) stepCount = 20;
+  if (patnNum > 9) patnNum = 0;
+
+  Serial.printf("[MODBUS] Writing Pattern %u (%u steps) to TNL Controller...\n", (unsigned)patnNum, (unsigned)stepCount);
+
+  if (gMbMutex && xSemaphoreTake(gMbMutex, pdMS_TO_TICKS(1500)) != pdTRUE) {
+    Serial.println(F("[MODBUS] ERR: Failed to acquire bus mutex for pattern write"));
+    return false;
+  }
+
+  bool ok = true;
+
+  // 1. Ensure controller is in PROG mode (Register 400007 / 0x0006 = 1)
+  mbWriteSingle(0x0006, 1);
+  delay(20);
+
+  // 2. Select Pattern Number in register 400205 (0x00CC / offset 204)
+  if (!mbWriteSingle(0x00CC, patnNum)) {
+    Serial.printf("[MODBUS] ERR: failed to set pattern number %u\n", (unsigned)patnNum);
+    ok = false;
+  }
+  delay(30);
+
+  // 3. Write Pattern Base Configuration (400201..400209 / 0x00C8..0x00D0, 9 registers)
+  uint16_t baseCfg[9];
+  baseCfg[0] = (timeUnit & 1); // 400201: 0=MM.SS, 1=HH.MM
+  baseCfg[1] = 0;             // 400202: 0=SSV
+  baseCfg[2] = 20;            // 400203: Wait width 2.0C
+  baseCfg[3] = 0;             // 400204: Wait time
+  baseCfg[4] = patnNum;       // 400205: Pattern number
+  baseCfg[5] = 0;             // 400206: Repetitions
+  baseCfg[6] = (endState <= 3) ? endState : 0; // 400207: End State
+  baseCfg[7] = 0;             // 400208: PID group
+  baseCfg[8] = stepCount;     // 400209: Step count
+
+  if (!mbWriteMultiple(0x00C8, 9, baseCfg)) {
+    Serial.println(F("[MODBUS] ERR: failed to write pattern base config"));
+    ok = false;
+  }
+  delay(30);
+
+  // 4. Write Step Registers (400210..400249 / 0x00D1..0x00F8, 40 registers)
+  uint16_t stepRegs[40];
+  memset(stepRegs, 0, sizeof(stepRegs));
+
+  float div = dpDivisor(lastDp);
+  for (uint8_t i = 0; i < stepCount; i++) {
+    float sv = steps[i].targetSv;
+    uint16_t svRaw = (uint16_t)round(sv * div);
+    uint16_t timRaw = (uint16_t)steps[i].duration;
+
+    stepRegs[i * 2]     = svRaw;
+    stepRegs[i * 2 + 1] = timRaw;
+  }
+
+  // Attempt writing 40 registers, or fallback to 2 chunks of 20
+  if (!mbWriteMultiple(0x00D1, 40, stepRegs)) {
+    Serial.println(F("[MODBUS] Retrying steps in 2 chunks of 20..."));
+    delay(30);
+    bool c1 = mbWriteMultiple(0x00D1, 20, &stepRegs[0]);
+    delay(30);
+    bool c2 = mbWriteMultiple(0x00D1 + 20, 20, &stepRegs[20]);
+    if (!c1 || !c2) {
+      Serial.println(F("[MODBUS] ERR: failed to write pattern steps"));
+      ok = false;
+    }
+  }
+
+  if (gMbMutex) xSemaphoreGive(gMbMutex);
+
+  if (ok) {
+    Serial.printf("[MODBUS] SUCCESS: Pattern %u with %u steps applied to TNL controller!\n",
+                  (unsigned)patnNum, (unsigned)stepCount);
+  }
+  return ok;
+}
+
+
 #define PHASE_BAND_C   5.0f
 #define PHASE_TREND_C  0.2f
 #define PHASE_IDLE_C   40.0f
@@ -260,6 +421,9 @@ void setupModbus() {
   pinMode(PIN_RS485_DE, OUTPUT);
   digitalWrite(PIN_RS485_DE, LOW);
 #endif
+  if (!gMbMutex) {
+    gMbMutex = xSemaphoreCreateMutex();
+  }
   Serial1.begin(MB_BAUD, MB_FORMAT, PIN_RS485_RX, PIN_RS485_TX);
   delay(50);
   tnlLoadTimeUnit();
@@ -270,6 +434,10 @@ void setupModbus() {
 }
 
 void loopModbus() {
+  if (gMbMutex && xSemaphoreTake(gMbMutex, pdMS_TO_TICKS(50)) != pdTRUE) {
+    return;
+  }
+
   uint16_t r[TNL_BLOCK_N];
 
   if (mbRead(0x04, TNL_REG_BLOCK, TNL_BLOCK_N, r)) {
@@ -321,6 +489,8 @@ void loopModbus() {
 
   updatePhaseFromData();
   updateAutoTrigger();
+
+  if (gMbMutex) xSemaphoreGive(gMbMutex);
 }
 
 #else
@@ -328,5 +498,6 @@ void loopModbus() {
 void setupModbus() {}
 void loopModbus() {}
 bool tnlDiIsActive() { return false; }
+bool tnlWritePattern(uint8_t patnNum, const PatternStep* steps, uint8_t stepCount, uint8_t timeUnit, uint8_t endState) { return true; }
 
 #endif

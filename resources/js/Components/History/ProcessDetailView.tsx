@@ -78,77 +78,595 @@ export default function ProcessDetailView({ batch, onBack }: Props) {
         return logs.slice(start, start + pageSize);
     }, [logs, tablePage, pageSize]);
 
+    // Helper to generate a high-resolution, crystal-clear thermal chart image for PDF export
+    const generateThermalChartDataUrl = (): string => {
+        // Check if on-screen canvas is available and ready
+        const screenCanvas = document.getElementById('retortThermalChartCanvas') as HTMLCanvasElement | null;
+        if (screenCanvas && screenCanvas.width > 0 && screenCanvas.height > 0) {
+            try {
+                return screenCanvas.toDataURL('image/png');
+            } catch (e) {
+                console.warn('Cannot export screen canvas, using generator', e);
+            }
+        }
+
+        const canvas = document.createElement('canvas');
+        const width = 1200;
+        const height = 440;
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return '';
+
+        // Solid clean white background (prevents dark artifacts on PDF print)
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+
+        const padding = { top: 45, right: 65, bottom: 55, left: 65 };
+        const plotW = width - padding.left - padding.right;
+        const plotH = height - padding.top - padding.bottom;
+
+        // Y scale: 0 to 140 °C (industrial autoclave range)
+        const minY = 0;
+        const maxY = 140;
+
+        const getY = (temp: number) => {
+            const clamped = Math.max(minY, Math.min(maxY, temp));
+            return padding.top + (1 - (clamped - minY) / (maxY - minY)) * plotH;
+        };
+
+        const count = Math.max(logs.length, 2);
+        const getX = (idx: number) => {
+            return padding.left + (idx / (count - 1)) * plotW;
+        };
+
+        // 1. Draw Grid Lines & Y-axis labels
+        ctx.lineWidth = 1;
+        for (let t = minY; t <= maxY; t += 20) {
+            const y = getY(t);
+            ctx.strokeStyle = t === 120 ? '#cbd5e1' : '#e2e8f0';
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(padding.left + plotW, y);
+            ctx.stroke();
+
+            // Left Y label (Temperature in °C)
+            ctx.fillStyle = '#1e3a5f';
+            ctx.font = 'bold 12px "Segoe UI", sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`${t}°C`, padding.left - 10, y);
+
+            // Right Y label (Heating Output in %)
+            const mvVal = Math.round((t / maxY) * 100);
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px "Segoe UI", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`${mvVal}%`, padding.left + plotW + 10, y);
+        }
+
+        // Minor grid lines (every 10 °C)
+        ctx.strokeStyle = '#f8fafc';
+        for (let t = minY + 10; t < maxY; t += 20) {
+            const y = getY(t);
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(padding.left + plotW, y);
+            ctx.stroke();
+        }
+
+        // 2. Parse temperatures
+        const pvPoints: number[] = [];
+        const mvPoints: number[] = [];
+        let maxPv = 0;
+        let maxPvIdx = 0;
+
+        logs.forEach((l, i) => {
+            const rawPv = Number(l.pv ?? l.actual ?? 0);
+            const dp = Number(l.decimal_point ?? 0);
+            let pv = dp > 0 ? rawPv / Math.pow(10, dp) : rawPv;
+            if (pv > 300) pv = pv / 10.0;
+            pvPoints.push(pv);
+            if (pv > maxPv) {
+                maxPv = pv;
+                maxPvIdx = i;
+            }
+
+            const mv = Number(l.heating_mv ?? l.mv ?? 0);
+            mvPoints.push(Math.max(0, Math.min(100, mv)));
+        });
+
+        // 3. Draw Target SV Line (Dashed Amber)
+        const svY = getY(targetSv);
+        ctx.save();
+        ctx.setLineDash([8, 6]);
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(padding.left, svY);
+        ctx.lineTo(padding.left + plotW, svY);
+        ctx.stroke();
+        ctx.restore();
+
+        // SV Label Tag
+        ctx.fillStyle = '#fef3c7';
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (typeof (ctx as any).roundRect === 'function') {
+            (ctx as any).roundRect(padding.left + plotW - 95, svY - 12, 90, 22, 4);
+        } else {
+            ctx.rect(padding.left + plotW - 95, svY - 12, 90, 22);
+        }
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#b45309';
+        ctx.font = 'bold 11px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`SV: ${targetSv.toFixed(1)}°C`, padding.left + plotW - 50, svY);
+
+        // 4. Draw MV Area / Line
+        if (mvPoints.some(v => v > 0)) {
+            ctx.save();
+            ctx.strokeStyle = '#f97316';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            mvPoints.forEach((mv, i) => {
+                const x = getX(i);
+                const y = padding.top + (1 - mv / 100) * plotH;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // 5. Draw Actual PV Area & Line
+        if (pvPoints.length > 0) {
+            const grad = ctx.createLinearGradient(0, padding.top, 0, padding.top + plotH);
+            grad.addColorStop(0, 'rgba(37, 99, 235, 0.22)');
+            grad.addColorStop(0.8, 'rgba(37, 99, 235, 0.04)');
+            grad.addColorStop(1, 'rgba(37, 99, 235, 0.0)');
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(getX(0), padding.top + plotH);
+            pvPoints.forEach((pv, i) => {
+                ctx.lineTo(getX(i), getY(pv));
+            });
+            ctx.lineTo(getX(pvPoints.length - 1), padding.top + plotH);
+            ctx.closePath();
+            ctx.fillStyle = grad;
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.strokeStyle = '#1d4ed8';
+            ctx.lineWidth = 3;
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            pvPoints.forEach((pv, i) => {
+                const x = getX(i);
+                const y = getY(pv);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            ctx.restore();
+
+            if (maxPv > 0) {
+                const peakX = getX(maxPvIdx);
+                const peakY = getY(maxPv);
+
+                ctx.beginPath();
+                ctx.arc(peakX, peakY, 5, 0, 2 * Math.PI);
+                ctx.fillStyle = '#dc2626';
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#1e293b';
+                ctx.beginPath();
+                if (typeof (ctx as any).roundRect === 'function') {
+                    (ctx as any).roundRect(peakX - 45, peakY - 26, 90, 20, 4);
+                } else {
+                    ctx.rect(peakX - 45, peakY - 26, 90, 20);
+                }
+                ctx.fill();
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 10px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`Peak: ${maxPv.toFixed(1)}°C`, peakX, peakY - 16);
+            }
+        }
+
+        // 6. X-Axis Time Labels
+        const stepInterval = Math.max(1, Math.floor(count / 6));
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+
+        for (let i = 0; i < count; i += stepInterval) {
+            const x = getX(i);
+            const l = logs[i];
+            const timeLabel = l?.created_at ? new Date(l.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : `+${i}s`;
+            ctx.fillText(timeLabel, x, padding.top + plotH + 8);
+        }
+        if (count > 1) {
+            const lastL = logs[count - 1];
+            const lastTime = lastL?.created_at ? new Date(lastL.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : `End`;
+            ctx.fillText(lastTime, padding.left + plotW, padding.top + plotH + 8);
+        }
+
+        // 7. Outer Border
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(padding.left, padding.top, plotW, plotH);
+
+        // 8. Legend Header
+        ctx.fillStyle = '#1e3a5f';
+        ctx.font = 'bold 13px "Segoe UI", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('PROFIL TERMAL STERILISASI', padding.left, 22);
+
+        let legendX = padding.left + 220;
+        // PV Legend
+        ctx.fillStyle = '#1d4ed8';
+        ctx.fillRect(legendX, 17, 14, 10);
+        ctx.fillStyle = '#334155';
+        ctx.font = 'bold 11px "Segoe UI", sans-serif';
+        ctx.fillText('Actual PV (°C)', legendX + 18, 22);
+
+        // SV Legend
+        legendX += 130;
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.setLineDash([5, 3]);
+        ctx.moveTo(legendX, 22);
+        ctx.lineTo(legendX + 16, 22);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#334155';
+        ctx.fillText('Target SV (°C)', legendX + 22, 22);
+
+        // MV Legend
+        legendX += 130;
+        ctx.strokeStyle = '#f97316';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(legendX, 22);
+        ctx.lineTo(legendX + 16, 22);
+        ctx.stroke();
+        ctx.fillStyle = '#334155';
+        ctx.fillText('Heating MV (%)', legendX + 22, 22);
+
+        return canvas.toDataURL('image/png');
+    };
+
+    // Calculate statistical metrics
+    const statsData = useMemo(() => {
+        let maxPv = 0;
+        let minPv = 9999;
+        let sumPv = 0;
+        let validPvCount = 0;
+
+        logs.forEach((l) => {
+            const rawPv = Number(l.pv ?? l.actual ?? 0);
+            const dp = Number(l.decimal_point ?? 0);
+            let pv = dp > 0 ? rawPv / Math.pow(10, dp) : rawPv;
+            if (pv > 300) pv = pv / 10.0;
+            if (pv > 0) {
+                if (pv > maxPv) maxPv = pv;
+                if (pv < minPv) minPv = pv;
+                sumPv += pv;
+                validPvCount++;
+            }
+        });
+
+        if (minPv === 9999) minPv = 0;
+        const avgPv = validPvCount > 0 ? sumPv / validPvCount : 0;
+        return { maxPv, minPv, avgPv };
+    }, [logs]);
+
     // Export Handlers
     const handleDownloadPDF = () => {
         const printWindow = window.open('', '_blank');
         if (!printWindow) return;
 
-        const headers = ['TIME', 'PV (°C)', 'SV (°C)', 'HEAT MV'];
-        const rows = logs.map((l) => {
+        const chartDataUrl = generateThermalChartDataUrl();
+
+        const rows = logs.map((l, idx) => {
             const rawPv = Number(l.pv ?? l.actual ?? 0);
             const dp = Number(l.decimal_point ?? 0);
-            const pv = dp > 0 ? rawPv / Math.pow(10, dp) : rawPv;
+            let pv = dp > 0 ? rawPv / Math.pow(10, dp) : rawPv;
+            if (pv > 300) pv = pv / 10.0;
 
             const rawSv = Number(l.sv ?? l.setting ?? 121.0);
-            const sv = dp > 0 ? rawSv / Math.pow(10, dp) : rawSv;
+            let sv = dp > 0 ? rawSv / Math.pow(10, dp) : rawSv;
+            if (sv > 300) sv = sv / 10.0;
 
             const mv = Number(l.heating_mv ?? l.mv ?? 0);
+            const phase = l.phase_name || l.phase || (pv >= (sv - 2) ? 'Sterilisasi (Holding)' : (pv > 40 ? 'Heating (Pemanasan)' : 'Idle / Cooling'));
+            const timeStr = l.created_at ? new Date(l.created_at).toLocaleTimeString('id-ID') : `--:${idx}`;
 
-            return [
-                l.created_at ? new Date(l.created_at).toLocaleTimeString('id-ID') : '--',
-                pv.toFixed(1),
-                sv.toFixed(1),
-                `${mv.toFixed(0)}%`,
-            ];
+            return {
+                no: idx + 1,
+                time: timeStr,
+                pv: pv.toFixed(1),
+                sv: sv.toFixed(1),
+                mv: `${mv.toFixed(0)}%`,
+                phase,
+            };
         });
 
         printWindow.document.write(`
-            <html>
+            <!DOCTYPE html>
+            <html lang="id">
             <head>
+                <meta charset="utf-8">
                 <title>Laporan Batch #${batch.id} - ${machineTitle}</title>
                 <style>
-                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 24px; color: #1e293b; }
-                    .header { border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px; }
-                    h2 { margin: 0 0 6px 0; color: #0f172a; }
-                    p { margin: 2px 0; font-size: 13px; color: #475569; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
-                    th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
-                    th { background-color: #0f172a; color: #ffffff; font-weight: bold; }
-                    tr:nth-child(even) { background-color: #f8fafc; }
-                    .pv-col { font-weight: bold; color: #1d4ed8; }
-                    .sv-col { font-weight: bold; color: #b45309; }
-                    .mv-col { font-weight: bold; color: #d97706; }
+                    @page { size: A4 portrait; margin: 10mm 12mm 12mm 12mm; }
+                    body {
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                        color: #1e293b;
+                        background: #ffffff;
+                        margin: 0;
+                        padding: 16px;
+                        font-size: 11px;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    .no-print {
+                        background: #f8fafc;
+                        border: 1px solid #cbd5e1;
+                        padding: 12px 16px;
+                        margin-bottom: 20px;
+                        border-radius: 10px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+                    .btn-print {
+                        background: #1e3a5f;
+                        color: #ffffff;
+                        border: none;
+                        padding: 8px 18px;
+                        font-weight: bold;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 12px;
+                    }
+                    .btn-close {
+                        background: #ffffff;
+                        color: #475569;
+                        border: 1px solid #cbd5e1;
+                        padding: 8px 14px;
+                        font-weight: bold;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 12px;
+                    }
+                    .header {
+                        border-bottom: 2px solid #1e3a5f;
+                        padding-bottom: 8px;
+                        margin-bottom: 14px;
+                    }
+                    .header h1 {
+                        margin: 0 0 4px 0;
+                        color: #1e3a5f;
+                        font-size: 20px;
+                        font-weight: 800;
+                    }
+                    .meta-bar {
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 12px;
+                        color: #475569;
+                        font-weight: 600;
+                    }
+                    /* Summary KPI Table (Surface Mine Production Style) */
+                    .summary-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 16px;
+                        font-size: 11px;
+                    }
+                    .summary-table td {
+                        border: 1px solid #cbd5e1;
+                        padding: 6px 10px;
+                    }
+                    .summary-table .lbl {
+                        background: #f1f5f9;
+                        color: #1e3a5f;
+                        font-weight: bold;
+                        width: 22%;
+                    }
+                    .summary-table .val {
+                        color: #0f172a;
+                    }
+                    .summary-table .num {
+                        text-align: right;
+                        font-family: monospace;
+                        font-weight: bold;
+                    }
+                    .badge {
+                        display: inline-block;
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        font-weight: bold;
+                        font-size: 10px;
+                    }
+                    .badge-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+                    .badge-warning { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+                    
+                    /* Chart Section */
+                    .chart-box {
+                        border: 1px solid #cbd5e1;
+                        border-radius: 8px;
+                        padding: 10px;
+                        margin-bottom: 18px;
+                        background: #ffffff;
+                        page-break-inside: avoid;
+                    }
+                    .chart-box h3 {
+                        margin: 0 0 8px 0;
+                        color: #1e3a5f;
+                        font-size: 13px;
+                        font-weight: bold;
+                    }
+                    .chart-box img {
+                        width: 100%;
+                        height: auto;
+                        display: block;
+                        border-radius: 4px;
+                    }
+
+                    /* Log Table */
+                    .table-title {
+                        color: #1e3a5f;
+                        font-size: 13px;
+                        font-weight: bold;
+                        margin: 0 0 8px 0;
+                    }
+                    table.data-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 11px;
+                    }
+                    table.data-table th, table.data-table td {
+                        border: 1px solid #cbd5e1;
+                        padding: 5px 8px;
+                    }
+                    table.data-table thead th {
+                        background: #1e3a5f;
+                        color: #ffffff;
+                        font-weight: bold;
+                        text-align: left;
+                    }
+                    table.data-table tr:nth-child(even) {
+                        background: #f8fafc;
+                    }
+                    table.data-table .num {
+                        text-align: right;
+                        font-family: monospace;
+                    }
+                    .pv-cell { font-weight: bold; color: #1d4ed8; }
+                    .sv-cell { font-weight: bold; color: #b45309; }
+                    .mv-cell { font-weight: bold; color: #ea580c; }
+                    
+                    @media print {
+                        .no-print { display: none !important; }
+                        body { padding: 0; }
+                    }
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <h2>Laporan Proses Sterilisasi Batch #${batch.id}</h2>
-                    <p><strong>Mesin / Controller:</strong> ${machineTitle}</p>
-                    <p><strong>Waktu Mulai:</strong> ${startTime.toLocaleString('id-ID')}</p>
-                    <p><strong>Waktu Selesai:</strong> ${endTime ? endTime.toLocaleString('id-ID') : 'Sedang Berjalan'}</p>
-                    <p><strong>Durasi:</strong> ${durationMinutes !== null ? `${durationMinutes} Menit` : '--'}</p>
+                <div class="no-print">
+                    <div>
+                        <strong>Laporan Sterilisasi Batch #${batch.id}</strong> — Siap untuk dicetak atau disimpan sebagai PDF.
+                    </div>
+                    <div>
+                        <button onclick="window.print()" class="btn-print">Cetak / Simpan PDF</button>
+                        <button onclick="window.close()" class="btn-close">Tutup</button>
+                    </div>
                 </div>
-                <table>
+
+                <div class="header">
+                    <h1>Laporan Proses Sterilisasi Batch #${batch.id}</h1>
+                    <div class="meta-bar">
+                        <span><strong>Mesin / Controller:</strong> ${machineTitle}</span>
+                        <span><strong>Waktu Cetak:</strong> ${new Date().toLocaleString('id-ID')}</span>
+                    </div>
+                </div>
+
+                <!-- Summary KPI Table (Surface Mine Production Layout) -->
+                <table class="summary-table">
+                    <tr>
+                        <td class="lbl">Waktu Mulai</td>
+                        <td class="val">${startTime.toLocaleString('id-ID')}</td>
+                        <td class="lbl">Target Suhu (SV)</td>
+                        <td class="num val-sv">${targetSv.toFixed(1)} °C</td>
+                    </tr>
+                    <tr>
+                        <td class="lbl">Waktu Selesai</td>
+                        <td class="val">${endTime ? endTime.toLocaleString('id-ID') : 'Sedang Berjalan'}</td>
+                        <td class="lbl">Suhu Maksimum (Max PV)</td>
+                        <td class="num">${statsData.maxPv.toFixed(1)} °C</td>
+                    </tr>
+                    <tr>
+                        <td class="lbl">Total Durasi</td>
+                        <td class="val"><b>${durationMinutes !== null ? `${durationMinutes} Menit` : '--'}</b></td>
+                        <td class="lbl">Suhu Rata-rata (PV)</td>
+                        <td class="num">${statsData.avgPv.toFixed(1)} °C</td>
+                    </tr>
+                    <tr>
+                        <td class="lbl">Status Batch</td>
+                        <td class="val">
+                            <span class="badge ${batch.end_time ? 'badge-success' : 'badge-warning'}">
+                                ${batch.end_time ? 'SELESAI' : 'SEDANG BERJALAN'}
+                            </span>
+                        </td>
+                        <td class="lbl">Total Data Points</td>
+                        <td class="num">${logs.length.toLocaleString('id-ID')} Titik</td>
+                    </tr>
+                </table>
+
+                <!-- Embedded Chart Curve -->
+                <div class="chart-box">
+                    <h3>Grafik Profil Termal Sterilisasi Retort (PV vs SV vs MV)</h3>
+                    <img id="chartImg" src="${chartDataUrl}" alt="Grafik Profil Termal" />
+                </div>
+
+                <!-- Detailed Data Log Table -->
+                <h3 class="table-title">Rincian Riwayat Data Log Sterilisasi</h3>
+                <table class="data-table">
                     <thead>
-                        <tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr>
+                        <tr>
+                            <th style="width: 40px; text-align: center;">No</th>
+                            <th>Waktu</th>
+                            <th class="num">Actual PV (°C)</th>
+                            <th class="num">Setting SV (°C)</th>
+                            <th class="num">Heating MV (%)</th>
+                            <th>Fase / Keterangan</th>
+                        </tr>
                     </thead>
                     <tbody>
                         ${rows
                             .map(
                                 (r) => `
                             <tr>
-                                <td>${r[0]}</td>
-                                <td class="pv-col">${r[1]}</td>
-                                <td class="sv-col">${r[2]}</td>
-                                <td class="mv-col">${r[3]}</td>
+                                <td style="text-align: center; color: #64748b;">${r.no}</td>
+                                <td>${r.time}</td>
+                                <td class="num pv-cell">${r.pv}</td>
+                                <td class="num sv-cell">${r.sv}</td>
+                                <td class="num mv-cell">${r.mv}</td>
+                                <td>${r.phase}</td>
                             </tr>
                         `
                             )
                             .join('')}
                     </tbody>
                 </table>
+
                 <script>
-                    window.onload = function() { window.print(); window.close(); }
+                    function doPrint() {
+                        setTimeout(function() {
+                            window.print();
+                        }, 350);
+                    }
+                    var img = document.getElementById('chartImg');
+                    if (img && !img.complete) {
+                        img.onload = doPrint;
+                    } else {
+                        doPrint();
+                    }
                 </script>
             </body>
             </html>
@@ -156,36 +674,183 @@ export default function ProcessDetailView({ batch, onBack }: Props) {
         printWindow.document.close();
     };
 
-    const handleDownloadCSV = () => {
+    // Excel (.xls) Export matching surface-mine-production
+    const handleDownloadExcel = () => {
         if (!logs.length) return;
-        const headers = ['TIME', 'PV (°C)', 'SV (°C)', 'HEAT MV'];
-        const rows = logs.map((l) => {
+
+        const chartDataUrl = generateThermalChartDataUrl();
+
+        const rows = logs.map((l, idx) => {
             const rawPv = Number(l.pv ?? l.actual ?? 0);
             const dp = Number(l.decimal_point ?? 0);
-            const pv = dp > 0 ? rawPv / Math.pow(10, dp) : rawPv;
+            let pv = dp > 0 ? rawPv / Math.pow(10, dp) : rawPv;
+            if (pv > 300) pv = pv / 10.0;
 
             const rawSv = Number(l.sv ?? l.setting ?? 121.0);
-            const sv = dp > 0 ? rawSv / Math.pow(10, dp) : rawSv;
+            let sv = dp > 0 ? rawSv / Math.pow(10, dp) : rawSv;
+            if (sv > 300) sv = sv / 10.0;
 
             const mv = Number(l.heating_mv ?? l.mv ?? 0);
+            const phase = l.phase_name || l.phase || (pv >= (sv - 2) ? 'Sterilisasi (Holding)' : (pv > 40 ? 'Heating' : 'Cooling'));
+            const timeStr = l.created_at ? new Date(l.created_at).toLocaleTimeString('id-ID') : `--:${idx}`;
 
-            return [
-                l.created_at ? new Date(l.created_at).toLocaleTimeString('id-ID') : '--',
-                pv.toFixed(1),
-                sv.toFixed(1),
-                `${mv.toFixed(0)}%`,
-            ];
-        });
+            return `<tr>
+                <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: center; mso-number-format:'0';">${idx + 1}</td>
+                <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: center; mso-number-format:'\\@';">${timeStr}</td>
+                <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; color: #1d4ed8; font-weight: bold; mso-number-format:'0\\.0';">${pv.toFixed(1)}</td>
+                <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; color: #b45309; font-weight: bold; mso-number-format:'0\\.0';">${sv.toFixed(1)}</td>
+                <td style="padding: 5px; border: 1px solid #cbd5e1; text-align: right; color: #ea580c; mso-number-format:'0%';">${mv.toFixed(0)}%</td>
+                <td style="padding: 5px; border: 1px solid #cbd5e1; mso-number-format:'\\@';">${phase}</td>
+            </tr>`;
+        }).join('');
 
-        const csvContent =
-            'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-        const encodedUri = encodeURI(csvContent);
+        const excelTemplate = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    body { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; }
+                    table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+                    th, td { border: 1px solid #cbd5e1; padding: 6px 8px; }
+                    .h { background: #1e3a5f; color: #ffffff; font-weight: bold; }
+                    .lbl { background: #f1f5f9; color: #1e3a5f; font-weight: bold; }
+                    .num { text-align: right; }
+                </style>
+            </head>
+            <body>
+                <h2 style="color: #1e3a5f; margin-bottom: 4px;">Laporan Proses Sterilisasi Batch #${batch.id}</h2>
+                <p style="color: #475569; margin-top: 0;">Mesin / Controller: ${machineTitle} | Waktu Ekspor: ${new Date().toLocaleString('id-ID')}</p>
+
+                <!-- KPI Summary Table -->
+                <table border="1">
+                    <tr>
+                        <td class="lbl">Waktu Mulai</td><td>${startTime.toLocaleString('id-ID')}</td>
+                        <td class="lbl">Target Suhu (SV)</td><td class="num" style="font-weight: bold; color: #b45309; mso-number-format:'0\\.0';">${targetSv.toFixed(1)} °C</td>
+                    </tr>
+                    <tr>
+                        <td class="lbl">Waktu Selesai</td><td>${endTime ? endTime.toLocaleString('id-ID') : 'Sedang Berjalan'}</td>
+                        <td class="lbl">Suhu Maksimum (Max PV)</td><td class="num" style="font-weight: bold; color: #dc2626; mso-number-format:'0\\.0';">${statsData.maxPv.toFixed(1)} °C</td>
+                    </tr>
+                    <tr>
+                        <td class="lbl">Total Durasi</td><td>${durationMinutes !== null ? `${durationMinutes} Menit` : '--'}</td>
+                        <td class="lbl">Suhu Rata-rata (PV)</td><td class="num" style="font-weight: bold; color: #1d4ed8; mso-number-format:'0\\.0';">${statsData.avgPv.toFixed(1)} °C</td>
+                    </tr>
+                    <tr>
+                        <td class="lbl">Status Batch</td><td>${batch.end_time ? 'SELESAI' : 'SEDANG BERJALAN'}</td>
+                        <td class="lbl">Total Data Points</td><td class="num" style="mso-number-format:'0';">${logs.length} Titik</td>
+                    </tr>
+                </table>
+
+                <!-- Embedded Thermal Chart Image in Excel -->
+                <br/>
+                <table border="1" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr class="h">
+                            <th colspan="6" style="text-align: left; padding: 8px 12px; font-size: 13px;">
+                                Grafik Profil Termal Sterilisasi Retort (PV vs SV vs MV)
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 15px; background: #ffffff;">
+                                <img src="${chartDataUrl}" width="850" height="310" alt="Grafik Profil Termal Sterilisasi Retort" />
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <br/>
+                <h3 style="color: #1e3a5f; margin-bottom: 6px;">Tabel Riwayat Data Log Sterilisasi (Per Detik)</h3>
+                <table border="1">
+                    <thead>
+                        <tr class="h">
+                            <th style="width: 40px;">No</th>
+                            <th>Waktu</th>
+                            <th class="num">Actual PV (°C)</th>
+                            <th class="num">Setting SV (°C)</th>
+                            <th class="num">Heating MV (%)</th>
+                            <th>Fase / Keterangan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        const blob = new Blob([excelTemplate], { type: 'application/vnd.ms-excel;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.setAttribute('href', encodedUri);
-        link.setAttribute('download', `batch_${batch.id}_${machineTitle.replace(/\s+/g, '_')}.csv`);
+        link.href = url;
+        link.download = `Laporan_Batch_${batch.id}_${machineTitle.replace(/\s+/g, '_')}.xls`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleDownloadCSV = () => {
+        if (!logs.length) return;
+
+        // Construct formatted CSV with Metadata, KPI summary, and Data rows
+        const metaSection = [
+            `LAPORAN PROSES STERILISASI RETORT`,
+            `Nomor Batch,#${batch.id}`,
+            `Mesin / Controller,"${machineTitle}"`,
+            `Waktu Mulai,"${startTime.toLocaleString('id-ID')}"`,
+            `Waktu Selesai,"${endTime ? endTime.toLocaleString('id-ID') : 'Sedang Berjalan'}"`,
+            `Total Durasi,"${durationMinutes !== null ? `${durationMinutes} Menit` : '--'}"`,
+            `Status,"${batch.end_time ? 'Selesai' : 'Sedang Berjalan'}"`,
+            ``,
+            `RINGKASAN PARAMETER STERILISASI`,
+            `Target Suhu (SV),${targetSv.toFixed(1)} °C`,
+            `Suhu Maksimum (Max PV),${statsData.maxPv.toFixed(1)} °C`,
+            `Suhu Minimum (Min PV),${statsData.minPv.toFixed(1)} °C`,
+            `Suhu Rata-rata (PV),${statsData.avgPv.toFixed(1)} °C`,
+            `Total Titik Data Log,${logs.length} Points`,
+            ``,
+            `DATA LOG DETAIL`,
+        ];
+
+        const headers = ['No', 'Waktu', 'Actual PV (°C)', 'Setting SV (°C)', 'Heating MV (%)', 'Fase Proses'];
+        const dataRows = logs.map((l, idx) => {
+            const rawPv = Number(l.pv ?? l.actual ?? 0);
+            const dp = Number(l.decimal_point ?? 0);
+            let pv = dp > 0 ? rawPv / Math.pow(10, dp) : rawPv;
+            if (pv > 300) pv = pv / 10.0;
+
+            const rawSv = Number(l.sv ?? l.setting ?? 121.0);
+            let sv = dp > 0 ? rawSv / Math.pow(10, dp) : rawSv;
+            if (sv > 300) sv = sv / 10.0;
+
+            const mv = Number(l.heating_mv ?? l.mv ?? 0);
+            const phase = l.phase_name || l.phase || (pv >= (sv - 2) ? 'Sterilisasi (Holding)' : (pv > 40 ? 'Heating' : 'Cooling'));
+            const timeStr = l.created_at ? new Date(l.created_at).toLocaleTimeString('id-ID') : `--:${idx}`;
+
+            return [
+                idx + 1,
+                `"${timeStr}"`,
+                pv.toFixed(1),
+                sv.toFixed(1),
+                `"${mv.toFixed(0)}%"`,
+                `"${phase}"`,
+            ].join(',');
+        });
+
+        // Add UTF-8 BOM so Excel displays Indonesian characters and accents cleanly
+        const csvContent = '\uFEFF' + [...metaSection, headers.join(','), ...dataRows].join('\r\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Laporan_Batch_${batch.id}_${machineTitle.replace(/\s+/g, '_')}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
     return (
@@ -212,13 +877,13 @@ export default function ProcessDetailView({ batch, onBack }: Props) {
                         className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black px-4 py-2.5 shadow-md transition-all"
                     >
                         <Download size={14} />
-                        <span>Download Log</span>
+                        <span>Download Laporan</span>
                         <ChevronDown size={14} className={`transition-transform duration-200 ${showDownloadMenu ? 'rotate-180' : ''}`} />
                     </button>
 
                     {showDownloadMenu && (
                         <div
-                            className="absolute right-0 mt-2 w-48 rounded-2xl bg-white p-1.5 shadow-2xl border border-slate-200 z-50 animate-in fade-in"
+                            className="absolute right-0 mt-2 w-52 rounded-2xl bg-white p-1.5 shadow-2xl border border-slate-200 z-50 animate-in fade-in"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <button
@@ -230,7 +895,24 @@ export default function ProcessDetailView({ batch, onBack }: Props) {
                                 className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left"
                             >
                                 <FileText size={15} className="text-blue-600" />
-                                <span>Download PDF</span>
+                                <div>
+                                    <div className="font-extrabold text-slate-900">Download PDF</div>
+                                    <div className="text-[10px] text-slate-500 font-medium">Lengkap dengan Grafik Suhu</div>
+                                </div>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    handleDownloadExcel();
+                                    setShowDownloadMenu(false);
+                                }}
+                                className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left"
+                            >
+                                <FileSpreadsheet size={15} className="text-emerald-600" />
+                                <div>
+                                    <div className="font-extrabold text-slate-900">Download Excel (.xls)</div>
+                                    <div className="text-[10px] text-slate-500 font-medium">Tabel Berformat & Ringkasan KPI</div>
+                                </div>
                             </button>
                             <button
                                 type="button"
@@ -240,8 +922,11 @@ export default function ProcessDetailView({ batch, onBack }: Props) {
                                 }}
                                 className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left"
                             >
-                                <FileSpreadsheet size={15} className="text-emerald-600" />
-                                <span>Download CSV</span>
+                                <Download size={15} className="text-amber-600" />
+                                <div>
+                                    <div className="font-extrabold text-slate-900">Download CSV (.csv)</div>
+                                    <div className="text-[10px] text-slate-500 font-medium">Data Mentah Terstruktur</div>
+                                </div>
                             </button>
                         </div>
                     )}

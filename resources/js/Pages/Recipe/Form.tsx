@@ -118,6 +118,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
     };
 
     const handleSubmitWithSync = (sync: boolean) => {
+        setData('sync_to_tn', sync);
         transform((form) => ({
             ...form,
             sync_to_tn: sync,
@@ -217,7 +218,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                         href={route('tn.recipes.index')}
                         className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
                     >
-                        ← Kembali ke Daftar Pattern
+                        Kembali ke Daftar Pattern
                     </Link>
                 </div>
             }

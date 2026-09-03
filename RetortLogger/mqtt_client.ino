@@ -84,11 +84,28 @@ static void mqttHandlePattern(const char* json) {
   }
 
   savePatternSteps(gPatternSteps, count);
-  Serial.printf("[MQTT] Pattern steps updated (%u steps) for machine %s\n", (unsigned)count, cfg.machineId);
+  Serial.printf("[MQTT] Pattern steps saved to NVS (%u steps) for machine %s\n", (unsigned)count, cfg.machineId);
 
-  // Publish ACK
-  char ackBuf[128];
-  snprintf(ackBuf, sizeof(ackBuf), "{\"id\":\"%s\",\"event\":\"pattern_sync_ok\",\"count\":%u}", cfg.machineId, (unsigned)count);
+  uint8_t patnNum = doc["pattern_number"] | 0;
+  const char* tuStr = doc["time_unit"] | "MM.SS";
+  uint8_t tuVal = (strcasecmp(tuStr, "HH.MM") == 0) ? 1 : 0;
+  uint8_t endState = 0;
+  if (count > 0) {
+    endState = gPatternSteps[count - 1].endAction;
+  }
+
+#if USE_MODBUS
+  bool mbOk = tnlWritePattern(patnNum, gPatternSteps, count, tuVal, endState);
+#else
+  bool mbOk = true;
+#endif
+
+  // Publish ACK to retort/system
+  char ackBuf[160];
+  snprintf(ackBuf, sizeof(ackBuf),
+           "{\"id\":\"%s\",\"event\":\"%s\",\"count\":%u,\"pattern\":%u}",
+           cfg.machineId, mbOk ? "pattern_sync_ok" : "pattern_sync_err",
+           (unsigned)count, (unsigned)patnNum);
   mqtt.publish("retort/system", ackBuf, false);
 }
 

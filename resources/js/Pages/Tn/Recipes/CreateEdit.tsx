@@ -174,7 +174,7 @@ export default function CreateEdit({ auth, recipe }: PageProps<{ recipe?: any }>
                         <p className="text-sm font-semibold text-slate-600">Tentukan profil temperatur multi-step untuk mesin retort</p>
                     </div>
                     <button type="button" onClick={() => window.history.back()} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
-                        ← Kembali
+                        Kembali
                     </button>
                 </div>
             }

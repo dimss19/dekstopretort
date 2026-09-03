@@ -73,6 +73,8 @@ export default function RetortThermalChart({ data = [], targetSv = 121.0, height
         ctx.scale(dpr, dpr);
 
         ctx.clearRect(0, 0, width, h);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, h);
 
         const padding = { top: 40, right: 30, bottom: 45, left: 55 };
         const plotWidth = width - padding.left - padding.right;
@@ -443,6 +445,7 @@ export default function RetortThermalChart({ data = [], targetSv = 121.0, height
             )}
 
             <canvas
+                id="retortThermalChartCanvas"
                 ref={canvasRef}
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}

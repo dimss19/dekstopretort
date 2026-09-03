@@ -3,7 +3,6 @@ import { Head, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { ScadaCanvas, ScadaMapping, SensorData } from '@/types';
 import { RetortEvent, RetortTelemetry, formatControllerTime } from '@/Pages/Tn/retortTelemetry';
-import PortSettings from './PortSettings';
 import TnNormalMonitor from './TnNormalMonitor';
 import ScadaCanvasView from '@/Components/ScadaCanvas';
 import RetortIndustrialHmi from './RetortIndustrialHmi';
@@ -53,15 +52,8 @@ export default function RetortMonitorShell(props: Props) {
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2.5">
-                    <PortSettings
-                        controllerId={controller.id}
-                        currentPort={controller.serial_port}
-                        isOnline={isOnline}
-                        lastError={controller.last_error}
-                        slaveId={controller.slave_id ?? 1}
-                    />
                     <Link href={route('dashboard')} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
-                        ← Dashboard
+                        Dashboard
                     </Link>
                 </div>
             </div>

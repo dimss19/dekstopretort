@@ -29,13 +29,20 @@ class MqttSubscribeCommand extends Command
     public function handle()
     {
         $this->info('Starting MQTT Listener...');
+        $csvStorageDir = storage_path('app/mqtt-csv');
+        if (!is_dir($csvStorageDir)) {
+            mkdir($csvStorageDir, 0755, true);
+        }
+
+        // Active CSV upload tracking [key => ['file_path' => ..., 'size' => ..., 'sha256' => ...]]
+        $activeUploads = [];
 
         while (true) {
             try {
                 $this->info('Connecting to MQTT broker...');
                 $mqtt = MQTT::connection();
 
-                // Topic: retort/data (sensor data)
+                // Topic: retort/data (sensor data realtime)
                 $mqtt->subscribe('retort/data', function (string $topic, string $message) {
                     $payload = json_decode($message, true);
                     if (!is_array($payload)) return;
@@ -71,6 +78,9 @@ class MqttSubscribeCommand extends Command
                     \Illuminate\Support\Facades\Cache::put("device.{$machineCode}.run", $normalized['run'], now()->addMinutes(5));
                     \Illuminate\Support\Facades\Cache::put("device.{$machineCode}.last_seen", now()->timestamp, now()->addMinutes(5));
                     \Illuminate\Support\Facades\Cache::put("esp_latest_telemetry_{$machineCode}", $normalized, now()->addMinutes(15));
+                    
+                    // Increment SSE sequence for realtime stream push
+                    \Illuminate\Support\Facades\Cache::increment("esp_telemetry_seq_{$machineCode}");
 
                     // Keep rolling buffer of last 120 telemetry points for live chart initialization
                     $historyKey = "esp_telemetry_history_{$machineCode}";
@@ -83,7 +93,7 @@ class MqttSubscribeCommand extends Command
                     \Illuminate\Support\Facades\Cache::put($historyKey, $history, now()->addHours(2));
                 });
 
-                // Topic: retort/system (Watchdog / Boot Events from ESP32)
+                // Topic: retort/system (Watchdog / Boot / Pattern Events from ESP32)
                 $mqtt->subscribe('retort/system', function (string $topic, string $message) {
                     $payload = json_decode($message, true);
                     if (!is_array($payload)) return;
@@ -91,6 +101,99 @@ class MqttSubscribeCommand extends Command
                     $machineCode = $payload['id'] ?? $payload['machine_code'] ?? 'RT-001';
                     $this->info("Received system event for {$machineCode}: " . $message);
                     \Illuminate\Support\Facades\Cache::put("esp_latest_system_event_{$machineCode}", $payload, now()->addHours(6));
+                });
+
+                // Topic: retort/csv/meta (ESP32 completed process CSV metadata)
+                $mqtt->subscribe('retort/csv/meta', function (string $topic, string $message) use (&$activeUploads, $csvStorageDir) {
+                    $payload = json_decode($message, true);
+                    if (!is_array($payload)) return;
+
+                    $machineCode = $payload['id'] ?? 'RT-001';
+                    $filename = basename($payload['file'] ?? 'process.csv');
+                    $transferId = $payload['transfer_id'] ?? uniqid();
+                    $size = (int)($payload['size'] ?? 0);
+                    $sha256 = strtolower(trim($payload['sha256'] ?? ''));
+
+                    $key = "{$machineCode}_{$transferId}_{$filename}";
+                    $partPath = "{$csvStorageDir}/{$key}.part";
+                    file_put_contents($partPath, '');
+
+                    $activeUploads[$key] = [
+                        'machine_code' => $machineCode,
+                        'file' => $filename,
+                        'transfer_id' => $transferId,
+                        'size' => $size,
+                        'sha256' => $sha256,
+                        'path' => $partPath,
+                    ];
+
+                    $this->info("[CSV META] {$machineCode}/{$filename} ({$size} bytes, id: {$transferId})");
+                });
+
+                // Topic: retort/csv/chunk (ESP32 completed process CSV chunks)
+                $mqtt->subscribe('retort/csv/chunk', function (string $topic, string $message) use (&$activeUploads) {
+                    $payload = json_decode($message, true);
+                    if (!is_array($payload)) return;
+
+                    $machineCode = $payload['id'] ?? 'RT-001';
+                    $filename = basename($payload['file'] ?? 'process.csv');
+                    $transferId = $payload['transfer_id'] ?? '';
+                    $key = "{$machineCode}_{$transferId}_{$filename}";
+
+                    if (!isset($activeUploads[$key])) return;
+
+                    $chunkData = base64_decode($payload['data'] ?? '', true);
+                    if ($chunkData !== false) {
+                        file_put_contents($activeUploads[$key]['path'], $chunkData, FILE_APPEND);
+                    }
+                });
+
+                // Topic: retort/csv/end (ESP32 finished sending chunks -> verify & import)
+                $mqtt->subscribe('retort/csv/end', function (string $topic, string $message) use (&$activeUploads, $mqtt) {
+                    $payload = json_decode($message, true);
+                    if (!is_array($payload)) return;
+
+                    $machineCode = $payload['id'] ?? 'RT-001';
+                    $filename = basename($payload['file'] ?? 'process.csv');
+                    $transferId = $payload['transfer_id'] ?? '';
+                    $key = "{$machineCode}_{$transferId}_{$filename}";
+
+                    if (!isset($activeUploads[$key])) {
+                        $this->warn("[CSV END] No active upload found for key {$key}");
+                        return;
+                    }
+
+                    $upload = $activeUploads[$key];
+                    unset($activeUploads[$key]);
+
+                    $partPath = $upload['path'];
+                    $expectedSha = $upload['sha256'];
+
+                    if (!file_exists($partPath)) {
+                        $this->error("[CSV ERR] Part file not found: {$partPath}");
+                        $this->sendCsvAck($mqtt, $machineCode, $filename, $transferId, 'error', 'File not found');
+                        return;
+                    }
+
+                    $actualSha = strtolower(hash_file('sha256', $partPath));
+                    if (!empty($expectedSha) && $actualSha !== $expectedSha) {
+                        $this->error("[CSV ERR] SHA256 mismatch: actual {$actualSha} vs expected {$expectedSha}");
+                        @unlink($partPath);
+                        $this->sendCsvAck($mqtt, $machineCode, $filename, $transferId, 'error', 'Checksum mismatch');
+                        return;
+                    }
+
+                    // Parse and import CSV rows into TnProcessHistory
+                    try {
+                        $count = $this->importCompletedCsv($machineCode, $filename, $partPath);
+                        $this->info("[CSV OK] Successfully imported {$count} rows for {$machineCode}/{$filename}");
+                        $this->sendCsvAck($mqtt, $machineCode, $filename, $transferId, 'imported', "Imported {$count} readings");
+                    } catch (\Throwable $e) {
+                        $this->error("[CSV ERR] Failed to import: " . $e->getMessage());
+                        $this->sendCsvAck($mqtt, $machineCode, $filename, $transferId, 'error', $e->getMessage());
+                    } finally {
+                        @unlink($partPath);
+                    }
                 });
 
                 // Topic: retort/{machine_code}/ota/status
@@ -134,7 +237,6 @@ class MqttSubscribeCommand extends Command
                     if (count($parts) >= 4) {
                         $machineCode = $parts[1];
                         $this->info("Received config ACK for $machineCode: $message");
-                        // In phase 3/4 this could update DB status if needed
                     }
                 });
 
@@ -146,5 +248,123 @@ class MqttSubscribeCommand extends Command
                 sleep(5);
             }
         }
+    }
+
+    /**
+     * Send ACK back to ESP32 on retort/csv/ack
+     */
+    protected function sendCsvAck($mqtt, string $machineCode, string $filename, string $transferId, string $status, string $message): void
+    {
+        $ack = [
+            'id' => $machineCode,
+            'file' => $filename,
+            'transfer_id' => $transferId,
+            'status' => $status,
+            'message' => substr($message, 0, 120),
+        ];
+        try {
+            $mqtt->publish('retort/csv/ack', json_encode($ack), 1);
+            $this->info("[CSV ACK] Sent ACK {$status} to {$machineCode}/{$filename}");
+        } catch (\Throwable $e) {
+            $this->error("[CSV ACK ERR] " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Parse CSV and store to TnProcessHistory
+     */
+    protected function importCompletedCsv(string $machineCode, string $filename, string $filePath): int
+    {
+        $handle = fopen($filePath, 'rb');
+        if (!$handle) {
+            throw new \RuntimeException("Cannot open file {$filePath}");
+        }
+
+        $headers = fgetcsv($handle);
+        if (!is_array($headers)) {
+            fclose($handle);
+            throw new \RuntimeException("CSV header not found");
+        }
+
+        $headers = array_map(fn($v) => trim((string)$v, " \t\n\r\0\x0B\xEF\xBB\xBF"), $headers);
+        $indexes = array_flip($headers);
+
+        $rows = [];
+        while (($values = fgetcsv($handle)) !== false) {
+            if ($values === [null] || $values === []) continue;
+
+            $actual = isset($indexes['Actual']) && is_numeric($values[$indexes['Actual']]) ? (float)$values[$indexes['Actual']] : 0.0;
+            $setting = isset($indexes['Setting']) && is_numeric($values[$indexes['Setting']]) ? (float)$values[$indexes['Setting']] : null;
+            $mv = isset($indexes['MV']) && is_numeric($values[$indexes['MV']]) ? (float)$values[$indexes['MV']] : 0.0;
+            $phase = isset($indexes['Phase']) ? trim((string)$values[$indexes['Phase']]) : 'IDLE';
+            $iso = isset($indexes['ISO']) ? trim((string)$values[$indexes['ISO']]) : null;
+            $tj = isset($indexes['Tanggal Jam']) ? trim((string)$values[$indexes['Tanggal Jam']]) : null;
+            $ts = $iso ?: $tj;
+
+            try {
+                $recordedAt = \Carbon\Carbon::parse((string)$ts, 'Asia/Jakarta')->timezone('Asia/Jakarta')->format('Y-m-d H:i:s');
+            } catch (\Throwable) {
+                $recordedAt = now()->timezone('Asia/Jakarta')->format('Y-m-d H:i:s');
+            }
+
+            $rows[] = [
+                'pv' => $actual,
+                'sv' => $setting,
+                'actual' => $actual,
+                'setting' => $setting,
+                'mv' => $mv,
+                'heating_mv' => $mv,
+                'phase' => $phase,
+                'process_status' => $phase,
+                'created_at' => $recordedAt,
+                'recorded_at' => $recordedAt,
+            ];
+        }
+        fclose($handle);
+
+        if (empty($rows)) {
+            throw new \RuntimeException("CSV does not contain valid sensor data");
+        }
+
+        usort($rows, fn($a, $b) => strcmp($a['recorded_at'], $b['recorded_at']));
+
+        $startTime = $rows[0]['recorded_at'];
+        $endTime = $rows[count($rows) - 1]['recorded_at'];
+
+        // Resolve or create TnController
+        $machine = \App\Models\Machine::where('machine_code', $machineCode)->first();
+        $controller = null;
+        if ($machine) {
+            $controller = \App\Models\TnController::where('machine_id', $machine->id)->first();
+        }
+        if (!$controller) {
+            $controller = \App\Models\TnController::first();
+        }
+        if (!$controller) {
+            $controller = \App\Models\TnController::create([
+                'name' => "Autonics TN ({$machineCode})",
+                'slave_id' => 1,
+                'model_type' => 'TNL',
+                'control_model' => 'program',
+                'is_online' => true,
+            ]);
+        }
+
+        // Avoid duplicate insertion if exact same process timestamps exist
+        $existing = \App\Models\TnProcessHistory::where('tn_controller_id', $controller->id)
+            ->where('start_time', $startTime)
+            ->where('end_time', $endTime)
+            ->first();
+
+        if (!$existing) {
+            \App\Models\TnProcessHistory::create([
+                'tn_controller_id' => $controller->id,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'log_data' => $rows,
+            ]);
+        }
+
+        return count($rows);
     }
 }

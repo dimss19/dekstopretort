@@ -28,7 +28,7 @@ export default function Welcome({
                                     href={route('dashboard')}
                                     className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-sm shadow-[0_0_15px_rgba(250,204,21,0.4)] hover:from-yellow-300 hover:to-amber-400 transition-all"
                                 >
-                                    Launch Dashboard →
+                                    Launch Dashboard
                                 </Link>
                             ) : (
                                 <>
@@ -73,7 +73,7 @@ export default function Welcome({
                                 href={auth.user ? route('dashboard') : route('login')}
                                 className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-base shadow-[0_4px_20px_rgba(245,158,11,0.4)] hover:from-yellow-300 hover:to-amber-400 transition-all hover:-translate-y-0.5"
                             >
-                                Launch Dashboard →
+                                Launch Dashboard
                             </Link>
                             <a
                                 href="#features"
