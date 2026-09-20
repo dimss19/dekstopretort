@@ -1,7 +1,7 @@
 // ============================================================
-//  sd_logger.ino  –  MicroSD CSV logging
+//  sd_logger.ino  –  MicroSD TXT logging (tab-separated)
 //  Pin: CS=10, MOSI=11, CLK=12, MISO=13
-// CSV: Tanggal Jam (WIB), Actual, Setting, ISO, Phase, MV, Run, Logging
+// TXT: Actual \t Setting \t MV \t Phase \t ISO
 // ============================================================
 
 #if USE_SD
@@ -27,14 +27,14 @@ extern const char* phaseName(RetortPhase p);
 static File logFile;
 static char logPath[48] = {0};
 
-// Ring buffer baris CSV — jaring bila SD sesaat sibuk (anti-drop saat logging).
+// Ring buffer baris log — jaring bila SD sesaat sibuk (anti-drop saat logging).
 static char gRing[CSV_RING_N][CSV_LINE_MAX];
 static uint16_t gRingHead = 0;
 static uint16_t gRingCount = 0;
 volatile uint16_t gRingDepth = 0;
 volatile uint32_t gCsvDropped = 0;
 
-// Path file log aktif. Setelah ditutup dibuat marker .ready untuk uploader CSV.
+// Path file log aktif. Setelah ditutup dibuat marker .ready untuk uploader file.
 const char* sdCurrentLogPath() { return logPath; }
 
 static void ringReset() {
@@ -44,16 +44,15 @@ static void ringReset() {
 }
 
 static void formatCsvLine(char* line, size_t len) {
-  snprintf(line, len, "%s,%.1f,%.1f,%s,%s,%.1f,%d,%d\n",
-           gLastClock, state.temperature, state.setpoint,
-           gLastIso, phaseName(state.phase), mvSimEffectivePercent(),
-           state.ctrlRun ? 1 : 0, state.logging ? 1 : 0);
+  snprintf(line, len, "%.1f\t%.1f\t%.1f\t%s\t%s\n",
+           state.temperature, state.setpoint, mvSimEffectivePercent(),
+           phaseName(state.phase), gLastIso);
 }
 
 static void ringPush(const char* line) {
   if (gRingCount >= CSV_RING_N) {
     gCsvDropped++;
-    Serial.println(F("[SD] Ring penuh — baris CSV dibuang (ganti kartu SD)"));
+    Serial.println(F("[SD] Ring penuh — baris log dibuang (ganti kartu SD)"));
     return;
   }
   uint16_t idx = (uint16_t)((gRingHead + gRingCount) % CSV_RING_N);
@@ -83,20 +82,19 @@ static void ensureDir() {
 }
 
 static void openNewLog() {
-  // Nama file sortable & tak ambigu: "YYYYMMDD_HHMMSS.csv" (24 jam).
+  // Nama file sortable & tak ambigu: "YYYYMMDD_HHMMSS.txt" (24 jam).
   // Aman dibaca RTC di sini karena openNewLog dipanggil dari loggerTask
   // (task yang sama yang memiliki akses I2C/RTC → tak ada race).
   char clean[20] = {0};
   getTimestampFile(clean, sizeof(clean));
   if (clean[0] == '\0') snprintf(clean, sizeof(clean), "%lu", millis());
-  snprintf(logPath, sizeof(logPath), "%s/%s.csv", SD_LOG_DIR, clean);
+  snprintf(logPath, sizeof(logPath), "%s/%s.txt", SD_LOG_DIR, clean);
   ensureDir();
   logFile = SD.open(logPath, FILE_APPEND);
   if (logFile) {
     if (logFile.size() == 0) {
-      // Kolom 1-3 (Tanggal Jam, Actual, Setting) dipertahankan agar kompatibel
-      // dengan pembaca lama; kolom tambahan dipakai store-and-forward MQTT.
-      logFile.println(F("Tanggal Jam,Actual,Setting,ISO,Phase,MV,Run,Logging"));
+      // Format TXT tab-separated: Actual, Setting, MV, Phase, ISO (hemat ~35% bandwidth)
+      logFile.println(F("Actual\tSetting\tMV\tPhase\tISO"));
     }
     Serial.printf("[SD] Log: %s\n", logPath);
   }

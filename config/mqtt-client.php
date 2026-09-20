@@ -53,7 +53,7 @@ return [
 
             // Whether logging shall be enabled. The default logger will be used
             // with the log level as configured.
-            'enable_logging' => env('MQTT_ENABLE_LOGGING', true),
+            'enable_logging' => env('MQTT_ENABLE_LOGGING', false),
 
             // Which logging channel to use for logs produced by the MQTT client.
             // If left empty, the default log channel or stack is being used.

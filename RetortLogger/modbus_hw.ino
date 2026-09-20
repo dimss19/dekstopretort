@@ -349,6 +349,17 @@ bool tnlWritePattern(uint8_t patnNum, const PatternStep* steps, uint8_t stepCoun
     }
   }
 
+  // 5. Verify pattern number was written correctly (read-back)
+  delay(30);
+  uint16_t verifyPn = 0;
+  if (mbRead(0x03, 0x00CC, 1, &verifyPn)) {
+    if (verifyPn != patnNum) {
+      Serial.printf("[MODBUS] WARN: Pattern verify mismatch (wrote=%u, read=%u)\n",
+                    (unsigned)patnNum, (unsigned)verifyPn);
+      ok = false;
+    }
+  }
+
   if (gMbMutex) xSemaphoreGive(gMbMutex);
 
   if (ok) {

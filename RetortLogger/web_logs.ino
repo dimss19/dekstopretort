@@ -42,7 +42,7 @@ static String findLatestCsv() {
         String fn = String(e.name());
         int sl = fn.lastIndexOf('/');
         if (sl >= 0) fn = fn.substring(sl + 1);
-        if (fn.endsWith(".csv") && (latest.length() == 0 || fn > latest))
+        if ((fn.endsWith(".txt") || fn.endsWith(".csv")) && (latest.length() == 0 || fn > latest))
           latest = fn;
       }
       e.close();

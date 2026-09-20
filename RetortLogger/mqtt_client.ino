@@ -51,7 +51,7 @@ static void mqttHandleAck(const char* json) {
 }
 
 static void mqttHandlePattern(const char* json) {
-  DynamicJsonDocument doc(2048);
+  DynamicJsonDocument doc(3072);
   if (deserializeJson(doc, json) != DeserializationError::Ok) return;
 
   const char* target = doc["machine_id"] | "";
@@ -67,6 +67,7 @@ static void mqttHandlePattern(const char* json) {
     const char* sName = s["step_name"] | "";
     if (sName[0] != '\0') {
       strncpy(gPatternSteps[count].name, sName, sizeof(gPatternSteps[count].name) - 1);
+      gPatternSteps[count].name[sizeof(gPatternSteps[count].name) - 1] = '\0';
     } else {
       snprintf(gPatternSteps[count].name, sizeof(gPatternSteps[count].name), "Step %u", (unsigned)(count + 1));
     }
@@ -84,13 +85,22 @@ static void mqttHandlePattern(const char* json) {
   }
 
   savePatternSteps(gPatternSteps, count);
+  gPatternStepCount = count;
   Serial.printf("[MQTT] Pattern steps saved to NVS (%u steps) for machine %s\n", (unsigned)count, cfg.machineId);
 
   uint8_t patnNum = doc["pattern_number"] | 0;
   const char* tuStr = doc["time_unit"] | "MM.SS";
   uint8_t tuVal = (strcasecmp(tuStr, "HH.MM") == 0) ? 1 : 0;
+
+  // Parse pattern_end_state from payload, fallback to last step's endAction
   uint8_t endState = 0;
-  if (count > 0) {
+  const char* endStr = doc["pattern_end_state"] | "";
+  if (endStr[0] != '\0') {
+    if (strcasecmp(endStr, "HOLD") == 0) endState = 1;
+    else if (strcasecmp(endStr, "NEXT") == 0) endState = 2;
+    else if (strcasecmp(endStr, "PRE") == 0)  endState = 3;
+    else endState = 0; // STOP
+  } else if (count > 0) {
     endState = gPatternSteps[count - 1].endAction;
   }
 
@@ -103,15 +113,15 @@ static void mqttHandlePattern(const char* json) {
   // Publish ACK to retort/system
   char ackBuf[160];
   snprintf(ackBuf, sizeof(ackBuf),
-           "{\"id\":\"%s\",\"event\":\"%s\",\"count\":%u,\"pattern\":%u}",
+           "{\"id\":\"%s\",\"event\":\"%s\",\"count\":%u,\"pattern\":%u,\"end_state\":%u}",
            cfg.machineId, mbOk ? "pattern_sync_ok" : "pattern_sync_err",
-           (unsigned)count, (unsigned)patnNum);
+           (unsigned)count, (unsigned)patnNum, (unsigned)endState);
   mqtt.publish("retort/system", ackBuf, false);
 }
 
 static void mqttCb(char* topic, byte* payload, unsigned int len) {
-  if (len == 0 || len > 1024) return;
-  char buf[1025];
+  if (len == 0 || len > 2048) return;
+  char buf[2049];
   memcpy(buf, payload, len);
   buf[len] = '\0';
 
@@ -202,7 +212,7 @@ void setupMQTT() {
   mqtt.setServer(cfg.mqttBroker, cfg.mqttPort);
   mqtt.setCallback(mqttCb);
   mqtt.setKeepAlive(30);
-  mqtt.setBufferSize(1024);
+  mqtt.setBufferSize(2048);
   mqtt.setSocketTimeout(MQTT_SOCKET_TIMEOUT_S);
   // Percobaan connect pertama segera setelah WiFi siap (tanpa tunggu interval).
   lastRecon = millis() - mqttReconIntervalMs();

@@ -99,6 +99,49 @@ class EspMonitorAndCsvTest extends TestCase
         $this->assertEquals(121.2, $history->log_data[2]['actual']);
     }
 
+    public function test_txt_import_creates_process_history(): void
+    {
+        $machine = Machine::create([
+            'machine_code' => 'RT-002',
+            'machine_name' => 'Retort Unit 2',
+        ]);
+
+        $controller = TnController::create([
+            'name' => 'Autonics TNL 2',
+            'slave_id' => 2,
+            'model_type' => 'TNL',
+            'control_model' => 'program',
+            'machine_id' => $machine->id,
+            'is_online' => true,
+        ]);
+
+        // Create temporary sample TXT (tab-separated) matching new ESP32 format
+        $txtContent = implode("\n", [
+            "Actual\tSetting\tMV\tPhase\tISO",
+            "105.5\t121.0\t85.0\tHEATING\t2026-01-16T18:00:00+07:00",
+            "121.0\t121.0\t40.0\tHOLDING\t2026-01-16T18:01:00+07:00",
+            "121.1\t121.0\t32.5\tHOLDING\t2026-01-16T18:02:00+07:00",
+        ]);
+
+        $tmpFile = tempnam(sys_get_temp_dir(), 'txt_test_');
+        file_put_contents($tmpFile, $txtContent);
+
+        $command = new \App\Console\Commands\MqttSubscribeCommand();
+
+        $importedCount = $command->importCompletedFile('RT-002', '20260116_180000.txt', $tmpFile);
+        @unlink($tmpFile);
+
+        $this->assertEquals(3, $importedCount);
+
+        $history = TnProcessHistory::where('tn_controller_id', $controller->id)->first();
+        $this->assertNotNull($history);
+        $this->assertCount(3, $history->log_data);
+        $this->assertEquals(105.5, $history->log_data[0]['actual']);
+        $this->assertEquals(85.0, $history->log_data[0]['mv']);
+        $this->assertEquals('HEATING', $history->log_data[0]['phase']);
+        $this->assertEquals(121.1, $history->log_data[2]['actual']);
+    }
+
     public function test_save_pattern_caches_and_publishes_mqtt(): void
     {
         $user = User::factory()->create();

@@ -111,6 +111,7 @@ class PollTnControllers extends Command
                             \Illuminate\Support\Facades\Cache::forget($cacheKey);
                         }
 
+                        $wasOnline = $controller->is_online;
                         $controller->update([
                             'is_online' => true,
                             'last_seen_at' => Carbon::now(),
@@ -139,13 +140,18 @@ class PollTnControllers extends Command
                             }
                         }
 
-                        $this->info("Successfully polled {$controller->name} (slave {$slaveId})");
+                        if (!$wasOnline) {
+                            $this->info("Controller {$controller->name} (slave {$slaveId}) is now online.");
+                        }
                     } else {
+                        $wasOnline = $controller->is_online;
                         $controller->update([
                             'is_online' => false,
                             'last_error' => \Illuminate\Support\Str::limit($ctrlResult['error'] ?? 'Unknown error', 250),
                         ]);
-                        $this->error("Failed to poll {$controller->name}: {$ctrlResult['error']}");
+                        if ($wasOnline) {
+                            $this->error("Controller {$controller->name} (slave {$slaveId}) went offline: {$ctrlResult['error']}");
+                        }
                     }
                 }
             }
@@ -153,11 +159,14 @@ class PollTnControllers extends Command
             // Mark controllers not in batch result as offline
             foreach ($controllers as $controller) {
                 if (!in_array($controller->slave_id, $seenSlaves)) {
+                    $wasOnline = $controller->is_online;
                     $controller->update([
                         'is_online' => false,
                         'last_error' => 'No response from slave in batch poll.',
                     ]);
-                    $this->warn("{$controller->name} (slave {$controller->slave_id}): No data in batch response.");
+                    if ($wasOnline) {
+                        $this->warn("Controller {$controller->name} (slave {$controller->slave_id}) went offline: No data in batch response.");
+                    }
                 }
             }
 

@@ -102,6 +102,7 @@ class EspMonitorController extends Controller
             'machine_code' => ['required', 'string'],
             'time_unit' => ['nullable', 'string', 'in:MM.SS,HH.MM'],
             'pattern_number' => ['nullable', 'integer', 'min:0', 'max:9'],
+            'pattern_end_state' => ['nullable', 'string', 'in:STOP,HOLD,NEXT,PRE'],
             'steps' => ['required', 'array', 'min:1', 'max:20'],
             'steps.*.step_name' => ['nullable', 'string', 'max:50'],
             'steps.*.target_sv' => ['required', 'numeric'],
@@ -126,6 +127,7 @@ class EspMonitorController extends Controller
             'machine_code' => $machineCode,
             'time_unit' => $validated['time_unit'] ?? 'MM.SS',
             'pattern_number' => $validated['pattern_number'] ?? 0,
+            'pattern_end_state' => $validated['pattern_end_state'] ?? 'STOP',
             'steps' => $steps,
             'updated_at' => now()->toIso8601String(),
         ];

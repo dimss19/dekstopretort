@@ -109,7 +109,7 @@ class MqttSubscribeCommand extends Command
                     if (!is_array($payload)) return;
 
                     $machineCode = $payload['id'] ?? 'RT-001';
-                    $filename = basename($payload['file'] ?? 'process.csv');
+                    $filename = basename($payload['file'] ?? 'process.txt');
                     $transferId = $payload['transfer_id'] ?? uniqid();
                     $size = (int)($payload['size'] ?? 0);
                     $sha256 = strtolower(trim($payload['sha256'] ?? ''));
@@ -127,16 +127,16 @@ class MqttSubscribeCommand extends Command
                         'path' => $partPath,
                     ];
 
-                    $this->info("[CSV META] {$machineCode}/{$filename} ({$size} bytes, id: {$transferId})");
+                    $this->info("[DATA META] {$machineCode}/{$filename} ({$size} bytes, id: {$transferId})");
                 });
 
-                // Topic: retort/csv/chunk (ESP32 completed process CSV chunks)
+                // Topic: retort/csv/chunk (ESP32 completed process data chunks)
                 $mqtt->subscribe('retort/csv/chunk', function (string $topic, string $message) use (&$activeUploads) {
                     $payload = json_decode($message, true);
                     if (!is_array($payload)) return;
 
                     $machineCode = $payload['id'] ?? 'RT-001';
-                    $filename = basename($payload['file'] ?? 'process.csv');
+                    $filename = basename($payload['file'] ?? 'process.txt');
                     $transferId = $payload['transfer_id'] ?? '';
                     $key = "{$machineCode}_{$transferId}_{$filename}";
 
@@ -154,7 +154,7 @@ class MqttSubscribeCommand extends Command
                     if (!is_array($payload)) return;
 
                     $machineCode = $payload['id'] ?? 'RT-001';
-                    $filename = basename($payload['file'] ?? 'process.csv');
+                    $filename = basename($payload['file'] ?? 'process.txt');
                     $transferId = $payload['transfer_id'] ?? '';
                     $key = "{$machineCode}_{$transferId}_{$filename}";
 
@@ -271,7 +271,15 @@ class MqttSubscribeCommand extends Command
     }
 
     /**
-     * Parse CSV and store to TnProcessHistory
+     * Parse CSV or TXT file and store to TnProcessHistory
+     */
+    public function importCompletedFile(string $machineCode, string $filename, string $filePath): int
+    {
+        return $this->importCompletedCsv($machineCode, $filename, $filePath);
+    }
+
+    /**
+     * Parse CSV or TXT file and store to TnProcessHistory (backward-compatible)
      */
     protected function importCompletedCsv(string $machineCode, string $filename, string $filePath): int
     {
@@ -280,26 +288,60 @@ class MqttSubscribeCommand extends Command
             throw new \RuntimeException("Cannot open file {$filePath}");
         }
 
-        $headers = fgetcsv($handle);
-        if (!is_array($headers)) {
+        // Peek first line to detect delimiter (\t for TXT, , for CSV)
+        $firstLine = fgets($handle);
+        if ($firstLine === false) {
             fclose($handle);
-            throw new \RuntimeException("CSV header not found");
+            throw new \RuntimeException("File is empty");
         }
 
-        $headers = array_map(fn($v) => trim((string)$v, " \t\n\r\0\x0B\xEF\xBB\xBF"), $headers);
-        $indexes = array_flip($headers);
+        $firstLineTrimmed = trim($firstLine, "\r\n");
+        $delimiter = str_contains($firstLineTrimmed, "\t") ? "\t" : ",";
+
+        // Parse header line
+        $rawHeaders = str_getcsv($firstLineTrimmed, $delimiter);
+        if (!is_array($rawHeaders) || empty($rawHeaders)) {
+            fclose($handle);
+            throw new \RuntimeException("File header not found");
+        }
+
+        // Normalize headers to lowercase for robust matching
+        $lowerIndexes = [];
+        foreach ($rawHeaders as $idx => $headerName) {
+            $cleaned = strtolower(trim((string)$headerName, " \t\n\r\0\x0B\xEF\xBB\xBF"));
+            if ($cleaned !== '') {
+                $lowerIndexes[$cleaned] = $idx;
+            }
+        }
 
         $rows = [];
-        while (($values = fgetcsv($handle)) !== false) {
-            if ($values === [null] || $values === []) continue;
+        while (($line = fgets($handle)) !== false) {
+            $line = trim($line, "\r\n");
+            if ($line === '') continue;
 
-            $actual = isset($indexes['Actual']) && is_numeric($values[$indexes['Actual']]) ? (float)$values[$indexes['Actual']] : 0.0;
-            $setting = isset($indexes['Setting']) && is_numeric($values[$indexes['Setting']]) ? (float)$values[$indexes['Setting']] : null;
-            $mv = isset($indexes['MV']) && is_numeric($values[$indexes['MV']]) ? (float)$values[$indexes['MV']] : 0.0;
-            $phase = isset($indexes['Phase']) ? trim((string)$values[$indexes['Phase']]) : 'IDLE';
-            $iso = isset($indexes['ISO']) ? trim((string)$values[$indexes['ISO']]) : null;
-            $tj = isset($indexes['Tanggal Jam']) ? trim((string)$values[$indexes['Tanggal Jam']]) : null;
-            $ts = $iso ?: $tj;
+            $values = str_getcsv($line, $delimiter);
+            if ($values === [null] || $values === [] || !is_array($values)) continue;
+
+            $getVal = function(string $key) use ($values, $lowerIndexes) {
+                $k = strtolower($key);
+                return isset($lowerIndexes[$k]) && isset($values[$lowerIndexes[$k]]) ? $values[$lowerIndexes[$k]] : null;
+            };
+
+            $actualVal = $getVal('actual');
+            $actual = ($actualVal !== null && is_numeric($actualVal)) ? (float)$actualVal : 0.0;
+
+            $settingVal = $getVal('setting');
+            $setting = ($settingVal !== null && is_numeric($settingVal)) ? (float)$settingVal : null;
+
+            $mvVal = $getVal('mv');
+            $mv = ($mvVal !== null && is_numeric($mvVal)) ? (float)$mvVal : 0.0;
+
+            $phaseVal = $getVal('phase');
+            $phase = ($phaseVal !== null) ? trim((string)$phaseVal) : 'IDLE';
+
+            $iso = $getVal('iso');
+            $tj = $getVal('tanggal jam');
+            $ts = ($iso && trim((string)$iso) !== '') ? trim((string)$iso) : ($tj ? trim((string)$tj) : null);
 
             try {
                 $recordedAt = \Carbon\Carbon::parse((string)$ts, 'Asia/Jakarta')->timezone('Asia/Jakarta')->format('Y-m-d H:i:s');

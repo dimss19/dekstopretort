@@ -163,14 +163,19 @@ class TnRecipeController extends Controller {
                     $stepRegisters = array_fill(0, 40, 0);
                     foreach ($recipe->steps as $idx => $step) {
                         if ($idx >= 20) break;
-                        $svVal = (int)($step->target_sv ?? 0);
-                        if ($svVal > 0 && $svVal < 200) $svVal = $svVal * 10;
+                        $sv = (float)($step->target_sv ?? 0);
+                        if ($sv > 300) {
+                            $sv = $sv / 10.0;
+                        }
+                        $svVal = (int)round($sv * 10);
                         $stepRegisters[$idx * 2] = $svVal;
                         $stepRegisters[($idx * 2) + 1] = (int)($step->duration ?? 0);
                     }
                     $modbus->writeMultipleRegisters($tn, 209, $stepRegisters);
                 }
-            } catch (\Throwable) {}
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Direct Modbus fallback failed for {$machineCode}: " . $e->getMessage());
+            }
         }
 
         if ($mqttPublished) {

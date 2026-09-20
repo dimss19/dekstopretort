@@ -50,15 +50,32 @@ class MqttService
         try {
             $machineCode = is_object($device) ? $device->machine_code : $device;
             $topic = "retort/{$machineCode}/pattern/push";
+
+            $rawSteps = $patternData['steps'] ?? [];
+            $steps = array_slice($rawSteps, 0, 20);
+            foreach ($steps as &$s) {
+                if (isset($s['step_name']) && strlen($s['step_name']) > 24) {
+                    $s['step_name'] = substr($s['step_name'], 0, 24);
+                }
+            }
+            unset($s);
+
             $payload = [
                 'cmd' => 'SET_PATTERN',
                 'machine_id' => $machineCode,
-                'steps' => $patternData['steps'] ?? [],
+                'steps' => $steps,
                 'time_unit' => $patternData['time_unit'] ?? 'MM.SS',
                 'pattern_number' => $patternData['pattern_number'] ?? 0,
+                'pattern_end_state' => $patternData['pattern_end_state'] ?? 'STOP',
                 'timestamp' => now()->toIso8601String(),
             ];
-            MQTT::publish($topic, json_encode($payload), 1, true);
+
+            $json = json_encode($payload);
+            if (strlen($json) > 1800) {
+                \Illuminate\Support\Facades\Log::warning("MQTT Pattern payload large (" . strlen($json) . " bytes) for machine {$machineCode}");
+            }
+
+            MQTT::publish($topic, $json, 1, true);
 
             // Also publish to general cmd topic for legacy/direct command listeners
             MQTT::publish("retort/cmd", "SET_PATTERN:{$machineCode}", 0);

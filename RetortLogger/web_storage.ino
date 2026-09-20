@@ -109,8 +109,8 @@ function ah(){var t=sessionStorage.getItem('st');return t?{'X-Session':t}:{};}
 function tok(){return encodeURIComponent(sessionStorage.getItem('st')||'');}
 function fs(b){if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';
 if(b<1073741824)return(b/1048576).toFixed(2)+' MB';return(b/1073741824).toFixed(2)+' GB';}
-// Nama file log "YYYYMMDD_HHMMSS.csv" → "DD-MM-YYYY HH:MM:SS" (tgl bln thn jam mnt dtk).
-function fmtName(n){var m=/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.csv$/i.exec(n);
+// Nama file log "YYYYMMDD_HHMMSS.txt/csv" → "DD-MM-YYYY HH:MM:SS" (tgl bln thn jam mnt dtk).
+function fmtName(n){var m=/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.(?:txt|csv)$/i.exec(n);
 return m?m[3]+'-'+m[2]+'-'+m[1]+' '+m[4]+':'+m[5]+':'+m[6]:n;}
 function go(p){
 cp=p;
@@ -235,7 +235,7 @@ void setupWebStorage() {
         ent.name[sizeof(ent.name) - 1] = '\0';
         ent.dir = e.isDirectory();
         ent.size = e.size();
-        if (!ent.dir && strstr(ent.name, ".csv")) {
+        if (!ent.dir && (strstr(ent.name, ".txt") || strstr(ent.name, ".csv"))) {
           if (latestCsv[0] == '\0' || strcmp(ent.name, latestCsv) > 0)
             strncpy(latestCsv, ent.name, sizeof(latestCsv) - 1);
         }
