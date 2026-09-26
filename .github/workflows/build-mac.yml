@@ -1,0 +1,76 @@
+name: Build macOS Desktop App (.dmg)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - desktopapp
+    paths:
+      - 'app/**'
+      - 'config/**'
+      - 'resources/**'
+      - 'routes/**'
+      - 'desktop-app/**'
+      - '.github/workflows/build-mac.yml'
+
+jobs:
+  build-mac:
+    name: Build macOS DMG (${{ matrix.arch }})
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            label: Intel Mac
+          - arch: arm64
+            label: Apple Silicon Mac (M1/M2/M3/M4)
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, bcmath, curl
+          coverage: none
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Copy .env.example to .env
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Install Composer Dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Install NPM Dependencies & Build Frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Download macOS PHP Binary (${{ matrix.arch }})
+        run: |
+          mkdir -p packages/nativephp/php-bin/bin/mac/${{ matrix.arch }}
+          curl -L "https://raw.githubusercontent.com/NativePHP/php-bin/main/bin/mac/${{ matrix.arch }}/php-8.3.zip" -o "packages/nativephp/php-bin/bin/mac/${{ matrix.arch }}/php-8.3.zip"
+
+      - name: Build macOS DMG (${{ matrix.label }})
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          php artisan native:build mac ${{ matrix.arch }} --no-interaction
+
+      - name: Upload DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SCADA-Retort-macOS-${{ matrix.arch }}
+          path: |
+            nativephp/electron/dist/*.dmg
+          if-no-files-found: error
