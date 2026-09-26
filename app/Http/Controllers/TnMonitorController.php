@@ -161,46 +161,6 @@ class TnMonitorController extends Controller
         $limit = request('limit', 1800); // 30 minutes of data at 1Hz
         $readings = $tn->readings()->latest()->limit($limit)->get()->reverse()->values();
 
-        $latest = $readings->last();
-        $targetSv = (float)($tn->current_sv > 0 ? ($tn->current_sv > 300 ? $tn->current_sv / 10 : $tn->current_sv) : 121.1);
-
-        // Keep readings alive and active if last reading is older than 3 seconds or empty
-        if (!$latest || $latest->created_at->diffInSeconds(now()) >= 3) {
-            $jitter = (sin(time() / 4) * 0.25) + ((crc32((string)microtime()) % 10) / 100);
-            $simPv = round($targetSv + $jitter, 1);
-            $simMv = $simPv < $targetSv ? 65 : 20;
-
-            $newReading = TnReading::create([
-                'tn_controller_id' => $tn->id,
-                'pv' => $simPv,
-                'decimal_point' => 1,
-                'sv' => $targetSv,
-                'heating_mv' => $simMv,
-                'cooling_mv' => 0,
-                'run_status' => 'RUN',
-                'auto_manual' => 'AUTO',
-                'out1_active' => true,
-                'out2_active' => false,
-                'at_running' => false,
-                'alarm_bits' => 0,
-                'pattern_current' => 1,
-                'step_current' => 2,
-                'process_time' => 1800,
-                'rest_time' => 600,
-                'created_at' => now(),
-            ]);
-
-            $tn->update([
-                'is_online' => true,
-                'last_seen_at' => now(),
-                'current_pv' => $simPv,
-                'current_sv' => $targetSv,
-                'last_error' => null,
-            ]);
-
-            $readings->push($newReading);
-        }
-
         return response()->json($readings);
     }
 
@@ -233,6 +193,78 @@ class TnMonitorController extends Controller
     {
         $history->delete();
         return back()->with('success', 'Process history deleted.');
+    }
+
+    public function verifyHistory(\App\Models\TnProcessHistory $history, Request $request)
+    {
+        if (! $history->end_time || $history->verification_status === 'verified') {
+            return response()->json(['success' => false, 'message' => 'Hanya history selesai yang belum terverifikasi.'], 422);
+        }
+
+        // ponytail: manual Validator karena shouldRenderJsonWhen global membuat $request->validate() redirect (302) untuk JSON di route web.
+        $data = $this->validatedOrJson422($request, [
+            'product' => 'required|string|max:100',
+            'batch_code' => 'required|string|max:50|unique:tn_process_histories,batch_code',
+            'scheduled_process' => 'required|string|max:100',
+            'min_f0_achieved' => 'nullable|numeric|min:0',
+            'target_f0' => 'nullable|numeric|min:0',
+            'process_deviation' => 'required|in:None,Minor,Major',
+            'sterility_criterion' => 'required|in:PASS,FAIL',
+            'thermal_record' => 'required|in:VERIFIED,REJECTED',
+            'group_id' => 'required|exists:history_groups,id',
+        ]);
+
+        $systemF0 = \App\Services\F0Calculator::fromLogs($history->log_data ?? []);
+        $criterion = $data['sterility_criterion'];
+        if ($data['target_f0'] !== null && $systemF0 < (float) $data['target_f0']) {
+            $criterion = 'FAIL';
+        }
+
+        $history->update([
+            'product' => $data['product'],
+            'batch_code' => $data['batch_code'],
+            'scheduled_process' => $data['scheduled_process'],
+            'min_f0_achieved' => $data['min_f0_achieved'],
+            'target_f0' => $data['target_f0'],
+            'process_deviation' => $data['process_deviation'],
+            'sterility_criterion' => $criterion,
+            'thermal_record' => $data['thermal_record'],
+            'group_id' => $data['group_id'],
+            'verification_status' => 'verified',
+            'verified_by' => $request->user()->name,
+            'verified_at' => now(),
+        ]);
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true, 'system_f0' => $systemF0, 'sterility_criterion' => $criterion]);
+        }
+
+        return back()->with('success', 'Batch berhasil diverifikasi.');
+    }
+
+    public function updateHistoryGroup(\App\Models\HistoryGroup $group, Request $request)
+    {
+        $data = $this->validatedOrJson422($request, [
+            'name' => 'required|string|max:50',
+            'color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+        ]);
+        $group->update($data);
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true]);
+        }
+
+        return back()->with('success', 'Nama group diperbarui.');
+    }
+
+    private function validatedOrJson422(Request $request, array $rules): array
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), $rules);
+        if ($validator->fails() && $request->wantsJson()) {
+            abort(response()->json(['success' => false, 'message' => 'Validasi gagal.', 'errors' => $validator->errors()], 422));
+        }
+
+        return $validator->validate();
     }
 
     public function ingestReading(TnController $tn, Request $request)

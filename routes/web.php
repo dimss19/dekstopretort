@@ -79,6 +79,8 @@ Route::group([], function () {
         Route::get('/{tn}/readings', [\App\Http\Controllers\TnMonitorController::class, 'readings'])->name('tn.readings');
         Route::post('/{tn}/history', [\App\Http\Controllers\TnMonitorController::class, 'saveHistory'])->name('tn.history.save');
         Route::delete('/history/{history}', [\App\Http\Controllers\TnMonitorController::class, 'destroyHistory'])->name('tn.history.destroy');
+        Route::post('/history/{history}/verify', [\App\Http\Controllers\TnMonitorController::class, 'verifyHistory'])->name('tn.history.verify');
+        Route::put('/history-groups/{group}', [\App\Http\Controllers\TnMonitorController::class, 'updateHistoryGroup'])->name('tn.history-groups.update');
         Route::post('/{tn}/ingest-reading', [\App\Http\Controllers\TnMonitorController::class, 'ingestReading'])->name('tn.ingest-reading');
         // Port Management
         Route::get('/{tn}/port/list', [\App\Http\Controllers\TnPortController::class, 'list'])->name('tn.port.list');
