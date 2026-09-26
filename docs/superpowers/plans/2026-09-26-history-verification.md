@@ -538,17 +538,18 @@ git commit -m "feat: endpoint verify history + rename group + feature test"
 - [ ] **Step 1: Write the failing test** (tambah di file test existing)
 
 ```ts
-it('uses single-point method with Tref 121.1 (not trapezoid)', () => {
-    expect(calculateF0([120, 121, 122], 1)).toBe(0.05);
+it('uses Tref 121.1 (suhu pattern 121.0, bukan terpaku 121.11)', () => {
+    expect(calculateF0(Array(600).fill(121.0), 1)).toBe(9.77);
 });
 ```
 
-Test existing (60x121.11 -> 1, dst) tetap hijau karena suhu konstan.
+Test existing (60x121.11 -> 1, dst) tetap hijau. Suhu test memakai 121.0
+(Kode lama memberi 9.75 untuk input ini, jadi benar-benar gagal dulu.)
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `npm test -- retortTelemetry`
-Expected: FAIL (dapat 0.03 ala trapezoid-ish/offset Tref lama; yang pasti bukan 0.05)
+Expected: FAIL pada test baru (kode lama memberi 9.75, bukan 9.77)
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -694,7 +695,7 @@ git commit -m "refactor: ekstrak HistorianList + historyHelpers teruji"
 
 - [ ] **Step 2: Badge 3 state** di tiap card: `running` -> "Proses Berjalan" (amber pulse, seperti existing); `unverified` -> "UNVERIFIED" (amber solid); `verified` -> "VERIFIED" (emerald + title `by {verified_by} · {verified_at}`).
 
-- [ ] **Step 3: Chip group di atas list**: `[Semua | {group.name} ...]` dengan warna dot dari `group.color`; klik set `groupFilter`. Ikon pensil kecil per chip group membuka popover inline (input nama + input color) yang `router.put(route('tn.history-groups.update', group.id), { name, color })`.
+- [ ] **Step 3: Chip group di atas list**: `[Semua | {group.name} ...]` dengan warna dot dari `group.color`; klik set `groupFilter`. Ikon pensil kecil per chip group membuka popover inline (input nama + input color) yang `router.put(route('tn.history-groups.update', group.id), { name, color })`. Teruskan `groups` ke `<ProcessDetailView>` pada tampilan detail (prop `groups`) untuk dropdown group di form Task 7.
 
 - [ ] **Step 4: Toolbar status + search**: tombol `Semua / Verified / Unverified / Berjalan` dan input search placeholder "Cari product / batch...".
 
