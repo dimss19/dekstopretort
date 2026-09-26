@@ -46,7 +46,7 @@ class InstallerController
         ]);
 
         try {
-            // 1. Pastikan file database SQLite siap
+            // 1. Tentukan path database yang aktif
             $sqliteFile = database_path('database.sqlite');
             if (!file_exists($sqliteFile)) {
                 if (!is_dir(database_path())) {
@@ -55,7 +55,13 @@ class InstallerController
                 touch($sqliteFile);
             }
 
-            // 2. Set environment SQLite (standalone desktop)
+            // Pastikan nativephp.sqlite juga ada jika NativePHP aktif
+            $nativeSqliteFile = database_path('nativephp.sqlite');
+            if (!file_exists($nativeSqliteFile)) {
+                touch($nativeSqliteFile);
+            }
+
+            // 2. Set environment SQLite
             $this->updateEnvFile([
                 'DB_CONNECTION' => 'sqlite',
                 'DB_DATABASE'   => database_path('database.sqlite'),
@@ -63,22 +69,15 @@ class InstallerController
                 'APP_DEBUG'     => 'false',
             ]);
 
-            // 3. Set runtime DB config
-            config([
-                'database.default' => 'sqlite',
-                'database.connections.sqlite.database' => $sqliteFile,
-            ]);
-            DB::purge();
-
-            // 4. Generate APP_KEY jika belum ada
+            // 3. Generate APP_KEY jika belum ada
             if (empty(config('app.key')) || empty(env('APP_KEY'))) {
                 Artisan::call('key:generate', ['--force' => true]);
             }
 
-            // 5. Jalankan migrasi database SQLite
+            // 4. Jalankan migrasi database
             Artisan::call('migrate', ['--force' => true]);
 
-            // 6. Buat / Perbarui Akun Super Admin
+            // 5. Buat / Perbarui Akun Super Admin di koneksi aktif
             DB::table('users')->updateOrInsert(
                 ['email' => $request->input('admin_email')],
                 [
@@ -88,6 +87,34 @@ class InstallerController
                     'updated_at' => now(),
                 ]
             );
+
+            // Jalankan seeder mesin jika belum ada
+            if (DB::table('machines')->count() === 0) {
+                try {
+                    Artisan::call('db:seed', ['--force' => true]);
+                } catch (Exception $e) {
+                    // Ignore
+                }
+            }
+
+            // 6. Sinkronisasi file database SQLite ke seluruh lokasi (CLI, Dev, & Electron AppData)
+            $sourceDb = DB::connection()->getDatabaseName();
+            if (file_exists($sourceDb)) {
+                $targetDbs = array_filter([
+                    database_path('database.sqlite'),
+                    database_path('nativephp.sqlite'),
+                    config('nativephp-internal.database_path'),
+                ]);
+                foreach ($targetDbs as $target) {
+                    if ($target !== $sourceDb) {
+                        $targetDir = dirname($target);
+                        if (!is_dir($targetDir)) {
+                            @mkdir($targetDir, 0755, true);
+                        }
+                        @copy($sourceDb, $target);
+                    }
+                }
+            }
 
             session([
                 'installer.admin_name'  => $request->input('admin_name'),
@@ -125,8 +152,21 @@ class InstallerController
         $result = $this->licenseService->verifyCompanyCode($request->input('company_code'));
 
         if ($result['success']) {
-            // Kunci installer bahwa instalasi sudah selesai
-            File::put(storage_path('installed'), now()->toDateTimeString());
+            // Kunci installer bahwa instalasi sudah selesai di semua lokasi storage
+            $installedTime = now()->toDateTimeString();
+            $storagePaths = array_filter([
+                storage_path('installed'),
+                base_path('storage/installed'),
+                config('nativephp-internal.storage_path') ? config('nativephp-internal.storage_path') . '/installed' : null,
+            ]);
+
+            foreach ($storagePaths as $path) {
+                $dir = dirname($path);
+                if (!is_dir($dir)) {
+                    @mkdir($dir, 0755, true);
+                }
+                @file_put_contents($path, $installedTime);
+            }
 
             try {
                 Artisan::call('config:clear');

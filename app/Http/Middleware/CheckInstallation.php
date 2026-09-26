@@ -17,7 +17,44 @@ class CheckInstallation
             return $next($request);
         }
 
-        $isInstalled = file_exists(storage_path('installed'));
+        $storagePaths = array_filter([
+            storage_path('installed'),
+            base_path('storage/installed'),
+            config('nativephp-internal.storage_path') ? config('nativephp-internal.storage_path') . '/installed' : null,
+        ]);
+
+        $isInstalled = false;
+        foreach ($storagePaths as $path) {
+            if (file_exists($path)) {
+                $isInstalled = true;
+                break;
+            }
+        }
+
+        // Jika file installed belum ada, cek apakah database sudah memiliki tabel users dan data user
+        if (!$isInstalled) {
+            try {
+                if (\Illuminate\Support\Facades\Schema::hasTable('users') && \Illuminate\Support\Facades\DB::table('users')->count() > 0) {
+                    $isInstalled = true;
+                }
+            } catch (\Throwable $e) {
+                // Table belum dibuat, berarti belum terinstall
+            }
+        }
+
+        // Sinkronisasi file installed ke seluruh storage path agar konsisten
+        if ($isInstalled) {
+            foreach ($storagePaths as $path) {
+                if (!file_exists($path)) {
+                    $dir = dirname($path);
+                    if (!is_dir($dir)) {
+                        @mkdir($dir, 0755, true);
+                    }
+                    @file_put_contents($path, now()->toDateTimeString());
+                }
+            }
+        }
+
         $isInstallerRoute = $request->is('install*');
 
         // 1. Jika aplikasi BELUM diinstall dan user mencoba membuka route utama
