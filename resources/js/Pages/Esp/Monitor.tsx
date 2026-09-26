@@ -289,7 +289,7 @@ export default function EspMonitor({
                     <div className="flex items-center gap-3 border-b border-slate-200/80 pb-3">
                         <button
                             type="button"
-                            onClick={() => { setActiveTab('monitor'); setSelectedBatch(null); }}
+                            onClick={() => setActiveTab('monitor')}
                             className={`rounded-xl px-5 py-2.5 text-xs font-black transition-all shadow-sm ${
                                 activeTab === 'monitor'
                                     ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md border-none'
@@ -300,7 +300,7 @@ export default function EspMonitor({
                         </button>
                         <button
                             type="button"
-                            onClick={() => { setActiveTab('pattern'); setSelectedBatch(null); }}
+                            onClick={() => setActiveTab('pattern')}
                             className={`rounded-xl px-5 py-2.5 text-xs font-black transition-all shadow-sm ${
                                 activeTab === 'pattern'
                                     ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md border-none'
@@ -311,7 +311,7 @@ export default function EspMonitor({
                         </button>
                         <button
                             type="button"
-                            onClick={() => { setActiveTab('history'); setSelectedBatch(null); }}
+                            onClick={() => setActiveTab('history')}
                             className={`rounded-xl px-5 py-2.5 text-xs font-black transition-all shadow-sm ${
                                 activeTab === 'history'
                                     ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md border-none'
