@@ -13,6 +13,8 @@ describe('historyHelpers', () => {
         expect(compareF0(4.5, 4.5)).toBe('VALID');
         expect(compareF0(4.49, 4.5)).toBe('FAIL');
         expect(compareF0(1.0, null)).toBeNull();
+        expect(compareF0(1.0, NaN)).toBeNull();
+        expect(compareF0(NaN, 1.0)).toBeNull();
     });
 
     it('filters by status, group and query', () => {

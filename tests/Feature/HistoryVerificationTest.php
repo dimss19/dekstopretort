@@ -71,6 +71,19 @@ class HistoryVerificationTest extends TestCase
         ]);
     }
 
+    public function test_verify_as_guest_defaults_verified_by_operator(): void
+    {
+        $history = $this->makeHistory();
+
+        $res = $this->postJson(route('tn.history.verify', $history), $this->payload(['batch_code' => '20260926-99']));
+
+        $res->assertOk()->assertJson(['success' => true]);
+        $this->assertDatabaseHas('tn_process_histories', [
+            'id' => $history->id,
+            'verified_by' => 'Operator',
+        ]);
+    }
+
     public function test_system_f0_below_target_forces_fail(): void
     {
         $user = User::factory()->create();

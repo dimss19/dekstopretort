@@ -1,6 +1,5 @@
 import { ReactNode, useState, useEffect, useMemo } from 'react';
 import { router } from '@inertiajs/react';
-import { createPortal } from 'react-dom';
 import {
     CheckCircle2,
     Download,
@@ -12,7 +11,8 @@ import {
     Pencil,
 } from 'lucide-react';
 import ProcessDetailView from './ProcessDetailView';
-import { filterHistories, getHistoryStatus, type HistoryStatus } from './historyHelpers';
+import { compareF0, filterHistories, getHistoryStatus, type HistoryStatus } from './historyHelpers';
+import { calculateF0 } from '@/Pages/Tn/retortTelemetry';
 
 const Panel = ({ title, children, className = '' }: { title?: string; children: ReactNode; className?: string }) => (
     <section className={`rounded-3xl border border-slate-200/90 bg-white/95 p-7 shadow-lg backdrop-blur-xl ${className}`}>
@@ -26,6 +26,34 @@ export interface HistorianListGroup {
     name: string;
     color: string;
 }
+
+// ponytail: normalisasi PV sama seperti F0Calculator/ProcessDetailView.
+const normalizePv = (l: any): number => {
+    const raw = Number(l?.pv ?? 0);
+    const dp = Number(l?.decimal_point ?? 0);
+    let pv = dp > 0 ? raw / Math.pow(10, dp) : raw;
+    if (pv > 300) pv = pv / 10;
+    return pv;
+};
+
+// ponytail: ringkasan verifikasi card-level, sumber nilai sama seperti ProcessDetailView.
+const getCardVerification = (batch: any, groups: HistorianListGroup[]) => {
+    const status = getHistoryStatus(batch);
+    const temps = (batch.log_data || []).map(normalizePv).filter((pv: number) => pv > 0);
+    const systemF0 = calculateF0(temps, 1);
+    const f0Result = compareF0(systemF0, batch.target_f0 ?? null) ?? '-';
+    return {
+        status,
+        statusLabel: status === 'verified' ? 'VERIFIED' : status === 'running' ? 'Berjalan' : 'UNVERIFIED',
+        product: batch.product ?? '-',
+        batchCode: batch.batch_code ?? '-',
+        groupName: groups.find((g) => g.id === batch.group_id)?.name ?? batch.group_id ?? '-',
+        systemF0,
+        f0Result,
+        verifiedBy: batch.verified_by ?? 'Belum diverifikasi',
+        verifiedAt: batch.verified_at ? new Date(batch.verified_at).toLocaleString('id-ID') : 'Belum diverifikasi',
+    };
+};
 
 export default function HistorianList({ histories = [], groups = [] }: { histories?: any[]; groups?: HistorianListGroup[] }) {
     const [period, setPeriod] = useState<'Semua' | 'Hari' | 'Minggu' | 'Bulan'>('Semua');
@@ -92,9 +120,23 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
             formatValue(log.sv, log.decimal_point)
         ]);
 
+        const v = getCardVerification(batch, groups);
+
         if (format === 'csv' || format === 'excel') {
+            const summaryLines = [
+                'RINGKASAN VERIFIKASI',
+                `Status,${v.statusLabel}`,
+                `Product,"${v.product}"`,
+                `Batch,"${v.batchCode}"`,
+                `Group,"${v.groupName}"`,
+                `F0 Sistem,${v.systemF0.toFixed(2)} min`,
+                `Hasil F0,${v.f0Result}`,
+                `Diverifikasi Oleh,"${v.verifiedBy}"`,
+                `Diverifikasi Tanggal,"${v.verifiedAt}"`,
+                '',
+            ];
             const csvContent = "data:text/csv;charset=utf-8,"
-                + [headers.join(','), ...rows.map((e: any) => e.join(','))].join('\n');
+                + [...summaryLines, headers.join(','), ...rows.map((e: any) => e.join(','))].join('\n');
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
@@ -122,6 +164,14 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                         <h2>${title}</h2>
                         <p>Start Time: ${new Date(batch.start_time).toLocaleString()}</p>
                         <p>End Time: ${new Date(batch.end_time).toLocaleString()}</p>
+                        <p>Status Verifikasi: ${v.statusLabel}</p>
+                        <p>Product: ${v.product}</p>
+                        <p>Batch: ${v.batchCode}</p>
+                        <p>Group: ${v.groupName}</p>
+                        <p>F0 Sistem: ${v.systemF0.toFixed(2)} min</p>
+                        <p>Hasil F0: ${v.f0Result}</p>
+                        <p>Diverifikasi Oleh: ${v.verifiedBy}</p>
+                        <p>Diverifikasi Tanggal: ${v.verifiedAt}</p>
                         <table>
                             <thead>
                                 <tr><th>Time</th><th>PV (&deg;C)</th><th>SV (&deg;C)</th></tr>
@@ -328,7 +378,7 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                             : null;
                         const logCount = h.log_data?.length || 0;
                         const logs = h.log_data || [];
-                        const maxPv = logs.length > 0 ? Math.max(...logs.map((l: any) => Number(l.pv ?? 0))) : 0;
+                        const maxPv = logs.length > 0 ? Math.max(...logs.map(normalizePv)) : 0;
                         const machineName = h.controller?.machine?.machine_name || h.controller?.model_type || `Controller #${h.tn_controller_id}`;
                         const status = getHistoryStatus(h);
 
@@ -452,49 +502,6 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                     })
                 )}
             </div>
-
-            {/* Modal Detail Popup via createPortal */}
-            {selectedBatch && typeof document !== 'undefined' && createPortal(
-                <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-[99999] flex items-center justify-center p-4" onClick={() => setSelectedBatch(null)}>
-                    <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200" onClick={e => e.stopPropagation()}>
-                        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-[#0f172a] text-white">
-                            <div>
-                                <h3 className="font-black text-lg text-white">Detail Batch Log: {selectedBatch.controller?.machine?.machine_name || selectedBatch.controller?.model_type || `Controller #${selectedBatch.tn_controller_id}`}</h3>
-                                <p className="text-xs font-semibold text-blue-300 mt-0.5">
-                                    {new Date(selectedBatch.start_time).toLocaleString()} - {new Date(selectedBatch.end_time).toLocaleString()}
-                                </p>
-                            </div>
-                            <button onClick={() => setSelectedBatch(null)} className="h-8 w-8 rounded-full bg-blue-900/60 flex items-center justify-center text-lg font-bold text-blue-200 hover:bg-blue-800 transition-colors">&times;</button>
-                        </div>
-
-                        <div className="p-6 overflow-y-auto flex-1">
-                            <table className="w-full text-left text-sm">
-                                <thead className="border-b border-slate-200 text-xs uppercase font-black text-slate-700 bg-slate-50 sticky top-0">
-                                    <tr>
-                                        <th className="py-3 px-3">Waktu</th>
-                                        <th className="py-3 px-3">PV (&deg;C)</th>
-                                        <th className="py-3 px-3">SV (&deg;C)</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 font-mono">
-                                    {getChronologicalLogs(selectedBatch).map((log: any, idx: number) => (
-                                        <tr key={idx} className="hover:bg-blue-50/40 transition-colors">
-                                            <td className="py-2.5 px-3 font-semibold text-slate-600">{new Date(log.created_at).toLocaleTimeString()}</td>
-                                            <td className="py-2.5 px-3 font-black text-blue-700">{log.decimal_point ? (log.pv / Math.pow(10, log.decimal_point)).toFixed(log.decimal_point) : log.pv}</td>
-                                            <td className="py-2.5 px-3 font-black text-amber-700">{log.decimal_point ? (log.sv / Math.pow(10, log.decimal_point)).toFixed(log.decimal_point) : log.sv}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50">
-                            <button onClick={() => setSelectedBatch(null)} className="rounded-xl border border-slate-300 px-5 py-2.5 text-xs font-black text-slate-800 bg-white hover:bg-slate-50 shadow-sm transition-all">Tutup</button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
         </div>
     );
 }

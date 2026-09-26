@@ -6,7 +6,7 @@ export function getHistoryStatus(h: { end_time?: string | null; verification_sta
 }
 
 export function compareF0(systemF0: number, targetF0: number | null | undefined): 'VALID' | 'FAIL' | null {
-    if (targetF0 === null || targetF0 === undefined || Number.isNaN(systemF0)) return null;
+    if (targetF0 === null || targetF0 === undefined || Number.isNaN(targetF0) || Number.isNaN(systemF0)) return null;
     return systemF0 < targetF0 ? 'FAIL' : 'VALID';
 }
 
