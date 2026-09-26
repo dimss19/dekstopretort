@@ -115,8 +115,6 @@ export default function Dashboard({ auth, tnCount, tnOnline, controllers = [] }:
                                 <div className="mt-7 space-y-2.5">
                                     <Link
                                         href={route('tn.quick-start', item.model)}
-                                        method="post"
-                                        as="button"
                                         className="w-full flex items-center justify-between rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-500 px-4 py-3 text-sm font-extrabold text-slate-950 shadow-md hover:from-yellow-300 hover:to-amber-400 transition-all cursor-pointer"
                                     >
                                         <span>Buka Monitoring {item.model}</span>

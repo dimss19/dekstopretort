@@ -75,7 +75,13 @@ export default function EspMonitor({
             phase: data.phase ?? 'IDLE',
             created_at: data.ts ?? data.recorded_at ?? new Date().toISOString(),
         };
-        setHistory(prev => [...prev.slice(-120), historyEntry]);
+        setHistory(prev => {
+            const last = prev[prev.length - 1];
+            if (last && last.created_at === historyEntry.created_at) {
+                return prev;
+            }
+            return [...prev.slice(-120), historyEntry];
+        });
 
         // Accumulate F0 lethality if temperature >= 100 C
         const temp = Number(data.pv ?? data.actual ?? 0);
@@ -85,56 +91,43 @@ export default function EspMonitor({
         }
     };
 
-    // Primary: Real-time Server-Sent Events (SSE) Stream from Laravel
+    // Real-time telemetry poller with 1-second interval
     useEffect(() => {
         let active = true;
-        let es: EventSource | null = null;
 
-        const connectSSE = () => {
+        const pollTelemetry = async () => {
             if (!active) return;
             try {
-                es = new EventSource(route('esp.stream', { machine_code: device.machine_code, since: lastSeqRef.current }));
-
-                es.onmessage = (event) => {
-                    try {
-                        const payload = JSON.parse(event.data);
-                        if (payload.seq != null) {
-                            lastSeqRef.current = payload.seq;
-                        }
-                        if (payload.telemetry) {
-                            applyTelemetryPayload(payload.telemetry);
-                        }
-                        if (typeof payload.is_online === 'boolean') {
-                            setIsOnline(payload.is_online);
-                            if (payload.is_online) lastUpdateRef.current = Date.now();
-                        }
-                        if (Array.isArray(payload.history) && payload.history.length > 0) {
-                            const formatted = payload.history.map((h: any) => ({
-                                pv: h.pv ?? h.actual ?? 0,
-                                sv: h.sv ?? h.setting ?? 121.1,
-                                heating_mv: h.mv ?? 0,
-                                phase: h.phase ?? 'IDLE',
-                                created_at: h.ts ?? h.recorded_at ?? new Date().toISOString(),
-                            }));
-                            setHistory(formatted);
-                        }
-                    } catch (err) {
-                        // Ignore parse errors
+                const res = await fetch(route('esp.live', { machine_code: device.machine_code }), {
+                    headers: { Accept: 'application/json' },
+                });
+                if (res.ok && active) {
+                    const json = await res.json();
+                    if (json.seq != null) lastSeqRef.current = json.seq;
+                    if (json.telemetry) applyTelemetryPayload(json.telemetry);
+                    if (typeof json.is_online === 'boolean') {
+                        setIsOnline(json.is_online);
+                        if (json.is_online) lastUpdateRef.current = Date.now();
                     }
-                };
-
-                es.onerror = () => {
-                    es?.close();
-                    if (active) {
-                        setTimeout(connectSSE, 2000);
+                    if (Array.isArray(json.history) && json.history.length > 0) {
+                        const formatted = json.history.map((h: any) => ({
+                            pv: h.pv ?? h.actual ?? 0,
+                            sv: h.sv ?? h.setting ?? 121.1,
+                            heating_mv: h.mv ?? h.heating_mv ?? 0,
+                            phase: h.phase ?? 'IDLE',
+                            created_at: h.ts ?? h.recorded_at ?? h.created_at ?? new Date().toISOString(),
+                        }));
+                        setHistory(formatted);
                     }
-                };
-            } catch (err) {
-                // Fallback will handle polling
+                }
+            } catch {
+                // Silently recover on next cycle
             }
         };
 
-        connectSSE();
+        // Run immediately then every 1 second
+        pollTelemetry();
+        const pollInterval = setInterval(pollTelemetry, 1000);
 
         // Also listen to Laravel Echo if configured
         let channel: any = null;
@@ -142,39 +135,12 @@ export default function EspMonitor({
             channel = window.Echo.private(`retort.${device.machine_code}`);
             channel.listen('SensorDataReceived', (e: any) => {
                 const data = e?.data || e;
-                if (data) applyTelemetryPayload(data);
+                if (data && active) applyTelemetryPayload(data);
             });
         }
 
-        // Fast fallback polling (every 2s) if SSE is offline
-        const pollInterval = setInterval(async () => {
-            if (Date.now() - lastUpdateRef.current > 30000) {
-                setIsOnline(false);
-            }
-
-            if (!es || es.readyState === EventSource.CLOSED) {
-                try {
-                    const res = await fetch(route('esp.live', { machine_code: device.machine_code }), {
-                        headers: { Accept: 'application/json' },
-                    });
-                    if (res.ok) {
-                        const json = await res.json();
-                        if (json.seq != null) lastSeqRef.current = json.seq;
-                        if (json.telemetry) applyTelemetryPayload(json.telemetry);
-                        if (typeof json.is_online === 'boolean') {
-                            setIsOnline(json.is_online);
-                            if (json.is_online) lastUpdateRef.current = Date.now();
-                        }
-                    }
-                } catch {
-                    // Ignore silent poll error
-                }
-            }
-        }, 2000);
-
         return () => {
             active = false;
-            es?.close();
             if (channel) window.Echo?.leave(`retort.${device.machine_code}`);
             clearInterval(pollInterval);
         };

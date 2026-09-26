@@ -60,6 +60,9 @@ echo.
 :: Buka web browser setelah jeda 1.5 detik
 start "" powershell -NoProfile -Command "Start-Sleep -Milliseconds 1500; Start-Process 'http://localhost:%PORT%'"
 
+:: Atur concurrency worker PHP CLI server agar multi-request lancar
+set PHP_CLI_SERVER_WORKERS=4
+
 :: Jalankan Laravel Development Server via PHP Portable
 ".\php\php.exe" artisan serve --host=0.0.0.0 --port=%PORT%
 

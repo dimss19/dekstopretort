@@ -63,7 +63,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('tn')->group(function () {
         // CRUD
         Route::get('/', [\App\Http\Controllers\TnControllerController::class, 'index'])->name('tn.index');
-        Route::post('/quick-start/{model}', [\App\Http\Controllers\TnControllerController::class, 'quickStart'])->name('tn.quick-start');
+        Route::match(['get', 'post'], '/quick-start/{model}', [\App\Http\Controllers\TnControllerController::class, 'quickStart'])->name('tn.quick-start');
         Route::get('/{tn}', [\App\Http\Controllers\TnControllerController::class, 'show'])->name('tn.show');
         Route::delete('/{tn}', [\App\Http\Controllers\TnControllerController::class, 'destroy'])->name('tn.destroy');
         Route::post('/{tn}/test', [\App\Http\Controllers\TnControllerController::class, 'testConnection'])->name('tn.test');
