@@ -28,6 +28,7 @@ export interface ProcessBatchItem {
 interface Props {
     batch: ProcessBatchItem;
     onBack: () => void;
+    groups?: { id: number; name: string; color: string }[]; // ponytail: diterima & diabaikan dulu, dipakai penuh Task 7
 }
 
 export default function ProcessDetailView({ batch, onBack }: Props) {
