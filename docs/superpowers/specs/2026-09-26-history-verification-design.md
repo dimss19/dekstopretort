@@ -17,9 +17,11 @@ Status: Disetujui user (4 bagian, via brainstorming)
 
 ## 2. Keputusan Kunci (jawaban user)
 
-1. F0 fase-1: dihitung + ditampilkan otomatis sebagai info (bukan syarat verified).
+1. F0 fase-1: dihitung + ditampilkan otomatis; ada aturan FAIL (bukan blokir).
    Metode 1-titik: `F0 = Σ L(Ti) x (1/60)`, `L = 10^((T-121.1)/10)`, hanya T >= 100°C.
-   Input Min-F0/Target-F0 di form tetap catatan. Perbandingan F0 masuk fase-2.
+   Jika F0 sistem < Target F0 input -> criterion otomatis FAIL (terkunci),
+   verifikasi tetap bisa disimpan. Strict tanpa toleransi: bandingkan nilai
+   round 2 desimal dengan operator `<` murni.
 2. Toleransi F0 fase-2: selisih absolut <= 0.01 setelah round 2 desimal (disetujui, belum dipakai).
 3. 8 field verifikasi: SEMUA wajib, campuran text + dropdown.
 4. Otorisasi: hanya 1 role yaitu operator (tanpa admin); semua operator boleh
@@ -69,6 +71,13 @@ Aturan:
 - Tampil sebagai info (bukan syarat): stat "F0 sistem (otomatis)" di
   `ProcessDetailView` + ikut export. Tanpa prefill, tanpa perbandingan ke input form.
 - Perbandingan sebagai syarat verified (toleransi +-0.01) tetap fase-2.
+- Aturan FAIL (fase-1, bukan blokir): jika F0 sistem (round 2 desimal) <
+  Target F0 input, strict tanpa toleransi sekecil apa pun -> `sterility_criterion` dipaksa `FAIL` dan dropdown terkunci.
+  Frontend: live check saat Target diketik (pakai `calculateF0` existing) +
+  tampil peringatan; backend: hitung ulang dari `log_data` (helper PHP rumus sama)
+  saat submit dan override criterion ke FAIL bila kondisi terpenuhi.
+  Jika F0 >= Target -> criterion bebas dipilih PASS/FAIL oleh operator.
+- Blokir verifikasi berbasis F0 (menolak simpan) tetap fase-2 / tidak ada.
 
 ## 5. Bagian 2 — Form Verifikasi (DISETUJUI)
 
@@ -121,9 +130,9 @@ Aturan:
 
 ## 8. Catatan Fase-2 (tidak dikerjakan sekarang)
 
-1. F0 sebagai penentu: `calculateF0(log_data)` sudah tampil otomatis (lihat 4b);
-   tersisa mengaktifkan perbandingan + toleransi +-0.01 (2 desimal);
-   kunci final rule Min-F0-sama vs F0 >= Target.
+1. F0 lanjutan (fase-2): aturan FAIL otomatis sudah jalan (lihat 4b);
+   tersisa bila diinginkan: blokir simpan saat FAIL, dan/atau cek Min-F0-sama
+   (strict, tanpa toleransi); kunci final rule saat itu.
 2. Group: NAIK ke fase-1, lihat 6b (desain selesai, tinggal implementasi).
 
 ## 9. Yang Sengaja Di-skip (YAGNI)
