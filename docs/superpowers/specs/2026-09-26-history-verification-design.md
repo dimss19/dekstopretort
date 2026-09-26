@@ -17,12 +17,14 @@ Status: Disetujui user (4 bagian, via brainstorming)
 
 ## 2. Keputusan Kunci (jawaban user)
 
-1. F0 DIABAIKAN di fase-1; hanya disimpan sebagai catatan. Perbandingan F0 masuk fase-2.
+1. F0 fase-1: dihitung + ditampilkan otomatis sebagai info (bukan syarat verified).
+   Metode 1-titik: `F0 = Σ L(Ti) x (1/60)`, `L = 10^((T-121.1)/10)`, hanya T >= 100°C.
+   Input Min-F0/Target-F0 di form tetap catatan. Perbandingan F0 masuk fase-2.
 2. Toleransi F0 fase-2: selisih absolut <= 0.01 setelah round 2 desimal (disetujui, belum dipakai).
 3. 8 field verifikasi: SEMUA wajib, campuran text + dropdown.
 4. Otorisasi: semua user boleh verifikasi; wajib catat `verified_by` + `verified_at`.
    Tanpa revert/edit di fase-1.
-5. Group (2 grup custom): SKIP fase-1, jadi catatan fase-2.
+5. Group: 2 slot tetap (`Group 1`, `Group 2`), nama + warna bebas;
 6. Scope: historian DISATUKAN (satu komponen dipakai dua rute).
 7. Status: `end_time` terisi = UNVERIFIED otomatis; `end_time` null = "Proses Berjalan".
 
@@ -56,10 +58,22 @@ Aturan:
 - History lama (selesai sebelum migration): backfill `unverified` via default,
   tanpa fake `verified_by/at`.
 
+## 4b. F0 Otomatis — Hitung + Tampil Saja (DISETUJUI)
+
+- Fungsi `calculateF0` dipertahankan metode 1-titik (rectangle, sesuai arahan user),
+  diselaraskan ke rumus: Tref `121.1`, z `10`, `dt = 1/60` menit, threshold `T >= 100°C`.
+  `F0 = Σ 10^((Ti-121.1)/10) x (1/60)`, round 2 desimal.
+- Perubahan kode vs sekarang: hanya Tref `121.11 -> 121.1` (selisih ~0.2%,
+  3 unit test existing tetap hijau karena memakai suhu konstan).
+- Tampil sebagai info (bukan syarat): stat "F0 sistem (otomatis)" di
+  `ProcessDetailView` + ikut export. Tanpa prefill, tanpa perbandingan ke input form.
+- Perbandingan sebagai syarat verified (toleransi +-0.01) tetap fase-2.
+
 ## 5. Bagian 2 — Form Verifikasi (DISETUJUI)
 
-- Tombol "Verifikasi Batch" di card history + dalam `ProcessDetailView`,
-  visible hanya jika selesai + `unverified`. Klik -> modal.
+- Klik history yang selesai + `unverified` -> masuk `ProcessDetailView`
+  (tabel + chart seperti sebelumnya) dengan form verifikasi inline di bawahnya.
+  Tombol "Simpan Verifikasi" di ujung form. Tanpa popup/modal.
 - 8 field, semua `required`:
   text: Product (cth `Rendang pouch 250 g`), Batch (cth `20260926-01`, unique),
   Scheduled Process (cth `121.1°C / 25 min`);
@@ -83,8 +97,19 @@ Aturan:
 - Filter toolbar baru: Semua / Verified / Unverified / Berjalan (client-side,
   gabung filter periode existing). Search `batch_code`/`product`
   (contains, case-insensitive), tanpa query baru.
-- `ProcessDetailView`: header badge status + blok "Verifikasi Batch"
-  (read-only jika verified, tombol verifikasi jika unverified).
+- `ProcessDetailView`: header badge status + blok "Verifikasi Batch" inline
+  (form jika unverified, read-only jika verified).
+
+## 6b. Bagian 3b — Group Custom (DISETUJUI)
+
+- Tabel `history_groups` (id, name, color), seed tepat 2 baris
+  (`Group 1`, `Group 2`). Tanpa tambah/hapus: hanya rename + ganti warna.
+- Atas halaman history: chip `[Semua | Group 1 | Group 2]` merangkap filter
+  + ikon edit kecil untuk rename/warna (`PUT /tn/history-groups/{id}`).
+- Dropdown group wajib di form inline (default Group 1), opsi ikut nama terkini.
+- Export mencantumkan nama group.
+- History running/belum verifikasi tanpa group tetap terlihat di `Semua`
+  + filter status; group wajib dipilih saat verifikasi.
 
 ## 7. Bagian 4 — Export + Audit (DISETUJUI)
 
@@ -95,14 +120,13 @@ Aturan:
 
 ## 8. Catatan Fase-2 (tidak dikerjakan sekarang)
 
-1. F0 sebagai penentu: aktifkan `calculateF0(log_data)` sebagai pembanding +
-   toleransi +-0.01 (2 desimal); kunci final rule Min-F0-sama vs F0 >= Target.
-2. Group (2 grup custom): model `history_groups` (id, name, color) seed 2 baris +
-   `group_id` nullable di history; UI rename di settings + assign saat verifikasi +
-   filter tab Group 1/2.
+1. F0 sebagai penentu: `calculateF0(log_data)` sudah tampil otomatis (lihat 4b);
+   tersisa mengaktifkan perbandingan + toleransi +-0.01 (2 desimal);
+   kunci final rule Min-F0-sama vs F0 >= Target.
+2. Group: NAIK ke fase-1, lihat 6b (desain selesai, tinggal implementasi).
 
 ## 9. Yang Sengaja Di-skip (YAGNI)
 
 - Tabel verifikasi/audit terpisah, tombol revert/edit, role khusus verifikator,
-  group di fase-1, perbandingan F0 di fase-1.
+  perbandingan F0 di fase-1.
   Tambah saat ada kebutuhan nyata yang terukur.
