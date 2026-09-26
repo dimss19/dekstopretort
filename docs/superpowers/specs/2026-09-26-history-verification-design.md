@@ -77,6 +77,9 @@ Aturan:
   tampil peringatan; backend: hitung ulang dari `log_data` (helper PHP rumus sama)
   saat submit dan override criterion ke FAIL bila kondisi terpenuhi.
   Jika F0 >= Target -> criterion bebas dipilih PASS/FAIL oleh operator.
+- Indikator live di form + detail: `F0 sistem >= Target (reference)` -> tampil
+  "VALID" (hijau); sebaliknya "FAIL" (merah). Derived saat render
+  (tidak disimpan di DB), ikut tampil di export.
 - Blokir verifikasi berbasis F0 (menolak simpan) tetap fase-2 / tidak ada.
 
 ## 5. Bagian 2 — Form Verifikasi (DISETUJUI)
