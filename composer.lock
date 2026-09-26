@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "161bea5ba2950a10c42b6c5ffb6d045f",
+    "content-hash": "bbded731f59d46ad62df8f6671d28b31",
     "packages": [
         {
             "name": "brick/math",
@@ -2709,8 +2709,8 @@
             "version": "1.2.0",
             "dist": {
                 "type": "path",
-                "url": "packages/nativephp/php-bin",
-                "reference": "d24629a9e48b4e90680e68d75d4071276dfd64ae"
+                "url": "D:/laragon/www/scadaretort/packages/nativephp/php-bin",
+                "reference": "719527b3cad3f4e6a42f29daa71a0f8f39a78d20"
             },
             "type": "library",
             "license": [
@@ -2726,7 +2726,7 @@
             ],
             "transport-options": {
                 "symlink": false,
-                "relative": true
+                "relative": false
             }
         },
         {

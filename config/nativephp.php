@@ -62,6 +62,8 @@ return [
         'content',
         'node_modules',
         '*/tests',
+        'scada-retort-installer-release*',
+        'desktop-app',
     ],
 
     /**

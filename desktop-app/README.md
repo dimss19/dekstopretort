@@ -56,15 +56,16 @@ Cukup jalankan script batch otomatis:
 
 2. Output installer akan otomatis dihasilkan di folder:
    ```
-   dist/
-   └── SCADA Retort Setup 1.0.0.exe
+   desktop-app/dist/
+   └── SCADA-Retort-1.0.0-Setup.exe
    ```
+   *(Serta di `nativephp/electron/dist/Laravel-1.0.0-setup.exe`)*
 
 ---
 
 ## 🚚 Distribusi ke Klien Pabrik
 
 Untuk instalasi di komputer klien pabrik:
-1. Salin file `dist\SCADA Retort Setup 1.0.0.exe` ke USB flashdisk atau transfer ke PC target.
+1. Salin file `desktop-app\dist\SCADA-Retort-1.0.0-Setup.exe` ke USB flashdisk atau transfer ke PC target.
 2. Jalankan installer `.exe` di komputer klien (tanpa perlu install PHP, Node.js, atau database apapun).
 3. Jika komputer klien menggunakan kabel konverter USB-RS485 CH340, jalankan driver dari folder `drivers\install_driver_ch340.bat` satu kali.

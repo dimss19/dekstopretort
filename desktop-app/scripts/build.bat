@@ -45,11 +45,20 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+if not exist "desktop-app\dist" mkdir "desktop-app\dist"
+if exist "nativephp\electron\dist\Laravel-1.0.0-setup.exe" (
+    copy /y "nativephp\electron\dist\Laravel-1.0.0-setup.exe" "desktop-app\dist\SCADA-Retort-1.0.0-Setup.exe" >nul
+)
+
 echo.
 echo ======================================================================
 echo   BUILD BERHASIL!
 echo ======================================================================
-echo File installer telah dibuat di dalam folder 'dist\'.
+echo File installer telah dibuat di:
+echo - desktop-app\dist\SCADA-Retort-1.0.0-Setup.exe
+echo - nativephp\electron\dist\Laravel-1.0.0-setup.exe
+echo.
 echo Anda dapat mendistribusikan file .exe tersebut langsung ke komputer klien pabrik.
 echo.
 pause
+
