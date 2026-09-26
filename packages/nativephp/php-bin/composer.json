@@ -1,0 +1,9 @@
+{
+    "name": "nativephp/php-bin",
+    "description": "PHP binaries used by the NativePHP framework",
+    "version": "1.2.0",
+    "keywords": ["nativephp", "php"],
+    "license": ["MIT", "GPL-3.0-or-later", "Apache-2.0", "PHP-3.01"],
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
