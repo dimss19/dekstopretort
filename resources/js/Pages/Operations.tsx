@@ -71,7 +71,7 @@ const Scada = () => {
             <Panel>
                 <div className="mb-5 flex items-center justify-between">
                     <div>
-                        <h3 className="font-semibold text-slate-800">Realtime Mimic Diagram</h3>
+                        <h3 className="font-semibold text-slate-800">Mimic Diagram</h3>
                         <p className="text-sm text-slate-500">Live process overview · updated just now</p>
                     </div>
                     <Badge tone="green">System Online</Badge>
@@ -85,7 +85,7 @@ const Scada = () => {
                                 </span>
                                 <div className="flex-1">
                                     <p className="font-semibold text-slate-800">{item.label}</p>
-                                    <p className="text-xs text-slate-500">Realtime object</p>
+                                    <p className="text-xs text-slate-500">Live object</p>
                                 </div>
                                 <span className="font-mono text-sm font-semibold text-cyan-700">{item.value}</span>
                                 <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
@@ -533,7 +533,7 @@ function DatabasePanel() {
 }
 
 const titles: Record<Module, [string, string]> = {
-    scada: ['SCADA Realtime POV', 'Pantau dan konfigurasi proses SCADA secara visual'],
+    scada: ['SCADA Process POV', 'Pantau dan konfigurasi proses SCADA secara visual'],
     historian: ['Riwayat Proses & Data Log', 'Kelola, analisis, dan ekspor log data proses sterilisasi controller retort'],
     alarm: ['Manajemen Alarm & Event', 'Pantau riwayat alarm aktif dan kejadian sistem'],
     notifications: ['Kanal Notifikasi Alarm', 'Konfigurasi integrasi saluran pemberitahuan alarm'],

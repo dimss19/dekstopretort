@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Native\Desktop\Facades\Window;
 use Native\Desktop\Facades\Menu;
+use Native\Desktop\Facades\ChildProcess;
 use Native\Desktop\Contracts\ProvidesPhpIni;
 
 class NativeAppServiceProvider implements ProvidesPhpIni
@@ -23,6 +24,15 @@ class NativeAppServiceProvider implements ProvidesPhpIni
             ->minWidth(1024)
             ->minHeight(768)
             ->rememberState();
+
+        // Otomatis jalankan tn:poll di background desktop app untuk polling serial port
+        if (config('nativephp-internal.running')) {
+            try {
+                ChildProcess::artisan(['tn:poll', '--interval=1'], 'tn_poll', persistent: true);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Native ChildProcess tn:poll failed to start: ' . $e->getMessage());
+            }
+        }
     }
 
     /**

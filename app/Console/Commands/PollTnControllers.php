@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Console\Isolatable;
 use App\Models\TnController;
 use App\Models\TnReading;
 use App\Services\TnModbusService;
@@ -10,7 +11,7 @@ use App\Services\TnRegisterMap;
 use App\Events\TnDataReceived;
 use Carbon\Carbon;
 
-class PollTnControllers extends Command
+class PollTnControllers extends Command implements Isolatable
 {
     protected $signature = 'tn:poll {--interval=1 : Polling interval in seconds} {--once : Poll controllers once and exit} {--controller= : Poll one TN controller id only}';
     protected $description = 'Poll TN Controllers for monitoring data';

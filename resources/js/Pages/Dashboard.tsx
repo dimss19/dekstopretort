@@ -67,7 +67,7 @@ export default function Dashboard({ auth, tnCount, tnOnline, controllers = [] }:
                     <div className="relative z-10">
                         <h3 className="text-3xl font-extrabold text-white sm:text-4xl">Selamat datang kembali, {auth?.user?.name || 'Operator'}</h3>
                         <p className="mt-2 max-w-2xl text-base text-blue-100/90 leading-relaxed">
-                            Pilih tipe controller Autonics TN Series di bawah untuk membuka sistem monitoring realtime atau jalankan <b>Pin Testing</b> langsung dari dashboard.
+                            Pilih tipe controller Autonics TN Series di bawah untuk membuka sistem monitoring atau jalankan <b>Pin Testing</b> langsung dari dashboard.
                         </p>
                     </div>
                 </div>
@@ -96,11 +96,14 @@ export default function Dashboard({ auth, tnCount, tnOnline, controllers = [] }:
                                         <span className="inline-block rounded-xl bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.2em] text-blue-700">
                                             {item.label}
                                         </span>
-                                        {ctrl.is_online && (
-                                            <span className="flex items-center gap-1 text-emerald-600 font-bold text-xs">
-                                                <CheckCircle size={14} /> Online
-                                            </span>
-                                        )}
+                                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-black uppercase tracking-wider border ${
+                                            ctrl.is_online
+                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                                : 'bg-rose-50 text-rose-700 border-rose-200'
+                                        }`}>
+                                            <span className={`h-2 w-2 rounded-full ${ctrl.is_online ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
+                                            {ctrl.is_online ? 'Online' : 'Offline'}
+                                        </span>
                                     </div>
 
                                     <h3 className="mt-4 text-3xl font-black tracking-tight text-slate-900 group-hover:text-blue-700 transition-colors">

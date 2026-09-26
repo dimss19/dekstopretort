@@ -24,7 +24,7 @@ type MonitorTab = 'monitor' | 'scada';
 
 export default function Monitor({ controller, latestReading: initialReading }: Props) {
     const pollIntervalMs = Math.max(1000, controller.polling_interval ?? 1000);
-    const staleAfterMs = Math.max(60000, pollIntervalMs * 10);
+    const staleAfterMs = Math.max(5000, pollIntervalMs * 3);
     const getReadingTimestamp = (value: any) => value?.created_at ?? value?.timestamp ?? null;
     const timestampToMs = (timestamp: any): number | false => {
         if (!timestamp) return false;
@@ -59,7 +59,7 @@ export default function Monitor({ controller, latestReading: initialReading }: P
         }
     };
     const [isLiveOnline, setIsLiveOnline] = useState(Boolean(
-        controller.is_online || isFreshTimestamp(getReadingTimestamp(initialReading)),
+        controller.is_online && isFreshTimestamp(getReadingTimestamp(initialReading)),
     ));
     const [commandPending, setCommandPending] = useState<'run' | 'stop' | 'reset' | null>(null);
     const lastReadingTimestampRef = useRef<any>(getReadingTimestamp(initialReading));
@@ -76,7 +76,7 @@ export default function Monitor({ controller, latestReading: initialReading }: P
             const timestamp = getReadingTimestamp(newReading);
             const timestampMs = timestampToMs(timestamp);
             lastSeenAtRef.current = timestampMs !== false ? timestampMs : Date.now();
-            setIsLiveOnline(timestampMs === false || Date.now() - (timestampMs || Date.now()) <= staleAfterMs);
+            setIsLiveOnline(timestampMs !== false && Date.now() - timestampMs <= staleAfterMs);
             lastReadingTimestampRef.current = timestamp;
             setReading(newReading);
 
@@ -106,8 +106,10 @@ export default function Monitor({ controller, latestReading: initialReading }: P
                     const timestampMs = timestampToMs(timestamp);
                     lastReadingTimestampRef.current = timestamp;
                     lastSeenAtRef.current = timestampMs;
-                    setIsLiveOnline(timestampMs !== false ? (Date.now() - timestampMs <= staleAfterMs) : Boolean(controller.is_online));
+                    setIsLiveOnline(timestampMs !== false && (Date.now() - timestampMs <= staleAfterMs));
                     setReading(latest);
+                } else {
+                    setIsLiveOnline(false);
                 }
             } catch {
                 if (isMounted) setIsLiveOnline(false);

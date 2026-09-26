@@ -38,11 +38,11 @@ export default function RetortMonitorShell(props: Props) {
                         <h1 className="text-2xl font-black tracking-tight text-slate-900">{displayName}</h1>
                         <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-black uppercase tracking-wider border ${
                             isOnline
-                                ? 'bg-amber-100 text-amber-900 border-amber-300'
+                                ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
                                 : 'bg-rose-100 text-rose-800 border-rose-200'
                         }`}>
-                            <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'}`}></span>
-                            {isOnline ? 'Realtime Online' : 'Offline'}
+                            <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
+                            {isOnline ? 'Online' : 'Offline'}
                         </span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
@@ -105,7 +105,7 @@ export default function RetortMonitorShell(props: Props) {
                                 <div className="flex items-center gap-3">
                                     <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-black tracking-wider ${isOnline ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'}`}>
                                         <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`}></span>
-                                        {isOnline ? 'REALTIME LIVE' : 'OFFLINE'}
+                                        {isOnline ? 'ONLINE' : 'OFFLINE'}
                                     </span>
                                 </div>
                             </div>

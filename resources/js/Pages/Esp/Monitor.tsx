@@ -339,11 +339,11 @@ export default function EspMonitor({
                             </h1>
                             <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-black uppercase tracking-wider border ${
                                 isOnline
-                                    ? 'bg-amber-100 text-amber-900 border-amber-300'
+                                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
                                     : 'bg-rose-100 text-rose-800 border-rose-200'
                             }`}>
-                                <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'}`}></span>
-                                {isOnline ? 'Realtime Online' : 'Offline'}
+                                <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
+                                {isOnline ? 'Online' : 'Offline'}
                             </span>
                         </div>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
