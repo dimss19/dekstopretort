@@ -22,8 +22,9 @@ Status: Disetujui user (4 bagian, via brainstorming)
    Input Min-F0/Target-F0 di form tetap catatan. Perbandingan F0 masuk fase-2.
 2. Toleransi F0 fase-2: selisih absolut <= 0.01 setelah round 2 desimal (disetujui, belum dipakai).
 3. 8 field verifikasi: SEMUA wajib, campuran text + dropdown.
-4. Otorisasi: semua user boleh verifikasi; wajib catat `verified_by` + `verified_at`.
-   Tanpa revert/edit di fase-1.
+4. Otorisasi: hanya 1 role yaitu operator (tanpa admin); semua operator boleh
+   verifikasi; wajib catat `verified_by` (nama operator login) + `verified_at`.
+   Tanpa revert/edit di fase-1. Tanpa role/permission baru.
 5. Group: 2 slot tetap (`Group 1`, `Group 2`), nama + warna bebas;
 6. Scope: historian DISATUKAN (satu komponen dipakai dua rute).
 7. Status: `end_time` terisi = UNVERIFIED otomatis; `end_time` null = "Proses Berjalan".
