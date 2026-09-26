@@ -6,11 +6,12 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    if (auth()->check()) {
-        return redirect()->route('dashboard');
-    }
-    return redirect()->route('login');
+    return redirect()->route('dashboard');
 });
+
+Route::get('/login', function () {
+    return redirect()->route('dashboard');
+})->name('login');
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard', [
@@ -19,7 +20,7 @@ Route::get('/dashboard', function () {
         'recipeCount' => \App\Models\TnRecipeTemplate::count(),
         'controllers' => \App\Models\TnController::all(),
     ]);
-})->middleware(['auth', 'verified'])->name('dashboard');
+})->name('dashboard');
 
 Route::get('/test-lock', function () {
     $lock = \Illuminate\Support\Facades\Cache::lock('modbus_port_' . md5('COM6'), 5);
@@ -28,7 +29,7 @@ Route::get('/test-lock', function () {
     return response()->json(['acquired' => $acquired, 'driver' => config('cache.default')]);
 });
 
-Route::middleware('auth')->group(function () {
+Route::group([], function () {
     Route::get('/scada', fn () => redirect()->route('tn.index'))->name('scada.index');
     Route::get('/historian', function () {
         $histories = \App\Models\TnProcessHistory::with('controller.machine')->orderBy('start_time')->get();

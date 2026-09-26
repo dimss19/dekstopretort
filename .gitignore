@@ -28,5 +28,9 @@ Thumbs.db
 .opencode
 scada-retort-installer-release/
 *.zip
-/nativephp/
+/nativephp/electron/dist/
+/nativephp/electron/node_modules/
+/nativephp/electron/out/
 desktop-app/dist/
+build/
+*.spec

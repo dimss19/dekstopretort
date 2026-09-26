@@ -5,19 +5,34 @@ cls
 
 echo ======================================================================
 echo           BUILD SCADA RETORT DESKTOP APP (.EXE) - PT INDAH MESIN
+echo          Bundled: PHP 8.3 + SQLite + Modbus Bridge + CH340 Driver
 echo ======================================================================
 echo.
 
-:: 1. Verifikasi Environment
-echo [1/4] Memeriksa Environment Build...
+:: 1. Verifikasi Environment & Bundling Runtime PHP 8.3
+echo [1/5] Memeriksa Environment & Bundling Runtime PHP 8.3...
 if not exist "packages\nativephp\php-bin\bin\win\x64\php-8.3.zip" (
     echo [ERROR] Package PHP Binary Windows tidak ditemukan di 'packages\nativephp\php-bin'.
     pause
     exit /b 1
 )
+echo [OK] Runtime PHP 8.3 Portable siap dibundel otomatis.
+echo.
 
-:: 2. Build Frontend Assets
-echo [2/4] Mengkompilasi Aset Frontend (React + Vite)...
+:: 2. Kompilasi Modbus Bridge Standalone EXE (Zero Python Dependency)
+echo [2/5] Menyiapkan Standalone Modbus Bridge EXE (Zero Python Dependency)...
+if not exist "scripts\modbus_bridge.exe" (
+    call pyinstaller --onefile --console --name modbus_bridge --distpath scripts scripts\modbus_bridge.py
+)
+if exist "scripts\modbus_bridge.exe" (
+    echo [OK] modbus_bridge.exe siap. Komputer klien tidak butuh instal Python.
+) else (
+    echo [WARN] modbus_bridge.exe tidak ditemukan, fallback ke script python.
+)
+echo.
+
+:: 3. Build Frontend Assets
+echo [3/5] Mengkompilasi Aset Frontend (React + Vite)...
 call npm run build
 if %errorlevel% neq 0 (
     echo [ERROR] Gagal mengkompilasi frontend assets!
@@ -27,17 +42,17 @@ if %errorlevel% neq 0 (
 echo [OK] Aset frontend berhasil dikompilasi ke public\build.
 echo.
 
-:: 3. Optimasi Cache Laravel
-echo [3/4] Mengoptimasi Cache Laravel...
+:: 4. Optimasi Cache Laravel
+echo [4/5] Mengoptimasi Cache Laravel...
 php artisan config:clear
 php artisan route:clear
 php artisan view:clear
 echo [OK] Cache dibersihkan.
 echo.
 
-:: 4. Build Executable Windows
-echo [4/4] Membuat Installer Desktop Windows (.exe)...
-echo Ini mungkin membutuhkan beberapa menit untuk membungkus Electron dan PHP Runtime.
+:: 5. Build Executable Windows NSIS Wizard Installer
+echo [5/5] Membuat Wizard Installer Desktop Windows (.exe)...
+echo Ini akan membungkus Electron, PHP 8.3, Modbus Bridge, dan Driver CH340 ke dalam NSIS Setup Wizard.
 php artisan native:build win
 if %errorlevel% neq 0 (
     echo [ERROR] Build NativePHP gagal!
@@ -46,8 +61,8 @@ if %errorlevel% neq 0 (
 )
 
 if not exist "desktop-app\dist" mkdir "desktop-app\dist"
-if exist "nativephp\electron\dist\Laravel-1.0.0-setup.exe" (
-    copy /y "nativephp\electron\dist\Laravel-1.0.0-setup.exe" "desktop-app\dist\SCADA-Retort-1.0.0-Setup.exe" >nul
+for %%F in (nativephp\electron\dist\*-setup.exe nativephp\electron\dist\*-Setup.exe) do (
+    copy /y "%%F" "desktop-app\dist\SCADA-Retort-1.0.0-Setup.exe" >nul
 )
 
 echo.
@@ -56,9 +71,13 @@ echo   BUILD BERHASIL!
 echo ======================================================================
 echo File installer telah dibuat di:
 echo - desktop-app\dist\SCADA-Retort-1.0.0-Setup.exe
-echo - nativephp\electron\dist\Laravel-1.0.0-setup.exe
 echo.
-echo Anda dapat mendistribusikan file .exe tersebut langsung ke komputer klien pabrik.
+echo Installer dilengkapi:
+echo  1. Wizard Pemilihan Lokasi Folder Instalasi (C:\Program Files\...)
+echo  2. Persetujuan Lisensi EULA Resmi PT Indah Mesin
+echo  3. Auto-bundling PHP 8.3 Portable Runtime (Zero PHP Setup)
+echo  4. Auto-bundling Standalone Modbus Bridge (Zero Python Setup)
+echo  5. Auto-bundling & Instalasi Otomatis Driver USB-RS485 CH340
+echo  6. Akses Langsung Dashboard SCADA Retort (Bebas Login Web)
 echo.
 pause
-

@@ -71,18 +71,17 @@ export default function Authenticated({
                         )}
                     </nav>
 
-                    <div className="ml-3 flex shrink-0 items-center gap-3 border-l border-blue-800/60 pl-4">
-                        <Link href={route('profile.edit')} aria-label="Profile" title={user.name} className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 text-sm font-black text-slate-950 shadow-[0_0_10px_rgba(250,204,21,0.4)] hover:scale-105 transition-transform">
-                            {user.name.charAt(0).toUpperCase()}
-                        </Link>
-                        <Link
-                            href={route('logout')}
-                            method="post"
-                            as="button"
-                            className="hidden rounded-xl border border-blue-700/60 bg-blue-900/40 px-3.5 py-2 text-xs font-bold text-slate-200 hover:border-amber-400/60 hover:bg-amber-400 hover:text-slate-950 transition-all md:block"
-                        >
-                            Log Out
-                        </Link>
+                    <div className="ml-3 flex shrink-0 items-center gap-2.5 border-l border-blue-800/60 pl-4">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 text-sm font-black text-slate-950 shadow-[0_0_10px_rgba(250,204,21,0.4)]">
+                            {((user as any)?.name || 'O').charAt(0).toUpperCase()}
+                        </div>
+                        <div className="hidden sm:block text-left">
+                            <p className="text-xs font-bold text-white leading-tight">{(user as any)?.name || 'Operator SCADA'}</p>
+                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-semibold">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                Workstation
+                            </span>
+                        </div>
                     </div>
                 </div>
             </header>

@@ -26,8 +26,15 @@ class TnModbusService
 
     protected function runPython(array $args, int $timeout = 10): array
     {
+        $exePath = base_path('scripts/modbus_bridge.exe');
+        if (file_exists($exePath)) {
+            $cmd = array_merge([$exePath], $args);
+        } else {
+            $cmd = array_merge([$this->pythonPath, '-u', $this->scriptPath], $args);
+        }
+
         $process = new Process(
-            array_merge([$this->pythonPath, '-u', $this->scriptPath], $args),
+            $cmd,
             null,
             $this->buildEnv()
         );

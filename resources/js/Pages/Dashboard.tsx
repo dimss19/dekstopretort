@@ -65,7 +65,7 @@ export default function Dashboard({ auth, tnCount, tnOnline, controllers = [] }:
                     <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl pointer-events-none"></div>
                     <div className="absolute -left-16 -bottom-16 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl pointer-events-none"></div>
                     <div className="relative z-10">
-                        <h3 className="text-3xl font-extrabold text-white sm:text-4xl">Selamat datang kembali, {auth.user.name}</h3>
+                        <h3 className="text-3xl font-extrabold text-white sm:text-4xl">Selamat datang kembali, {auth?.user?.name || 'Operator'}</h3>
                         <p className="mt-2 max-w-2xl text-base text-blue-100/90 leading-relaxed">
                             Pilih tipe controller Autonics TN Series di bawah untuk membuka sistem monitoring realtime atau jalankan <b>Pin Testing</b> langsung dari dashboard.
                         </p>

@@ -1,0 +1,27 @@
+PERJANJIAN LISENSI PENGGUNA AKHIR (EULA)
+SCADA RETORT MONITORING & CONTROL SYSTEM
+PT INDAH MESIN
+
+PENTING — BACA DENGAN SEKSAMA SEBELUM MELANJUTKAN PROSES INSTALASI:
+
+Perjanjian Lisensi Pengguna Akhir ini ("EULA") adalah perjanjian hukum yang sah antara Anda (baik sebagai individu maupun entitas perusahaan/pabrik) dan PT INDAH MESIN untuk penggunaan perangkat lunak SCADA Retort ("Perangkat Lunak").
+
+1. PEMBERIAN LISENSI
+PT Indah Mesin memberikan hak non-eksklusif dan tidak dapat dipindahtangankan kepada Anda untuk menginstal, mengoperasikan, dan menggunakan Perangkat Lunak ini pada komputer/workstation lokal yang terhubung ke mesin retort dan controller Autonics TN Series.
+
+2. BUNDLE RUNTIME LENGKAP & MANDIRI
+Perangkat Lunak ini telah dibundel secara terintegrasi dengan runtime PHP 8.3 Portable, SQLite Database Engine, komunikasi serial Modbus RTU, serta installer Driver USB-to-RS485 CH340. Pengguna tidak perlu menginstal dependensi server atau runtime pihak ketiga secara terpisah.
+
+3. HAK KEKAYAAN INTELEKTUAL
+Seluruh hak cipta, merek dagang, kode sumber, skema kontrol, dan aset visual aplikasi adalah milik eksklusif PT INDAH MESIN dan dilindungi oleh Undang-Undang Hak Cipta Republik Indonesia serta konvensi internasional.
+
+4. BATASAN PENGGUNAAN
+Pengguna tidak diperkenankan untuk:
+a. Memodifikasi, mendekompilasi, merekayasa balik (reverse engineer), atau membongkar kode biner Perangkat Lunak.
+b. Menyewakan, menyalin, mendistribusikan ulang, atau menjual kembali paket instalasi Perangkat Lunak kepada pihak ketiga tanpa persetujuan tertulis dari PT INDAH MESIN.
+c. Menggunakan Perangkat Lunak di luar tujuan operasional pemantauan dan kontrol mesin retort industri yang ditentukan.
+
+5. BATASAN TANGGUNG JAWAB
+PT INDAH MESIN tidak bertanggung jawab atas kerugian tidak langsung, insidental, atau kerusakan produksi yang timbul akibat malfungsi perangkat keras fisik eksternal, gangguan kabel serial di lapangan, atau kelalaian parameter termal oleh operator.
+
+DENGAN MENGEKLIK "SAYA MENYETUJUI / AGREE" DAN MELANJUTKAN PROSES INSTALASI, ANDA MENYATAKAN TELAH MEMBACA, MEMAHAMI, DAN SETUJU UNTUK TERIKAT OLEH SELURUH SYARAT DAN KETENTUAN EULA INI.
