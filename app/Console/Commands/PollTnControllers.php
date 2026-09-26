@@ -119,27 +119,12 @@ class PollTnControllers extends Command implements Isolatable
                             'last_error' => null,
                         ]);
 
-                        if (config('broadcasting.default') !== 'null' && config('broadcasting.default') !== 'log') {
-                            static $isReverbAlive = null;
-                            static $lastReverbCheck = 0;
-
-                            if (time() - $lastReverbCheck > 10) {
-                                $lastReverbCheck = time();
-                                $fp = @fsockopen('127.0.0.1', 8080, $errno, $errstr, 0.02);
-                                if ($fp) {
-                                    $isReverbAlive = true;
-                                    fclose($fp);
-                                } else {
-                                    $isReverbAlive = false;
-                                }
-                            }
-
-                            if ($isReverbAlive) {
-                                try {
-                                    event(new TnDataReceived($controller, $reading));
-                                } catch (\Throwable $e) {
-                                    $isReverbAlive = false;
-                                }
+                        // Broadcasting is disabled in desktop polling to prevent 2-second cURL timeouts
+                        if (env('ENABLE_REVERB_BROADCAST', false)) {
+                            try {
+                                event(new TnDataReceived($controller, $reading));
+                            } catch (\Throwable $e) {
+                                // Silent fail
                             }
                         }
 

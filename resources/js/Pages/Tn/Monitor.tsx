@@ -23,8 +23,8 @@ interface Props extends PageProps {
 type MonitorTab = 'monitor' | 'scada';
 
 export default function Monitor({ controller, latestReading: initialReading }: Props) {
-    const pollIntervalMs = Math.max(1000, controller.polling_interval ?? 1000);
-    const staleAfterMs = Math.max(5000, pollIntervalMs * 3);
+    const pollIntervalMs = 1000; // Pembacaan Modbus per 1 detik
+    const staleAfterMs = 4000;   // Toleransi 4 detik sebelum dianggap offline
     const getReadingTimestamp = (value: any) => value?.created_at ?? value?.timestamp ?? null;
     const timestampToMs = (timestamp: any): number | false => {
         if (!timestamp) return false;

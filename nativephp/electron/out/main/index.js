@@ -2799,7 +2799,7 @@ var __awaiter = function(thisArg, _arguments, P, generator) {
   });
 };
 const { autoUpdater } = electronUpdater;
-let NativePHP$1 = class NativePHP {
+class NativePHP {
   constructor() {
     this.processes = [];
     this.mainWindow = null;
@@ -3014,8 +3014,8 @@ let NativePHP$1 = class NativePHP {
       }
     });
   }
-};
-const NativePHP2 = new NativePHP$1();
+}
+const NativePHP$1 = new NativePHP();
 function getLaravelBaseDir(appPath2, importMetaDirname) {
   if (app.isPackaged) {
     return appPath2;
@@ -3102,7 +3102,7 @@ app.whenReady().then(() => {
   } catch (error) {
     console.error("Error creating splash screen:", error);
   }
-  NativePHP2.bootstrap(app, defaultIcon, phpBinary, certificate, appPath);
+  NativePHP$1.bootstrap(app, defaultIcon, phpBinary, certificate, appPath);
 });
 app.on("browser-window-created", (event, window) => {
   if (splashWindow && window !== splashWindow) {
