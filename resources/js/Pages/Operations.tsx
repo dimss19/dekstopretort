@@ -18,7 +18,7 @@ import {
 import HistorianList from '@/Components/History/HistorianList';
 
 type Module = 'scada' | 'historian' | 'alarm' | 'notifications' | 'database';
-type Props = { module: Module; histories?: any[] };
+type Props = { module: Module; histories?: any[]; groups?: { id: number; name: string; color: string }[] };
 
 type FlowItem = {
     icon: ReactNode;
@@ -180,9 +180,9 @@ const titles: Record<Module, [string, string]> = {
     database: ['Struktur Database SCADA', 'Daftar tabel operasional dan skema data sistem'],
 };
 
-export default function Operations({ module, histories }: Props) {
+export default function Operations({ module, histories, groups }: Props) {
     const [title, subtitle] = titles[module];
-    const content = { scada: <Scada />, historian: <HistorianList histories={histories} />, alarm: <Alarm />, notifications: <Notifications />, database: <DatabasePanel /> }[module];
+    const content = { scada: <Scada />, historian: <HistorianList histories={histories} groups={groups} />, alarm: <Alarm />, notifications: <Notifications />, database: <DatabasePanel /> }[module];
 
     return (
         <AuthenticatedLayout header={

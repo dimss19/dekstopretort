@@ -33,7 +33,8 @@ Route::group([], function () {
     Route::get('/scada', fn () => redirect()->route('tn.index'))->name('scada.index');
     Route::get('/historian', function () {
         $histories = \App\Models\TnProcessHistory::with('controller.machine')->orderBy('start_time')->get();
-        return Inertia::render('Operations', ['module' => 'historian', 'histories' => $histories]);
+        $groups = \App\Models\HistoryGroup::orderBy('id')->get();
+        return Inertia::render('Operations', ['module' => 'historian', 'histories' => $histories, 'groups' => $groups]);
     })->name('historian.index');
     Route::get('/database', fn () => Inertia::render('Operations', ['module' => 'database']))->name('database.index');
     Route::redirect('/trend', '/tn')->name('trend.index');
