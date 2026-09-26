@@ -119,25 +119,27 @@ class PollTnControllers extends Command implements Isolatable
                             'last_error' => null,
                         ]);
 
-                        static $isReverbAlive = null;
-                        static $lastReverbCheck = 0;
+                        if (config('broadcasting.default') !== 'null' && config('broadcasting.default') !== 'log') {
+                            static $isReverbAlive = null;
+                            static $lastReverbCheck = 0;
 
-                        if (time() - $lastReverbCheck > 5) {
-                            $lastReverbCheck = time();
-                            $fp = @fsockopen('127.0.0.1', 8080, $errno, $errstr, 0.02);
-                            if ($fp) {
-                                $isReverbAlive = true;
-                                fclose($fp);
-                            } else {
-                                $isReverbAlive = false;
+                            if (time() - $lastReverbCheck > 10) {
+                                $lastReverbCheck = time();
+                                $fp = @fsockopen('127.0.0.1', 8080, $errno, $errstr, 0.02);
+                                if ($fp) {
+                                    $isReverbAlive = true;
+                                    fclose($fp);
+                                } else {
+                                    $isReverbAlive = false;
+                                }
                             }
-                        }
 
-                        if ($isReverbAlive) {
-                            try {
-                                event(new TnDataReceived($controller, $reading));
-                            } catch (\Throwable $e) {
-                                $isReverbAlive = false;
+                            if ($isReverbAlive) {
+                                try {
+                                    event(new TnDataReceived($controller, $reading));
+                                } catch (\Throwable $e) {
+                                    $isReverbAlive = false;
+                                }
                             }
                         }
 
