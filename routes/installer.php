@@ -5,34 +5,25 @@ use App\Http\Controllers\InstallerController;
 
 /*
 |--------------------------------------------------------------------------
-| Web Installer 7-Step Routes
+| Desktop App Setup & Activation Routes
 |--------------------------------------------------------------------------
 */
 
 Route::prefix('install')->name('installer.')->middleware(['web', 'check.installation'])->group(function () {
-    // 1. Welcome
+    // 1. Setup Akun Administrator & Inisialisasi Otomatis (SQLite pre-configured)
     Route::get('/', [InstallerController::class, 'welcome'])->name('welcome');
+    Route::post('/setup', [InstallerController::class, 'processSetup'])->name('process-setup');
 
-    // 2. Requirements
-    Route::get('/requirements', [InstallerController::class, 'requirements'])->name('requirements');
-
-    // 3. License / Purchase Code
+    // 2. Aktivasi Lisensi Perusahaan (Final Step)
     Route::get('/license', [InstallerController::class, 'license'])->name('license');
     Route::post('/license', [InstallerController::class, 'verifyLicense'])->name('verify-license');
 
-    // 4. Database Configuration (SQLite default / MySQL)
-    Route::get('/database', [InstallerController::class, 'database'])->name('database');
-    Route::post('/database/test', [InstallerController::class, 'testDatabase'])->name('test-database');
-    Route::post('/database', [InstallerController::class, 'saveDatabase'])->name('save-database');
-
-    // 5. Application Configuration
-    Route::get('/app-config', [InstallerController::class, 'appConfig'])->name('app-config');
-    Route::post('/app-config', [InstallerController::class, 'saveAppConfig'])->name('save-app-config');
-
-    // 6. Install (Process Execution)
-    Route::get('/process', [InstallerController::class, 'installScreen'])->name('install');
-    Route::post('/process/run', [InstallerController::class, 'processInstall'])->name('process-install');
-
-    // 7. Installation Complete
+    // 3. Selesai
     Route::get('/complete', [InstallerController::class, 'complete'])->name('complete');
+
+    // Fallbacks untuk rute lawas
+    Route::get('/requirements', [InstallerController::class, 'requirements'])->name('requirements');
+    Route::get('/database', [InstallerController::class, 'database'])->name('database');
+    Route::get('/app-config', [InstallerController::class, 'appConfig'])->name('app-config');
+    Route::get('/process', [InstallerController::class, 'installScreen'])->name('install');
 });
