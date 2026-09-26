@@ -72,6 +72,7 @@ class EspMonitorController extends Controller
             'isOnline' => (bool)$isOnline,
             'systemEvent' => $systemEvent,
             'histories' => $processHistories,
+            'groups' => \App\Models\HistoryGroup::orderBy('id')->get(),
             'initialPattern' => $pattern,
         ]);
     }

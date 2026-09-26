@@ -207,8 +207,8 @@ class TnMonitorController extends Controller
             'product' => 'required|string|max:100',
             'batch_code' => 'required|string|max:50|unique:tn_process_histories,batch_code',
             'scheduled_process' => 'required|string|max:100',
-            'min_f0_achieved' => 'nullable|numeric|min:0',
-            'target_f0' => 'nullable|numeric|min:0',
+            'min_f0_achieved' => 'required|numeric|min:0',
+            'target_f0' => 'required|numeric|min:0',
             'process_deviation' => 'required|in:None,Minor,Major',
             'sterility_criterion' => 'required|in:PASS,FAIL',
             'thermal_record' => 'required|in:VERIFIED,REJECTED',
@@ -221,6 +221,8 @@ class TnMonitorController extends Controller
             $criterion = 'FAIL';
         }
 
+        $verifiedBy = $request->user()->name ?? 'Operator';
+
         $history->update([
             'product' => $data['product'],
             'batch_code' => $data['batch_code'],
@@ -232,7 +234,7 @@ class TnMonitorController extends Controller
             'thermal_record' => $data['thermal_record'],
             'group_id' => $data['group_id'],
             'verification_status' => 'verified',
-            'verified_by' => $request->user()->name,
+            'verified_by' => $verifiedBy,
             'verified_at' => now(),
         ]);
 

@@ -9,9 +9,9 @@ import Pusher from 'pusher-js';
 
 const reverbAppKey = import.meta.env.VITE_REVERB_APP_KEY?.trim();
 
-// Realtime is optional. Instantiating Echo without a key makes Pusher throw
-// during application startup and prevents the rest of the UI from loading.
-if (reverbAppKey) {
+// Realtime WebSockets are disabled in desktop app to prevent connection retries to localhost:8080.
+// Desktop app uses direct, high-performance HTTP polling at 1-second intervals.
+if (reverbAppKey && import.meta.env.VITE_REVERB_ENABLED === 'true') {
     (window as any).Pusher = Pusher;
 
     (window as any).Echo = new Echo({
