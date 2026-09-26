@@ -30,7 +30,6 @@ scada-retort-installer-release/
 *.zip
 /nativephp/electron/dist/
 /nativephp/electron/node_modules/
-/nativephp/electron/out/
 desktop-app/dist/
 build/
 *.spec

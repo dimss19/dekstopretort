@@ -1,6 +1,8 @@
 .idea
 node_modules
-out
+out/*
+!out/main
+!out/main/index.js
 *.log
 !build
 dist
