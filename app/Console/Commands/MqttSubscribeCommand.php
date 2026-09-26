@@ -74,7 +74,13 @@ class MqttSubscribeCommand extends Command
                     // Broadcast to private websocket channel
                     broadcast(new SensorDataReceived($machineCode, $normalized));
 
-                    // Cache device state and recent ESP telemetry
+                    // Cache device state, IP address, and recent ESP telemetry
+                    if (!empty($payload['ip'])) {
+                        \Illuminate\Support\Facades\Cache::put("esp_ip_{$machineCode}", $payload['ip'], now()->addDays(7));
+                        \Illuminate\Support\Facades\Cache::put("esp_ip", $payload['ip'], now()->addDays(7));
+                    }
+                    \Illuminate\Support\Facades\Cache::put("esp_last_seen", now()->timestamp, now()->addMinutes(5));
+                    \Illuminate\Support\Facades\Cache::put("esp_last_seen_{$machineCode}", now()->timestamp, now()->addMinutes(5));
                     \Illuminate\Support\Facades\Cache::put("device.{$machineCode}.run", $normalized['run'], now()->addMinutes(5));
                     \Illuminate\Support\Facades\Cache::put("device.{$machineCode}.last_seen", now()->timestamp, now()->addMinutes(5));
                     \Illuminate\Support\Facades\Cache::put("esp_latest_telemetry_{$machineCode}", $normalized, now()->addMinutes(15));
@@ -100,6 +106,12 @@ class MqttSubscribeCommand extends Command
 
                     $machineCode = $payload['id'] ?? $payload['machine_code'] ?? 'RT-001';
                     $this->info("Received system event for {$machineCode}: " . $message);
+                    if (!empty($payload['ip'])) {
+                        \Illuminate\Support\Facades\Cache::put("esp_ip_{$machineCode}", $payload['ip'], now()->addDays(7));
+                        \Illuminate\Support\Facades\Cache::put("esp_ip", $payload['ip'], now()->addDays(7));
+                    }
+                    \Illuminate\Support\Facades\Cache::put("esp_last_seen", now()->timestamp, now()->addMinutes(5));
+                    \Illuminate\Support\Facades\Cache::put("esp_last_seen_{$machineCode}", now()->timestamp, now()->addMinutes(5));
                     \Illuminate\Support\Facades\Cache::put("esp_latest_system_event_{$machineCode}", $payload, now()->addHours(6));
                 });
 

@@ -32,6 +32,12 @@ class NativeAppServiceProvider implements ProvidesPhpIni
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::warning('Native ChildProcess tn:poll failed to start: ' . $e->getMessage());
             }
+
+            try {
+                ChildProcess::artisan(['mqtt:subscribe'], 'mqtt_sub', persistent: true);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Native ChildProcess mqtt:subscribe failed to start: ' . $e->getMessage());
+            }
         }
     }
 

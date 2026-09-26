@@ -61,11 +61,13 @@ export default function EspMonitor({
 
     const lastSeqRef = useRef<number>(0);
 
-    const applyTelemetryPayload = (data: any) => {
+    const applyTelemetryPayload = (data: any, online: boolean = true) => {
         if (!data) return;
-        lastUpdateRef.current = Date.now();
-        setIsOnline(true);
+        setIsOnline(online);
         setTelemetry(data);
+        if (!online) return;
+
+        lastUpdateRef.current = Date.now();
 
         // Add to history for chart & logs
         const historyEntry = {
@@ -104,12 +106,11 @@ export default function EspMonitor({
                 if (res.ok && active) {
                     const json = await res.json();
                     if (json.seq != null) lastSeqRef.current = json.seq;
-                    if (json.telemetry) applyTelemetryPayload(json.telemetry);
-                    if (typeof json.is_online === 'boolean') {
-                        setIsOnline(json.is_online);
-                        if (json.is_online) lastUpdateRef.current = Date.now();
-                    }
-                    if (Array.isArray(json.history) && json.history.length > 0) {
+                    const onlineStatus = Boolean(json.is_online);
+                    setIsOnline(onlineStatus);
+                    if (onlineStatus) lastUpdateRef.current = Date.now();
+                    if (json.telemetry) applyTelemetryPayload(json.telemetry, onlineStatus);
+                    if (Array.isArray(json.history)) {
                         const formatted = json.history.map((h: any) => ({
                             pv: h.pv ?? h.actual ?? 0,
                             sv: h.sv ?? h.setting ?? 121.1,
@@ -149,14 +150,18 @@ export default function EspMonitor({
 
     // Map ESP telemetry to standard RetortTelemetry object for TnFaceplateDisplay
     const mappedTelemetry: RetortTelemetry = useMemo(() => {
-        const pvVal = telemetry.pv ?? telemetry.actual ?? null;
-        const svVal = telemetry.sv ?? telemetry.setting ?? 121.1;
-        const mvVal = telemetry.mv ?? 0;
-        const isRunning = Boolean(
+        const pvVal = isOnline && telemetry.pv !== null && telemetry.pv !== undefined
+            ? Number(telemetry.pv ?? telemetry.actual)
+            : null;
+        const svVal = isOnline && telemetry.sv !== null && telemetry.sv !== undefined
+            ? Number(telemetry.sv ?? telemetry.setting)
+            : null;
+        const mvVal = isOnline ? Number(telemetry.mv ?? 0) : 0;
+        const isRunning = isOnline && Boolean(
             telemetry.run ||
             (mvVal > 0) ||
             (telemetry.tot && telemetry.tot !== '00:00') ||
-            (telemetry.phase && telemetry.phase.toUpperCase() !== 'IDLE')
+            (telemetry.phase && !['IDLE', 'OFFLINE'].includes(telemetry.phase.toUpperCase()))
         );
 
         const parseTimeDigits = (tStr?: string) => {
@@ -165,29 +170,29 @@ export default function EspMonitor({
             return parseInt(clean, 10) || 0;
         };
 
-        const pNum = telemetry.pattern ?? (telemetry.ps ? parseInt(telemetry.ps.split('.')[0], 10) : 0);
-        const sNum = telemetry.step ?? (telemetry.ps ? parseInt(telemetry.ps.split('.')[1], 10) : 0);
+        const pNum = isOnline ? (telemetry.pattern ?? (telemetry.ps ? parseInt(telemetry.ps.split('.')[0], 10) : 0)) : 0;
+        const sNum = isOnline ? (telemetry.step ?? (telemetry.ps ? parseInt(telemetry.ps.split('.')[1], 10) : 0)) : 0;
 
         return {
-            actualTemperature: pvVal !== null ? Number(pvVal) : null,
-            targetTemperature: svVal !== null ? Number(svVal) : 121.1,
-            heatingPercent: Number(mvVal),
+            actualTemperature: pvVal,
+            targetTemperature: svVal,
+            heatingPercent: mvVal,
             coolingPercent: 0,
             running: isRunning,
             automatic: true,
-            heatingActive: mvVal > 0,
+            heatingActive: isOnline && mvVal > 0,
             coolingActive: false,
             sensorFault: null,
             activeAlarms: [],
             alarmActive: false,
-            phase: (isRunning ? 'Running' : 'Waiting') as any,
+            phase: (isRunning ? 'Running' : (isOnline ? 'Waiting' : 'Offline')) as any,
             pattern: pNum,
             step: sNum,
-            processTime: parseTimeDigits(telemetry.tot),
-            remainingTime: parseTimeDigits(telemetry.stp),
-            timestamp: telemetry.ts || telemetry.iso || new Date().toISOString(),
+            processTime: isOnline ? parseTimeDigits(telemetry.tot) : 0,
+            remainingTime: isOnline ? parseTimeDigits(telemetry.stp) : 0,
+            timestamp: isOnline ? (telemetry.ts || telemetry.iso || new Date().toISOString()) : '',
         };
-    }, [telemetry]);
+    }, [telemetry, isOnline]);
 
     const heatingLogs = useMemo(() => {
         return history
@@ -197,8 +202,13 @@ export default function EspMonitor({
     }, [history]);
 
     const formattedUpdateTime = useMemo(() => {
+        if (!isOnline) return 'Belum Ada Sinyal';
+        if (telemetry.ts) {
+            const parts = telemetry.ts.split(' ');
+            return parts[1] || telemetry.ts;
+        }
         return new Date().toLocaleTimeString('id-ID');
-    }, [telemetry]);
+    }, [telemetry, isOnline]);
 
     // Historian Filtering
     const filteredHistories = useMemo(() => {
@@ -293,43 +303,6 @@ export default function EspMonitor({
 
     return (
         <AuthenticatedLayout
-            navContent={
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={() => { setActiveTab('monitor'); setSelectedBatch(null); }}
-                        className={`shrink-0 rounded-xl px-4 py-2 text-sm font-extrabold transition-all duration-200 ${
-                            activeTab === 'monitor'
-                                ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 shadow-[0_0_15px_rgba(250,204,21,0.4)]'
-                                : 'text-slate-200 hover:bg-blue-900/50 hover:text-white'
-                        }`}
-                    >
-                        Monitoring
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => { setActiveTab('pattern'); setSelectedBatch(null); }}
-                        className={`shrink-0 rounded-xl px-4 py-2 text-sm font-extrabold transition-all duration-200 ${
-                            activeTab === 'pattern'
-                                ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 shadow-[0_0_15px_rgba(250,204,21,0.4)]'
-                                : 'text-slate-200 hover:bg-blue-900/50 hover:text-white'
-                        }`}
-                    >
-                        Pattern
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => { setActiveTab('history'); setSelectedBatch(null); }}
-                        className={`shrink-0 rounded-xl px-4 py-2 text-sm font-extrabold transition-all duration-200 ${
-                            activeTab === 'history'
-                                ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 shadow-[0_0_15px_rgba(250,204,21,0.4)]'
-                                : 'text-slate-200 hover:bg-blue-900/50 hover:text-white'
-                        }`}
-                    >
-                        History
-                    </button>
-                </div>
-            }
             header={
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between max-w-7xl mx-auto py-1">
                     <div>
@@ -370,6 +343,42 @@ export default function EspMonitor({
 
             <div className="py-8">
                 <div className="mx-auto max-w-[1600px] space-y-6 px-4 sm:px-6 lg:px-8">
+                    {/* Navigation Tabs */}
+                    <div className="flex items-center gap-3 border-b border-slate-200/80 pb-3">
+                        <button
+                            type="button"
+                            onClick={() => { setActiveTab('monitor'); setSelectedBatch(null); }}
+                            className={`rounded-xl px-5 py-2.5 text-xs font-black transition-all shadow-sm ${
+                                activeTab === 'monitor'
+                                    ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md border-none'
+                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:text-blue-800'
+                            }`}
+                        >
+                            Monitoring Dashboard
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setActiveTab('pattern'); setSelectedBatch(null); }}
+                            className={`rounded-xl px-5 py-2.5 text-xs font-black transition-all shadow-sm ${
+                                activeTab === 'pattern'
+                                    ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md border-none'
+                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:text-blue-800'
+                            }`}
+                        >
+                            Pattern Steps
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setActiveTab('history'); setSelectedBatch(null); }}
+                            className={`rounded-xl px-5 py-2.5 text-xs font-black transition-all shadow-sm ${
+                                activeTab === 'history'
+                                    ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md border-none'
+                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:text-blue-800'
+                            }`}
+                        >
+                            History Logs
+                        </button>
+                    </div>
 
                     {/* Watchdog Alert Banner */}
                     {wdtAlert && (

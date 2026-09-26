@@ -13,6 +13,7 @@ class TnMonitorController extends Controller
     public function show(TnController $tn)
     {
         request()->session()->put([
+            'active_mode' => 'tn',
             'active_tn_id' => $tn->id,
             'active_tn_model' => $tn->model_type,
         ]);

@@ -10,21 +10,57 @@ type NavItem = {
     excludePattern?: string;
 };
 
-const navigation: NavItem[] = [
-    { label: 'Dashboard', routeName: 'dashboard', activePattern: 'dashboard' },
-    { label: 'Monitoring TNS', routeName: 'tn.quick-start', routeParam: 'TNS', activePattern: 'tn.*', excludePattern: 'tn.recipes.*' },
-    { label: 'ESP Logger', routeName: 'esp.monitor', activePattern: 'esp.*' },
-    { label: 'Pattern Recipe', routeName: 'tn.recipes.index', activePattern: 'tn.recipes.*' },
-    { label: 'Historian Log', routeName: 'historian.index', activePattern: 'historian.*' },
-];
-
 export default function Authenticated({
     header,
     navContent,
     children,
 }: PropsWithChildren<{ header?: ReactNode; navContent?: ReactNode; user?: unknown }>) {
-    const user = usePage().props.auth.user;
-    const visibleNavigation = navigation;
+    const pageProps = usePage().props as any;
+    const user = pageProps.auth?.user;
+    const activeMode = pageProps.ui?.active_mode;
+    const activeTnId = pageProps.ui?.active_tn_id;
+    const activeTnModel = pageProps.ui?.active_tn_model;
+
+    // Evaluasi mode aktif: apakah sedang dalam mode TN (Autonics) atau ESP Logger
+    const isCurrentTnRoute = Boolean(route().current('tn.*'));
+    const isCurrentEspRoute = Boolean(route().current('esp.*'));
+
+    const isTn = (activeMode === 'tn' || isCurrentTnRoute) && !isCurrentEspRoute;
+    const isEsp = (activeMode === 'esp' || isCurrentEspRoute) && !isCurrentTnRoute;
+
+    const visibleNavigation: NavItem[] = [
+        { label: 'Dashboard', routeName: 'dashboard', activePattern: 'dashboard' },
+    ];
+
+    if (isTn) {
+        // Mode USB RS-485 terpilih
+        visibleNavigation.push({
+            label: 'Monitoring USB RS-485',
+            routeName: activeTnId ? 'tn.monitor' : 'tn.index',
+            routeParam: activeTnId ? String(activeTnId) : undefined,
+            activePattern: 'tn.*',
+            excludePattern: 'tn.recipes.*',
+        });
+        visibleNavigation.push({
+            label: 'Pattern Recipe',
+            routeName: 'tn.recipes.index',
+            activePattern: 'tn.recipes.*',
+        });
+    } else if (isEsp) {
+        // Mode ESP Logger terpilih
+        visibleNavigation.push({
+            label: 'ESP Logger',
+            routeName: 'esp.monitor',
+            activePattern: 'esp.*',
+        });
+    }
+
+    // Historian Log selalu tersedia
+    visibleNavigation.push({
+        label: 'Historian Log',
+        routeName: 'historian.index',
+        activePattern: 'historian.*',
+    });
 
     return (
         <div className="relative min-h-screen bg-[#f0f4f9] font-sans text-slate-800 selection:bg-yellow-400 selection:text-slate-950">

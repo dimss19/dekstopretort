@@ -14,10 +14,25 @@ class TnControllerController extends Controller
         $controllerId = request()->session()->get('active_tn_id');
 
         if ($controllerId && $controller = TnController::find($controllerId)) {
+            request()->session()->put([
+                'active_mode' => 'tn',
+                'active_tn_id' => $controller->id,
+                'active_tn_model' => $controller->model_type,
+            ]);
             return redirect()->route('tn.monitor', $controller->id);
         }
 
-        return redirect()->route('dashboard')->with('info', 'Pilih tipe controller terlebih dahulu.');
+        $controller = TnController::first();
+        if ($controller) {
+            request()->session()->put([
+                'active_mode' => 'tn',
+                'active_tn_id' => $controller->id,
+                'active_tn_model' => $controller->model_type,
+            ]);
+            return redirect()->route('tn.monitor', $controller->id);
+        }
+
+        return $this->quickStart('TNS');
     }
 
     public function quickStart(string $model)
@@ -57,6 +72,7 @@ class TnControllerController extends Controller
         }
 
         request()->session()->put([
+            'active_mode' => 'tn',
             'active_tn_id' => $controller->id,
             'active_tn_model' => $controller->model_type,
         ]);

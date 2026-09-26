@@ -14,11 +14,18 @@ Route::get('/login', function () {
 })->name('login');
 
 Route::get('/dashboard', function () {
+    $lastSeen = \Illuminate\Support\Facades\Cache::get('esp_last_seen_RT-001') ?? \Illuminate\Support\Facades\Cache::get('esp_last_seen');
+    $espOnline = $lastSeen && (time() - (int)$lastSeen) < 25;
+    $detectedIp = \Illuminate\Support\Facades\Cache::get('esp_ip_RT-001') ?? \Illuminate\Support\Facades\Cache::get('esp_ip');
+    $espIp = $espOnline && $detectedIp ? $detectedIp : null;
+
     return Inertia::render('Dashboard', [
         'tnCount' => \App\Models\TnController::count(),
         'tnOnline' => \App\Models\TnController::where('is_online', true)->count(),
         'recipeCount' => \App\Models\TnRecipeTemplate::count(),
         'controllers' => \App\Models\TnController::all(),
+        'espOnline' => (bool)$espOnline,
+        'espIp' => $espIp,
     ]);
 })->name('dashboard');
 
@@ -93,6 +100,7 @@ Route::group([], function () {
 
     // === ESP32 Monitoring Logger ===
     Route::prefix('esp')->group(function () {
+        Route::get('/status', [\App\Http\Controllers\EspMonitorController::class, 'status'])->name('esp.status');
         Route::get('/monitor', [\App\Http\Controllers\EspMonitorController::class, 'index'])->name('esp.monitor');
         Route::post('/pattern', [\App\Http\Controllers\EspMonitorController::class, 'savePattern'])->name('esp.pattern.save');
         Route::get('/live', [\App\Http\Controllers\EspMonitorController::class, 'liveData'])->name('esp.live');

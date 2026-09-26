@@ -2709,7 +2709,7 @@
             "version": "1.2.0",
             "dist": {
                 "type": "path",
-                "url": "D:/laragon/www/scadaretort/packages/nativephp/php-bin",
+                "url": "packages/nativephp/php-bin",
                 "reference": "719527b3cad3f4e6a42f29daa71a0f8f39a78d20"
             },
             "type": "library",
@@ -2726,7 +2726,7 @@
             ],
             "transport-options": {
                 "symlink": false,
-                "relative": false
+                "relative": true
             }
         },
         {

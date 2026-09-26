@@ -3088,7 +3088,7 @@ function findAppRoot() {
 }
 const appRoot = findAppRoot();
 process.env.APP_PATH = appRoot;
-const buildPath = path.resolve(import.meta.dirname, "D:/laragon/www/scadaretort/vendor/nativephp/desktop/resources/build") || process.env.NATIVEPHP_BUILD_PATH || path.join(appRoot, "vendor", "nativephp", "desktop", "resources", "build");
+const buildPath = path.resolve(import.meta.dirname, "E:/Project/scada-retort/vendor/nativephp/desktop/resources/build") || process.env.NATIVEPHP_BUILD_PATH || path.join(appRoot, "vendor", "nativephp", "desktop", "resources", "build");
 process.env.NATIVEPHP_BUILD_PATH = buildPath;
 const defaultIcon = path.join(buildPath, "icon.png");
 const certificate = path.join(buildPath, "cacert.pem");

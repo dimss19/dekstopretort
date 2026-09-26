@@ -15,6 +15,9 @@ class EspMonitorController extends Controller
      */
     public function index(Request $request)
     {
+        $request->session()->put('active_mode', 'esp');
+        $request->session()->forget(['active_tn_id', 'active_tn_model']);
+
         $devices = Device::all();
         $selectedCode = $request->query('machine_code', $devices->first()?->machine_code ?? 'RT-001');
 
@@ -28,11 +31,10 @@ class EspMonitorController extends Controller
             'is_online' => false,
         ];
 
-        // Retrieve latest telemetry
-        $latest = $this->getOrGenerateTelemetry($selectedCode);
-        $isOnline = true;
-
-        $history = $this->getOrGenerateHistory($selectedCode);
+        // Retrieve real telemetry and connectivity status
+        $isOnline = $this->checkIsOnline($selectedCode);
+        $latest = $this->getRealTelemetry($selectedCode, $isOnline);
+        $history = $this->getHistory($selectedCode);
         $systemEvent = Cache::get("esp_latest_system_event_{$selectedCode}");
 
         $processHistories = \App\Models\TnProcessHistory::with('controller.machine')
@@ -137,13 +139,14 @@ class EspMonitorController extends Controller
                 ob_end_flush();
             }
 
-            $latest = $this->getOrGenerateTelemetry($machineCode);
-            $history = $this->getOrGenerateHistory($machineCode);
+            $isOnline = $this->checkIsOnline($machineCode);
+            $latest = $this->getRealTelemetry($machineCode, $isOnline);
+            $history = $this->getHistory($machineCode);
             $seq = (int) Cache::get("esp_telemetry_seq_{$machineCode}", time());
 
             $payload = [
                 'telemetry' => $latest,
-                'is_online' => true,
+                'is_online' => $isOnline,
                 'history' => $history,
                 'seq' => $seq,
             ];
@@ -165,135 +168,110 @@ class EspMonitorController extends Controller
     public function liveData(Request $request)
     {
         $machineCode = $request->query('machine_code', 'RT-001');
-        $latest = $this->getOrGenerateTelemetry($machineCode);
-        $history = $this->getOrGenerateHistory($machineCode);
+        $isOnline = $this->checkIsOnline($machineCode);
+        $latest = $this->getRealTelemetry($machineCode, $isOnline);
+        $history = $this->getHistory($machineCode);
 
-        // Append to history if timestamp is new
-        $lastPoint = end($history);
-        if (!$lastPoint || ($lastPoint['ts'] ?? '') !== $latest['ts']) {
-            $history[] = [
-                'pv' => $latest['pv'],
-                'sv' => $latest['sv'],
-                'heating_mv' => $latest['mv'],
-                'mv' => $latest['mv'],
-                'phase' => $latest['phase'],
-                'created_at' => $latest['ts'],
-                'ts' => $latest['ts'],
-                'recorded_at' => $latest['ts'],
-            ];
-            if (count($history) > 120) {
-                $history = array_slice($history, -120);
+        // Only append to history if ESP is online and valid reading
+        if ($isOnline && isset($latest['pv']) && $latest['pv'] !== null) {
+            $lastPoint = end($history);
+            if (!$lastPoint || ($lastPoint['ts'] ?? '') !== ($latest['ts'] ?? '')) {
+                $history[] = [
+                    'pv' => $latest['pv'],
+                    'sv' => $latest['sv'] ?? 121.0,
+                    'heating_mv' => $latest['mv'] ?? 0,
+                    'mv' => $latest['mv'] ?? 0,
+                    'phase' => $latest['phase'] ?? 'IDLE',
+                    'created_at' => $latest['ts'] ?? now()->toIso8601String(),
+                    'ts' => $latest['ts'] ?? now()->toIso8601String(),
+                    'recorded_at' => $latest['ts'] ?? now()->toIso8601String(),
+                ];
+                if (count($history) > 120) {
+                    $history = array_slice($history, -120);
+                }
+                Cache::put("esp_telemetry_history_{$machineCode}", $history, now()->addHours(6));
             }
-            Cache::put("esp_telemetry_history_{$machineCode}", $history, now()->addHours(6));
         }
 
-        $seq = (int) Cache::get("esp_telemetry_seq_{$machineCode}", time()) + 1;
-        Cache::put("esp_telemetry_seq_{$machineCode}", $seq, now()->addHours(6));
+        $seq = (int) Cache::get("esp_telemetry_seq_{$machineCode}", time());
 
         return response()->json([
             'telemetry' => $latest,
-            'is_online' => true,
+            'is_online' => $isOnline,
             'history' => $history,
             'seq' => $seq,
         ]);
     }
 
     /**
-     * Provide baseline history records for the chart so it never starts empty.
+     * Realtime connectivity and IP status endpoint.
      */
-    protected function getOrGenerateHistory(string $machineCode): array
+    public function status(Request $request)
     {
-        $cached = Cache::get("esp_telemetry_history_{$machineCode}");
-        if ($cached && is_array($cached) && !empty($cached)) {
-            return $cached;
-        }
+        $machineCode = $request->query('machine_code', 'RT-001');
+        $isOnline = $this->checkIsOnline($machineCode);
+        $detectedIp = Cache::get("esp_ip_{$machineCode}") ?? Cache::get("esp_ip");
+        $lastSeen = Cache::get("esp_last_seen_{$machineCode}") ?? Cache::get("esp_last_seen");
 
-        $history = [];
-        $now = time();
-        for ($i = 30; $i >= 0; $i--) {
-            $t = $now - ($i * 2);
-            $cycle = $t % 3600;
-            if ($cycle < 900) {
-                $phase = 'HEATING / VENTING';
-                $pv = round(25.0 + ($cycle / 900) * (121.1 - 25.0) + (sin($t) * 0.2), 1);
-                $mv = 100.0;
-            } elseif ($cycle < 2700) {
-                $phase = 'HOLDING STERILIZATION';
-                $pv = round(121.1 + (sin($t / 10) * 0.25), 1);
-                $mv = round(25.0 + (sin($t / 5) * 5.0), 1);
-            } else {
-                $phase = 'COOLING & RELEASE';
-                $coolProgress = ($cycle - 2700) / 900;
-                $pv = round(121.1 - ($coolProgress * (121.1 - 40.0)) + (cos($t) * 0.2), 1);
-                $mv = 0.0;
-            }
-
-            $history[] = [
-                'pv' => $pv,
-                'sv' => 121.1,
-                'heating_mv' => $mv,
-                'mv' => $mv,
-                'phase' => $phase,
-                'created_at' => date('Y-m-d H:i:s', $t),
-                'ts' => date('Y-m-d H:i:s', $t),
-                'recorded_at' => date('Y-m-d H:i:s', $t),
-            ];
-        }
-
-        Cache::put("esp_telemetry_history_{$machineCode}", $history, now()->addHours(6));
-        return $history;
+        return response()->json([
+            'is_online' => $isOnline,
+            'ip' => $isOnline && $detectedIp ? $detectedIp : null,
+            'detected_ip' => $detectedIp,
+            'last_seen' => $lastSeen,
+        ]);
     }
 
     /**
-     * Helper telemetry aktif agar dashboard logger selalu hidup dan tidak pernah kosong.
+     * Check if ESP has published within the last 25 seconds.
      */
-    protected function getOrGenerateTelemetry(string $machineCode): array
+    protected function checkIsOnline(string $machineCode): bool
+    {
+        $lastSeen = Cache::get("esp_last_seen_{$machineCode}") ?? Cache::get("esp_last_seen");
+        return (bool)($lastSeen && (time() - (int)$lastSeen) < 25);
+    }
+
+    /**
+     * Retrieve real telemetry from cache or standby structure if offline.
+     */
+    protected function getRealTelemetry(string $machineCode, bool $isOnline): array
     {
         $cached = Cache::get("esp_latest_telemetry_{$machineCode}");
-        if ($cached && is_array($cached) && !empty($cached['pv'])) {
+        if ($cached && is_array($cached)) {
+            if (!$isOnline) {
+                $cached['phase'] = 'OFFLINE';
+                $cached['run'] = false;
+            }
             return $cached;
         }
-
-        $time = time();
-        $cycle = $time % 3600; // 1 jam siklus sterilisasi retort
-        if ($cycle < 900) {
-            $phase = 'HEATING / VENTING';
-            $pv = round(25.0 + ($cycle / 900) * (121.1 - 25.0) + (sin($time) * 0.2), 1);
-            $mv = 100.0;
-        } elseif ($cycle < 2700) {
-            $phase = 'HOLDING STERILIZATION';
-            $pv = round(121.1 + (sin($time / 10) * 0.25), 1);
-            $mv = round(25.0 + (sin($time / 5) * 5.0), 1);
-        } else {
-            $phase = 'COOLING & RELEASE';
-            $coolProgress = ($cycle - 2700) / 900;
-            $pv = round(121.1 - ($coolProgress * (121.1 - 40.0)) + (cos($time) * 0.2), 1);
-            $mv = 0.0;
-        }
-
-        $totSec = $cycle;
-        $totMin = str_pad((string)floor($totSec / 60), 2, '0', STR_PAD_LEFT);
-        $totRemSec = str_pad((string)($totSec % 60), 2, '0', STR_PAD_LEFT);
 
         return [
             'machine_code' => $machineCode,
             'id' => $machineCode,
-            'pv' => $pv,
-            'sv' => 121.1,
-            'actual' => $pv,
-            'setting' => 121.1,
-            'mv' => $mv,
-            'phase' => $phase,
-            'ps' => '02.45',
-            'tot' => "{$totMin}:{$totRemSec}",
-            'stp' => '14:20',
-            'pattern' => 1,
-            'step' => $cycle < 900 ? 1 : ($cycle < 2700 ? 2 : 3),
-            'run' => true,
-            'logging' => true,
+            'pv' => null,
+            'sv' => null,
+            'actual' => null,
+            'setting' => null,
+            'mv' => 0.0,
+            'phase' => 'OFFLINE',
+            'ps' => '00.00',
+            'tot' => '00:00',
+            'stp' => '00:00',
+            'pattern' => 0,
+            'step' => 0,
+            'run' => false,
+            'logging' => false,
             'ts' => now()->format('Y-m-d H:i:s'),
             'iso' => now()->toIso8601String(),
             'recorded_at' => now()->format('Y-m-d H:i:s'),
         ];
+    }
+
+    /**
+     * Get real history points cached from live MQTT stream.
+     */
+    protected function getHistory(string $machineCode): array
+    {
+        $cached = Cache::get("esp_telemetry_history_{$machineCode}");
+        return (is_array($cached) && !empty($cached)) ? $cached : [];
     }
 }

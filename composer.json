@@ -102,7 +102,7 @@
     "repositories": [
         {
             "type": "path",
-            "url": "D:/laragon/www/scadaretort/packages/nativephp/php-bin",
+            "url": "packages/nativephp/php-bin",
             "options": {
                 "symlink": false
             }
