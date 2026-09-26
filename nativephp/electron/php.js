@@ -6,8 +6,9 @@ import unzip from 'yauzl';
 const { removeSync, ensureDirSync } = fs_extra;
 
 const isBuilding = Boolean(process.env.NATIVEPHP_BUILDING);
-const phpBinaryPath = process.env.NATIVEPHP_PHP_BINARY_PATH;
-const phpVersion = process.env.NATIVEPHP_PHP_BINARY_VERSION;
+const appRoot = process.env.APP_PATH || join(import.meta.dirname, '..', '..');
+const phpBinaryPath = process.env.NATIVEPHP_PHP_BINARY_PATH || join(appRoot, 'vendor', 'nativephp', 'php-bin', 'bin');
+const phpVersion = process.env.NATIVEPHP_PHP_BINARY_VERSION || '8.3';
 
 // Differentiates for Serving and Building
 const isArm64 = isBuilding ? process.argv.includes('--arm64') : process.arch.includes('arm64');
@@ -51,7 +52,7 @@ if (isBuilding) {
 
 const phpVersionZip = 'php-' + phpVersion + '.zip';
 const binarySrcDir = join(phpBinaryPath, platform.os, platform.arch, phpVersionZip);
-const binaryDestDir = join(process.env.NATIVEPHP_BUILD_PATH, 'php');
+const binaryDestDir = join(process.env.NATIVEPHP_BUILD_PATH || join(appRoot, 'vendor', 'nativephp', 'desktop', 'resources', 'build'), 'php');
 
 console.log('Binary Source: ', binarySrcDir);
 console.log('Binary Filename: ', platform.phpBinary);

@@ -348,7 +348,7 @@ function getDefaultEnvironmentVariables(secret?: string, apiPort?: number): Envi
         NATIVEPHP_RECENT_PATH: getPath('recent'),
         NATIVEPHP_EXTRAS_PATH: app.isPackaged
             ? join(process.resourcesPath, '..', 'extras')
-            : join(process.env.APP_PATH, 'extras'),
+            : join(process.env.APP_PATH || getAppPath(), 'extras'),
     };
 
     // Only if the server has already started

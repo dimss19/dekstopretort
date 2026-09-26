@@ -387,7 +387,7 @@ function getDefaultEnvironmentVariables(secret, apiPort) {
     NATIVEPHP_PICTURES_PATH: getPath("pictures"),
     NATIVEPHP_VIDEOS_PATH: getPath("videos"),
     NATIVEPHP_RECENT_PATH: getPath("recent"),
-    NATIVEPHP_EXTRAS_PATH: app.isPackaged ? join(process.resourcesPath, "..", "extras") : join(process.env.APP_PATH, "extras")
+    NATIVEPHP_EXTRAS_PATH: app.isPackaged ? join(process.resourcesPath, "..", "extras") : join(process.env.APP_PATH || getAppPath(), "extras")
   };
   if (secret && apiPort) {
     variables.NATIVEPHP_API_URL = `http://127.0.0.1:${apiPort}/api/`;
@@ -2070,8 +2070,10 @@ router$2.delete("/trash-item", (req, res) => __awaiter$4(void 0, void 0, void 0,
   try {
     yield shell.trashItem(path2);
     res.sendStatus(200);
-  } catch (_a) {
-    res.status(400).json();
+  } catch (e) {
+    res.status(400).json({
+      error: e instanceof Error ? e.message : String(e)
+    });
   }
 }));
 const mediaBox = /\/MediaBox\s*\[\s*(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\s*\]/;
@@ -2427,8 +2429,19 @@ router.post("/always-on-top", (req, res) => {
   (_a = state.windows[id]) === null || _a === void 0 ? void 0 : _a.setAlwaysOnTop(alwaysOnTop);
   res.sendStatus(200);
 });
+router.post("/fullscreen", (req, res) => {
+  var _a;
+  const { id, fullscreen } = req.body;
+  (_a = state.windows[id]) === null || _a === void 0 ? void 0 : _a.setFullScreen(fullscreen);
+  res.sendStatus(200);
+});
 router.get("/current", (req, res) => {
-  const currentWindow = Object.values(state.windows).find((window) => window.id === BrowserWindow.getFocusedWindow().id);
+  const focused = BrowserWindow.getFocusedWindow();
+  if (!focused) {
+    res.sendStatus(404);
+    return;
+  }
+  const currentWindow = Object.values(state.windows).find((window) => window.id === focused.id);
   const id = Object.keys(state.windows).find((key) => state.windows[key] === currentWindow);
   res.json(getWindowData(id));
 });
@@ -2564,6 +2577,18 @@ router.post("/open", (req, res) => {
   window.on("unmaximize", () => {
     notifyLaravel("events", {
       event: "Native\\Desktop\\Events\\Windows\\WindowUnmaximized",
+      payload: [id]
+    });
+  });
+  window.on("enter-full-screen", () => {
+    notifyLaravel("events", {
+      event: "Native\\Desktop\\Events\\Windows\\WindowFullscreened",
+      payload: [id]
+    });
+  });
+  window.on("leave-full-screen", () => {
+    notifyLaravel("events", {
+      event: "Native\\Desktop\\Events\\Windows\\WindowUnfullscreened",
       payload: [id]
     });
   });
@@ -3050,12 +3075,26 @@ function createSplash(appPath2, importMetaDirname) {
   return splash;
 }
 fixPath();
-const buildPath = path.resolve(import.meta.dirname, "D:/laragon/www/scadaretort/vendor/nativephp/desktop/resources/build");
+function findAppRoot() {
+  if (process.env.APP_PATH && fs.existsSync(process.env.APP_PATH)) return process.env.APP_PATH;
+  let curr = import.meta.dirname;
+  for (let i = 0; i < 6; i++) {
+    if (fs.existsSync(path.join(curr, "artisan"))) {
+      return curr;
+    }
+    curr = path.join(curr, "..");
+  }
+  return process.cwd();
+}
+const appRoot = findAppRoot();
+process.env.APP_PATH = appRoot;
+const buildPath = path.resolve(import.meta.dirname, "D:/laragon/www/scadaretort/vendor/nativephp/desktop/resources/build") || process.env.NATIVEPHP_BUILD_PATH || path.join(appRoot, "vendor", "nativephp", "desktop", "resources", "build");
+process.env.NATIVEPHP_BUILD_PATH = buildPath;
 const defaultIcon = path.join(buildPath, "icon.png");
 const certificate = path.join(buildPath, "cacert.pem");
 const executable = process.platform === "win32" ? "php.exe" : "php";
 const phpBinary = path.join(buildPath, "php", executable);
-const appPath = path.join(buildPath, "app");
+const appPath = app.isPackaged ? path.join(buildPath, "app") : appRoot;
 let splashWindow;
 app.whenReady().then(() => {
   try {

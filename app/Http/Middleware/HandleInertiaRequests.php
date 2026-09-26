@@ -32,7 +32,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user() ?: \App\Models\User::first() ?: (object)[
+                'user' => rescue(fn () => $request->user() ?: \App\Models\User::first(), null, false) ?: (object)[
                     'id' => 1,
                     'name' => 'Operator SCADA',
                     'email' => 'operator@indahmesin.com',

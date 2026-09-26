@@ -9,8 +9,9 @@ export default defineConfig({
                     {
                         name: 'watch-external',
                         buildStart() {
+                            const appRoot = process.env.APP_PATH || join(import.meta.dirname, '..', '..');
                             this.addWatchFile(
-                                join(process.env.APP_PATH, 'app', 'Providers', 'NativeAppServiceProvider.php'),
+                                join(appRoot, 'app', 'Providers', 'NativeAppServiceProvider.php'),
                             );
                         },
                     },
