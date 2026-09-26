@@ -226,14 +226,14 @@ export interface RetortStepSegment {
 
 /**
  * Calculates F0 sterilization lethality value given temperature history
- * F0 = sum(dt_minutes * 10^((T - 121.11) / 10)) for T >= 100°C
+ * F0 = sum(dt_minutes * 10^((T - 121.1) / 10)) for T >= 100°C
  */
 export function calculateF0(temperatures: number[], intervalSeconds: number = 1): number {
     let f0 = 0;
     const dtMinutes = intervalSeconds / 60;
     for (const temp of temperatures) {
         if (temp >= 100) {
-            f0 += dtMinutes * Math.pow(10, (temp - 121.11) / 10);
+            f0 += dtMinutes * Math.pow(10, (temp - 121.1) / 10);
         }
     }
     return Math.round(f0 * 100) / 100;

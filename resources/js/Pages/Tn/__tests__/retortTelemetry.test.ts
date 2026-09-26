@@ -103,6 +103,10 @@ describe('retort telemetry normalization', () => {
         expect(calculateF0(Array(600).fill(90), 1)).toBe(0);
     });
 
+    it('uses Tref 121.1 (suhu pattern 121.0, bukan terpaku 121.11)', () => {
+        expect(calculateF0(Array(600).fill(121.0), 1)).toBe(9.77);
+    });
+
     it('segments multi-step retort process into named categories with duration', () => {
         const dummyReadings = [
             // Step 0: CUT (60 seconds -> 1 min)
