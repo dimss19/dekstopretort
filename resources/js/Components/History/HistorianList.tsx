@@ -150,7 +150,9 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
         } else if (format === 'pdf') {
             const printWindow = window.open('', '_blank');
             if (printWindow) {
-                const title = `Batch Log Report: ${batch.controller?.machine?.machine_name || batch.controller?.model_type || 'Controller'}`;
+                const rawReportMachine = batch.controller?.machine?.machine_name || (batch.controller as any)?.name || batch.controller?.model_type || 'Retort TN';
+                const reportMachine = rawReportMachine.replace(/Retort TNS/gi, 'Retort TN').replace(/TNS Controller/gi, 'Retort TN').replace(/^TNS$/i, 'Retort TN');
+                const title = `Batch Log Report: ${reportMachine}`;
                 printWindow.document.write(`
                     <html>
                     <head>
@@ -432,7 +434,8 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                         const logCount = h.log_data?.length || 0;
                         const logs = h.log_data || [];
                         const maxPv = logs.length > 0 ? Math.max(...logs.map(normalizePv)) : 0;
-                        const machineName = h.controller?.machine?.machine_name || h.controller?.model_type || `Controller #${h.tn_controller_id}`;
+                        const rawMachineName = h.controller?.machine?.machine_name || (h.controller as any)?.name || h.controller?.model_type || `Controller #${h.tn_controller_id}`;
+                        const machineName = rawMachineName.replace(/Retort TNS/gi, 'Retort TN').replace(/TNS Controller/gi, 'Retort TN').replace(/^TNS$/i, 'Retort TN');
                         const status = getHistoryStatus(h);
 
                         return (

@@ -73,10 +73,12 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
         endTime ? endTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Sedang Berjalan'
     }`;
 
-    const machineTitle =
+    const rawMachineTitle =
         batch.controller?.machine?.machine_name ||
+        (batch.controller as any)?.name ||
         batch.controller?.model_type ||
         `Controller #${batch.tn_controller_id || batch.id}`;
+    const machineTitle = rawMachineTitle.replace(/Retort TNS/gi, 'Retort TN').replace(/TNS Controller/gi, 'Retort TN').replace(/^TNS$/i, 'Retort TN');
 
     // Target SV detection from logs
     const targetSv = useMemo(() => {

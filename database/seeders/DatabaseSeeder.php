@@ -61,7 +61,7 @@ class DatabaseSeeder extends Seeder
         );
 
         foreach ([
-            ['RT-01', 'Retort TNS', 'TNS', 1],
+            ['RT-01', 'Retort TN', 'TNS', 1],
             ['RT-02', 'Retort TNH', 'TNH', 2],
             ['RT-03', 'Retort TNL', 'TNL', 3],
         ] as [$code, $name, $model, $defaultSlaveId]) {

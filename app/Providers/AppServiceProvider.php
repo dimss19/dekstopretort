@@ -66,7 +66,7 @@ class AppServiceProvider extends ServiceProvider
             // Pastikan mesin default tersedia tanpa memanggil artisan console runner
             if (\Illuminate\Support\Facades\Schema::hasTable('machines') && \Illuminate\Support\Facades\DB::table('machines')->count() === 0) {
                 \Illuminate\Support\Facades\DB::table('machines')->insert([
-                    ['machine_code' => 'RT-01', 'machine_name' => 'Retort TNS', 'description' => 'Production retort machine', 'location' => 'Production Area', 'status' => 'Active', 'created_at' => now(), 'updated_at' => now()],
+                    ['machine_code' => 'RT-01', 'machine_name' => 'Retort TN', 'description' => 'Production retort machine', 'location' => 'Production Area', 'status' => 'Active', 'created_at' => now(), 'updated_at' => now()],
                     ['machine_code' => 'RT-02', 'machine_name' => 'Retort TNH', 'description' => 'Production retort machine', 'location' => 'Production Area', 'status' => 'Active', 'created_at' => now(), 'updated_at' => now()],
                     ['machine_code' => 'RT-03', 'machine_name' => 'Retort TNL', 'description' => 'Production retort machine', 'location' => 'Production Area', 'status' => 'Active', 'created_at' => now(), 'updated_at' => now()],
                 ]);
