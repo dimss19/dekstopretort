@@ -128,36 +128,56 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
         ]);
 
         const v = getCardVerification(batch, groups);
+        const rawReportMachine = batch.controller?.machine?.machine_name || (batch.controller as any)?.name || batch.controller?.model_type || 'Retort TN';
+        const reportMachine = rawReportMachine.replace(/Retort TNS/gi, 'Retort TN').replace(/TNS Controller/gi, 'Retort TN').replace(/^TNS$/i, 'Retort TN');
+        const title = `Batch Log Report: ${reportMachine}`;
 
         if (format === 'excel') {
-            const summaryLines = [
-                'RINGKASAN VERIFIKASI',
-                `Status,${v.statusLabel}`,
-                `Product,"${v.product}"`,
-                `Batch,"${v.batchCode}"`,
-                `Group,"${v.groupName}"`,
-                `F0 Sistem,${v.systemF0.toFixed(2)} min`,
-                `Hasil F0,${v.f0Result}`,
-                `Diverifikasi Oleh,"${v.verifiedBy}"`,
-                `Diverifikasi Tanggal,"${v.verifiedAt}"`,
-                '',
-            ];
-            const csvContent = "data:text/csv;charset=utf-8,"
-                + [...summaryLines, headers.join(','), ...rows.map((e: any) => e.join(','))].join('\n');
-            const encodedUri = encodeURI(csvContent);
+            const excelTemplate = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                <head>
+                    <meta charset="utf-8">
+                    <style>
+                        body { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; }
+                        table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 6px 8px; }
+                        .h { background: #1e3a5f; color: #ffffff; font-weight: bold; }
+                        .lbl { background: #f1f5f9; color: #1e3a5f; font-weight: bold; width: 25%; }
+                        .num { text-align: right; }
+                    </style>
+                </head>
+                <body>
+                    <h2 style="color: #1e3a5f; margin-bottom: 4px;">${title}</h2>
+                    <p style="color: #475569; margin-top: 0;">Start: ${new Date(batch.start_time).toLocaleString()} | End: ${new Date(batch.end_time).toLocaleString()}</p>
+                    <table border="1">
+                        <tr><td class="lbl">Status Verifikasi</td><td>${v.statusLabel}</td><td class="lbl">Product</td><td>${v.product}</td></tr>
+                        <tr><td class="lbl">Batch</td><td>${v.batchCode}</td><td class="lbl">Group</td><td>${v.groupName}</td></tr>
+                        <tr><td class="lbl">F0 Sistem</td><td>${v.systemF0.toFixed(2)} min</td><td class="lbl">Hasil F0</td><td>${v.f0Result}</td></tr>
+                        <tr><td class="lbl">Diverifikasi Oleh</td><td>${v.verifiedBy}</td><td class="lbl">Diverifikasi Tanggal</td><td>${v.verifiedAt}</td></tr>
+                    </table>
+                    <table border="1">
+                        <thead>
+                            <tr class="h"><th>Time</th><th>PV (&deg;C)</th><th>SV (&deg;C)</th></tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map((r: any) => `<tr><td style="text-align: center;">${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            `;
+            const blob = new Blob([excelTemplate], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            const ext = 'csv';
-            link.setAttribute("download", `batch_${batch.id}_log.${ext}`);
+            link.href = url;
+            link.setAttribute("download", `batch_${batch.id}_log.xls`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            URL.revokeObjectURL(url);
         } else if (format === 'pdf') {
             const printWindow = window.open('', '_blank');
             if (printWindow) {
-                const rawReportMachine = batch.controller?.machine?.machine_name || (batch.controller as any)?.name || batch.controller?.model_type || 'Retort TN';
-                const reportMachine = rawReportMachine.replace(/Retort TNS/gi, 'Retort TN').replace(/TNS Controller/gi, 'Retort TN').replace(/^TNS$/i, 'Retort TN');
-                const title = `Batch Log Report: ${reportMachine}`;
                 printWindow.document.write(`
                     <html>
                     <head>
@@ -167,9 +187,17 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
                             th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
                             th { background-color: #f0f0f0; }
+                            .no-print { margin-bottom: 16px; }
+                            .btn-print { background: #1e3a5f; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+                            .btn-close { background: #fff; color: #333; border: 1px solid #ccc; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-left: 8px; }
+                            @media print { .no-print { display: none !important; } }
                         </style>
                     </head>
                     <body>
+                        <div class="no-print">
+                            <button onclick="window.print()" class="btn-print">Cetak / Simpan PDF</button>
+                            <button onclick="window.close()" class="btn-close">Tutup</button>
+                        </div>
                         <h2>${title}</h2>
                         <p>Start Time: ${new Date(batch.start_time).toLocaleString()}</p>
                         <p>End Time: ${new Date(batch.end_time).toLocaleString()}</p>
@@ -189,13 +217,18 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                 ${rows.map((r: any) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}
                             </tbody>
                         </table>
-                        <script>
-                            window.onload = function() { window.print(); window.close(); }
-                        </script>
                     </body>
                     </html>
                 `);
                 printWindow.document.close();
+                setTimeout(() => {
+                    try {
+                        printWindow.focus();
+                        printWindow.print();
+                    } catch (e) {
+                        console.warn('Print failed:', e);
+                    }
+                }, 500);
             }
         }
     };

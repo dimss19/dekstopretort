@@ -85,14 +85,12 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
 
     const totDisplay = isOnline ? formatTimeDot(telemetry.processTime) : '00.00';
     const stpDisplay = isOnline ? formatTimeDot(telemetry.remainingTime) : '00.00';
-    const displayPort = serialPort || 'AUTO';
-
     return (
         <section className="rounded-3xl border border-slate-800 bg-[#060a12] p-6 shadow-2xl backdrop-blur-xl text-white">
             {/* Header / Title Bar */}
             <div className="mb-4 pb-3 border-b border-slate-800">
                 <div className="flex flex-wrap items-center justify-between text-xs font-mono font-bold text-slate-400 mb-1">
-                    <span className="tracking-wider">PORT: {displayPort} | UPDATE : {updateTime}</span>
+                    <span className="tracking-wider">UPDATE : {updateTime}</span>
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase ${
                         isOnline ? 'bg-emerald-950 text-emerald-400 border border-emerald-700' : 'bg-rose-950 text-rose-400 border border-rose-700'
                     }`}>

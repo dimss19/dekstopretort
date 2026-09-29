@@ -54,10 +54,6 @@ export default function RetortMonitorShell(props: Props) {
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
                         <span>Tipe: <strong className="font-mono text-blue-700">{controller.model_type}</strong></span>
                         <span className="text-slate-300">•</span>
-                        <span>Port: <strong className="font-mono text-slate-800">{activePortDisplay}</strong></span>
-                        <span className="text-slate-300">•</span>
-                        <span>Baudrate: <strong className="font-mono text-slate-800">{controller.baudrate || 9600} bps</strong></span>
-                        <span className="text-slate-300">•</span>
                         <span>Update: <strong className="text-slate-700">{props.lastUpdate}</strong></span>
                     </div>
                 </div>
@@ -77,7 +73,7 @@ export default function RetortMonitorShell(props: Props) {
                                     : 'bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:text-blue-800'
                             }`}
                         >
-                            Monitoring Dashboard
+                            Monitoring
                         </button>
                         <button
                             type="button"

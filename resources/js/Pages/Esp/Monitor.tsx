@@ -296,7 +296,7 @@ export default function EspMonitor({
                                     : 'bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:text-blue-800'
                             }`}
                         >
-                            Monitoring Dashboard
+                            Monitoring
                         </button>
                         <button
                             type="button"

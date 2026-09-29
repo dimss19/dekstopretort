@@ -760,23 +760,18 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                     </tbody>
                 </table>
 
-                <script>
-                    function doPrint() {
-                        setTimeout(function() {
-                            window.print();
-                        }, 350);
-                    }
-                    var img = document.getElementById('chartImg');
-                    if (img && !img.complete) {
-                        img.onload = doPrint;
-                    } else {
-                        doPrint();
-                    }
-                </script>
             </body>
             </html>
         `);
         printWindow.document.close();
+        setTimeout(() => {
+            try {
+                printWindow.focus();
+                printWindow.print();
+            } catch (e) {
+                console.warn('Print failed:', e);
+            }
+        }, 600);
     };
 
     // Excel (.xls) Export matching surface-mine-production
