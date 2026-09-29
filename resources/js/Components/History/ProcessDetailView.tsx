@@ -425,17 +425,13 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
         batch.group_id !== null && batch.group_id !== undefined ? String(batch.group_id) : groups.length > 0 ? String(groups[0].id) : ''
     );
 
-    useEffect(() => {
-        if (!groupId && groups.length > 0) setGroupId(String(groups[0].id));
-    }, [groups, groupId]);
-
     const liveResult = targetF0.trim() === '' ? null : compareF0(systemF0, Number(targetF0));
     const liveFail = isUnverified && liveResult === 'FAIL';
     const effectiveCriterion = liveFail ? 'FAIL' : criterion;
 
-    // ponytail: derived sekali untuk 3 export (PDF/Excel/CSV)
-    const groupName = groups.find((g) => g.id === batch.group_id)?.name ?? batch.group_id ?? '-';
-    const verifyStatusLabel = isVerified ? 'VERIFIED' : !batch.end_time ? 'Berjalan' : 'UNVERIFIED';
+    // ponytail: derived sekali untuk 2 export (PDF/Excel)
+    const groupName = groups.find((g) => g.id === batch.group_id)?.name ?? (batch.group_id ? `#${batch.group_id}` : '-');
+    const verifyStatusLabel = isVerified ? 'VERIFIED' : !batch.end_time ? 'Sedang Berjalan' : 'UNVERIFIED';
     const exportF0Result = compareF0(systemF0, batch.target_f0 ?? (targetF0.trim() === '' ? null : Number(targetF0))) ?? '-';
     const verifiedByTxt = batch.verified_by ?? 'Belum diverifikasi';
     const verifiedAtTxt = batch.verified_at ? new Date(batch.verified_at).toLocaleString('id-ID') : 'Belum diverifikasi';
@@ -451,7 +447,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
             process_deviation: deviation,
             sterility_criterion: effectiveCriterion,
             thermal_record: 'VERIFIED',
-            group_id: Number(groupId),
+            group_id: groupId ? Number(groupId) : null,
         });
     };
 
@@ -917,74 +913,6 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
         URL.revokeObjectURL(url);
     };
 
-    const handleDownloadCSV = () => {
-        if (!logs.length) return;
-
-        // Construct formatted CSV with Metadata, KPI summary, and Data rows
-        const metaSection = [
-            `LAPORAN PROSES STERILISASI RETORT`,
-            `Nomor Batch,#${batch.id}`,
-            `Mesin / Controller,"${machineTitle}"`,
-            `Waktu Mulai,"${startTime.toLocaleString('id-ID')}"`,
-            `Waktu Selesai,"${endTime ? endTime.toLocaleString('id-ID') : 'Sedang Berjalan'}"`,
-            `Total Durasi,"${durationMinutes !== null ? `${durationMinutes} Menit` : '--'}"`,
-            `Status,"${batch.end_time ? 'Selesai' : 'Sedang Berjalan'}"`,
-            `Status Verifikasi,"${verifyStatusLabel}"`,
-            `Product,"${batch.product ?? '-'}"`,
-            `Batch,"${batch.batch_code ?? '-'}"`,
-            `Group,"${groupName}"`,
-            `F0 Sistem,"${systemF0.toFixed(2)} min"`,
-            `Hasil F0,"${exportF0Result}"`,
-            `Diverifikasi Oleh,"${verifiedByTxt}"`,
-            `Diverifikasi Tanggal,"${verifiedAtTxt}"`,
-            ``,
-            `RINGKASAN PARAMETER STERILISASI`,
-            `Target Suhu (SV),${targetSv.toFixed(1)} °C`,
-            `Suhu Maksimum (Max PV),${statsData.maxPv.toFixed(1)} °C`,
-            `Suhu Minimum (Min PV),${statsData.minPv.toFixed(1)} °C`,
-            `Suhu Rata-rata (PV),${statsData.avgPv.toFixed(1)} °C`,
-            `Total Titik Data Log,${logs.length} Points`,
-            ``,
-            `DATA LOG DETAIL`,
-        ];
-
-        const headers = ['No', 'Waktu', 'Actual PV (°C)', 'Setting SV (°C)', 'Heating MV (%)', 'Fase Proses'];
-        const dataRows = logs.map((l, idx) => {
-            const rawPv = Number(l.pv ?? l.actual ?? 0);
-            const dp = Number(l.decimal_point ?? 0);
-            let pv = dp > 0 ? rawPv / Math.pow(10, dp) : rawPv;
-            if (pv > 300) pv = pv / 10.0;
-
-            const rawSv = Number(l.sv ?? l.setting ?? 121.0);
-            let sv = dp > 0 ? rawSv / Math.pow(10, dp) : rawSv;
-            if (sv > 300) sv = sv / 10.0;
-
-            const mv = Number(l.heating_mv ?? l.mv ?? 0);
-            const phase = l.phase_name || l.phase || (pv >= (sv - 2) ? 'Sterilisasi (Holding)' : (pv > 40 ? 'Heating' : 'Cooling'));
-            const timeStr = l.created_at ? new Date(l.created_at).toLocaleTimeString('id-ID') : `--:${idx}`;
-
-            return [
-                idx + 1,
-                `"${timeStr}"`,
-                pv.toFixed(1),
-                sv.toFixed(1),
-                `"${mv.toFixed(0)}%"`,
-                `"${phase}"`,
-            ].join(',');
-        });
-
-        // Add UTF-8 BOM so Excel displays Indonesian characters and accents cleanly
-        const csvContent = '\uFEFF' + [...metaSection, headers.join(','), ...dataRows].join('\r\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `Laporan_Batch_${batch.id}_${machineTitle.replace(/\s+/g, '_')}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    };
 
     return (
         <div className="space-y-6">
@@ -1046,20 +974,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                     <div className="text-[10px] text-slate-500 font-medium">Tabel Berformat & Ringkasan KPI</div>
                                 </div>
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    handleDownloadCSV();
-                                    setShowDownloadMenu(false);
-                                }}
-                                className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left"
-                            >
-                                <Download size={15} className="text-amber-600" />
-                                <div>
-                                    <div className="font-extrabold text-slate-900">Download CSV (.csv)</div>
-                                    <div className="text-[10px] text-slate-500 font-medium">Data Mentah Terstruktur</div>
-                                </div>
-                            </button>
+
                         </div>
                     )}
                 </div>
@@ -1073,8 +988,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                             <h2 className="text-2xl font-black tracking-tight text-slate-900">
                                 Proses #{batch.id} ({machineTitle})
                             </h2>
-                            {batch.end_time ? (
-                                isUnverified ? (
+                            {isUnverified ? (
                                     <span className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 border border-rose-300 px-2.5 py-0.5 text-xs font-black text-rose-700 shadow-sm">
                                         <span className="relative flex h-2 w-2">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
@@ -1086,12 +1000,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                     <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
                                         <CheckCircle2 size={12} /> Selesai & VERIFIED
                                     </span>
-                                )
-                            ) : (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-bold text-amber-700 animate-pulse">
-                                    Sedang Berjalan
-                                </span>
-                            )}
+                                )}
                         </div>
                         <p className="text-xs font-semibold text-slate-500 mt-1">
                             {timeRangeStr} • {durationMinutes !== null ? `${durationMinutes} Menit` : '--'} • {logs.length} Data Points
@@ -1142,7 +1051,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Target F0</dt><dd className="font-extrabold text-slate-900 text-right">{batch.target_f0 ?? '-'} min</dd></div>
                         <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Process deviation</dt><dd className="font-extrabold text-slate-900 text-right">{batch.process_deviation ?? '-'}</dd></div>
                         <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Sterility criterion</dt><dd className="font-extrabold text-slate-900 text-right">{batch.sterility_criterion ?? '-'}</dd></div>
-                        <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Group</dt><dd className="font-extrabold text-slate-900 text-right">{groups.find((g) => g.id === batch.group_id)?.name ?? batch.group_id ?? '-'}</dd></div>
+                        <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Group</dt><dd className="font-extrabold text-slate-900 text-right">{groups.find((g) => g.id === batch.group_id)?.name ?? (batch.group_id ? `#${batch.group_id}` : '-')}</dd></div>
                         <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Verified by</dt><dd className="font-extrabold text-slate-900 text-right">{batch.verified_by ?? '-'}</dd></div>
                         <div className="flex justify-between gap-4 pb-1.5"><dt className="font-bold text-slate-500">Verified at</dt><dd className="font-extrabold text-slate-900 text-right">{batch.verified_at ? new Date(batch.verified_at).toLocaleString('id-ID') : '-'}</dd></div>
                     </dl>
@@ -1179,14 +1088,17 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                             Scheduled Process
                             <input type="text" required value={scheduledProcess} onChange={(e) => setScheduledProcess(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3" />
                         </label>
+                        {groups.length > 0 && (
                         <label className="block text-xs font-bold text-slate-700">
                             Group
-                            <select required value={groupId} onChange={(e) => setGroupId(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3">
+                            <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3">
+                                <option value="">— Tanpa Group —</option>
                                 {groups.map((g) => (
                                     <option key={g.id} value={g.id}>{g.name}</option>
                                 ))}
                             </select>
                         </label>
+                        )}
                         <label className="block text-xs font-bold text-slate-700">
                             Minimum F0
                             <input type="number" required step="0.01" min="0" value={minF0} onChange={(e) => setMinF0(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3" />

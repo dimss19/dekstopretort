@@ -16,11 +16,6 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        DB::table('history_groups')->insert([
-            ['name' => 'Group 1', 'color' => '#2563eb', 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Group 2', 'color' => '#059669', 'created_at' => now(), 'updated_at' => now()],
-        ]);
-
         Schema::table('tn_process_histories', function (Blueprint $table) {
             $table->string('verification_status', 12)->default('unverified');
             $table->string('product', 100)->nullable();

@@ -231,14 +231,14 @@ class TnMonitorController extends Controller
         // ponytail: manual Validator karena shouldRenderJsonWhen global membuat $request->validate() redirect (302) untuk JSON di route web.
         $data = $this->validatedOrJson422($request, [
             'product' => 'required|string|max:100',
-            'batch_code' => 'required|string|max:50|unique:tn_process_histories,batch_code',
+            'batch_code' => 'required|string|max:50|unique:tn_process_histories,batch_code,' . $history->id,
             'scheduled_process' => 'required|string|max:100',
             'min_f0_achieved' => 'required|numeric|min:0',
             'target_f0' => 'required|numeric|min:0',
             'process_deviation' => 'required|in:None,Minor,Major',
             'sterility_criterion' => 'required|in:PASS,FAIL',
             'thermal_record' => 'nullable|in:VERIFIED,REJECTED',
-            'group_id' => 'required|exists:history_groups,id',
+            'group_id' => 'nullable|exists:history_groups,id',
         ]);
 
         $systemF0 = \App\Services\F0Calculator::fromLogs($history->log_data ?? []);
@@ -247,7 +247,7 @@ class TnMonitorController extends Controller
             $criterion = 'FAIL';
         }
 
-        $verifiedBy = $request->user()->name ?? 'Operator';
+        $verifiedBy = $request->user()?->name ?? 'Operator';
 
         $history->update([
             'product' => $data['product'],
@@ -258,7 +258,7 @@ class TnMonitorController extends Controller
             'process_deviation' => $data['process_deviation'],
             'sterility_criterion' => $criterion,
             'thermal_record' => $data['thermal_record'] ?? 'VERIFIED',
-            'group_id' => $data['group_id'],
+            'group_id' => !empty($data['group_id']) ? $data['group_id'] : null,
             'verification_status' => 'verified',
             'verified_by' => $verifiedBy,
             'verified_at' => now(),
@@ -269,6 +269,29 @@ class TnMonitorController extends Controller
         }
 
         return back()->with('success', 'Batch berhasil diverifikasi.');
+    }
+
+    public function storeHistoryGroup(Request $request)
+    {
+        if (\App\Models\HistoryGroup::count() >= 2) {
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Batas maksimal adalah 2 group.'], 422);
+            }
+            return back()->withErrors(['group' => 'Batas maksimal adalah 2 group.']);
+        }
+
+        $data = $this->validatedOrJson422($request, [
+            'name' => 'required|string|max:50',
+            'color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+        ]);
+
+        $group = \App\Models\HistoryGroup::create($data);
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true, 'group' => $group]);
+        }
+
+        return back()->with('success', 'Group berhasil dibuat.');
     }
 
     public function updateHistoryGroup(\App\Models\HistoryGroup $group, Request $request)
@@ -284,6 +307,18 @@ class TnMonitorController extends Controller
         }
 
         return back()->with('success', 'Nama group diperbarui.');
+    }
+
+    public function destroyHistoryGroup(\App\Models\HistoryGroup $group, Request $request)
+    {
+        \App\Models\TnProcessHistory::where('group_id', $group->id)->update(['group_id' => null]);
+        $group->delete();
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true]);
+        }
+
+        return back()->with('success', 'Group berhasil dihapus.');
     }
 
     private function validatedOrJson422(Request $request, array $rules): array

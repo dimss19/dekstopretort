@@ -9,6 +9,8 @@ import {
     Clock,
     FileText,
     Pencil,
+    Plus,
+    X,
 } from 'lucide-react';
 import ProcessDetailView from './ProcessDetailView';
 import { compareF0, filterHistories, getHistoryStatus, type HistoryStatus } from './historyHelpers';
@@ -44,10 +46,10 @@ const getCardVerification = (batch: any, groups: HistorianListGroup[]) => {
     const f0Result = compareF0(systemF0, batch.target_f0 ?? null) ?? '-';
     return {
         status,
-        statusLabel: status === 'verified' ? 'VERIFIED' : status === 'running' ? 'Berjalan' : 'UNVERIFIED',
+        statusLabel: status === 'verified' ? 'VERIFIED' : 'UNVERIFIED',
         product: batch.product ?? '-',
         batchCode: batch.batch_code ?? '-',
-        groupName: groups.find((g) => g.id === batch.group_id)?.name ?? batch.group_id ?? '-',
+        groupName: groups.find((g) => g.id === batch.group_id)?.name ?? (batch.group_id ? `#${batch.group_id}` : '-'),
         systemF0,
         f0Result,
         verifiedBy: batch.verified_by ?? 'Belum diverifikasi',
@@ -66,6 +68,9 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
     const [editingGroup, setEditingGroup] = useState<HistorianListGroup | null>(null);
     const [editName, setEditName] = useState<string>('');
     const [editColor, setEditColor] = useState<string>('#a3a3a3');
+    const [creatingGroup, setCreatingGroup] = useState<boolean>(false);
+    const [newGroupName, setNewGroupName] = useState<string>('');
+    const [newGroupColor, setNewGroupColor] = useState<string>('#3b82f6');
 
     const totalUnverifiedCount = useMemo(() => histories.filter((h) => getHistoryStatus(h) === 'unverified').length, [histories]);
 
@@ -108,7 +113,7 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
         });
     };
 
-    const handleDownload = (batch: any, format: 'csv' | 'excel' | 'pdf') => {
+    const handleDownload = (batch: any, format: 'excel' | 'pdf') => {
         const logs = getChronologicalLogs(batch);
         if (!logs.length) {
             alert('Tidak ada data point pada batch ini.');
@@ -124,7 +129,7 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
 
         const v = getCardVerification(batch, groups);
 
-        if (format === 'csv' || format === 'excel') {
+        if (format === 'excel') {
             const summaryLines = [
                 'RINGKASAN VERIFIKASI',
                 `Status,${v.statusLabel}`,
@@ -142,7 +147,7 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            const ext = format === 'excel' ? 'csv' : 'csv';
+            const ext = 'csv';
             link.setAttribute("download", `batch_${batch.id}_log.${ext}`);
             document.body.appendChild(link);
             link.click();
@@ -212,6 +217,24 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
         router.put(route('tn.history-groups.update', editingGroup.id), { name: editName, color: editColor }, {
             onSuccess: () => setEditingGroup(null),
         });
+    };
+
+    const handleCreateGroup = () => {
+        if (!newGroupName.trim()) return;
+        router.post(route('tn.history-groups.store'), { name: newGroupName.trim(), color: newGroupColor }, {
+            onSuccess: () => {
+                setCreatingGroup(false);
+                setNewGroupName('');
+                setNewGroupColor('#3b82f6');
+            },
+        });
+    };
+
+    const handleDeleteGroup = (groupId: number, groupName: string) => {
+        if (confirm(`Hapus group "${groupName}"? History yang menggunakan group ini akan dilepas dari group.`)) {
+            router.delete(route('tn.history-groups.destroy', groupId));
+            if (groupFilter === groupId) setGroupFilter('all');
+        }
     };
 
     useEffect(() => {
@@ -284,13 +307,11 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                         className="min-w-52 flex-1 rounded-xl border-slate-300 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 shadow-sm focus:border-blue-600 focus:ring-blue-600"
                     />
                     <div className="flex gap-1.5 rounded-2xl bg-slate-100 p-1.5 border border-slate-200">
-                        {(['all', 'verified', 'unverified', 'running'] as const).map((s) => {
+                        {(['all', 'verified', 'unverified'] as const).map((s) => {
                             const count = s === 'unverified'
                                 ? histories.filter((h) => getHistoryStatus(h) === 'unverified').length
                                 : s === 'verified'
                                 ? histories.filter((h) => getHistoryStatus(h) === 'verified').length
-                                : s === 'running'
-                                ? histories.filter((h) => getHistoryStatus(h) === 'running').length
                                 : histories.length;
 
                             return (
@@ -310,47 +331,101 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                         </span>
                                     )}
                                     <span>
-                                        {s === 'all' ? 'Semua' : s === 'verified' ? 'Verified' : s === 'unverified' ? `Unverified (${count})` : 'Berjalan'}
+                                        {s === 'all' ? 'Semua' : s === 'verified' ? 'Verified' : `Unverified (${count})`}
                                     </span>
                                 </button>
                             );
                         })}
                     </div>
                 </div>
-                {groups.length > 0 && (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <button
-                            onClick={() => setGroupFilter('all')}
-                            className={`rounded-full border px-3 py-1 text-xs font-black transition-all ${
-                                groupFilter === 'all'
-                                    ? 'bg-slate-900 text-white border-slate-900'
-                                    : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
-                            }`}
-                        >
-                            Semua
-                        </button>
-                        {groups.map((g) => (
-                            <span
-                                key={g.id}
-                                className={`inline-flex items-center gap-1 rounded-full border pl-3 pr-1.5 py-1 text-xs font-black transition-all ${
-                                    groupFilter === g.id
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {groups.length > 0 && (
+                        <>
+                            <button
+                                onClick={() => setGroupFilter('all')}
+                                className={`rounded-full border px-3 py-1 text-xs font-black transition-all ${
+                                    groupFilter === 'all'
                                         ? 'bg-slate-900 text-white border-slate-900'
                                         : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
                                 }`}
                             >
-                                <button onClick={() => setGroupFilter(groupFilter === g.id ? 'all' : g.id)} className="flex items-center gap-1.5">
-                                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: g.color }} />
-                                    {g.name}
-                                </button>
-                                <button
-                                    title={`Rename ${g.name}`}
-                                    onClick={() => openGroupEditor(g)}
-                                    className="rounded-full p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
+                                Semua
+                            </button>
+                            {groups.map((g) => (
+                                <span
+                                    key={g.id}
+                                    className={`inline-flex items-center gap-1 rounded-full border pl-3 pr-1 py-1 text-xs font-black transition-all ${
+                                        groupFilter === g.id
+                                            ? 'bg-slate-900 text-white border-slate-900'
+                                            : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                                    }`}
                                 >
-                                    <Pencil size={12} />
-                                </button>
-                            </span>
-                        ))}
+                                    <button onClick={() => setGroupFilter(groupFilter === g.id ? 'all' : g.id)} className="flex items-center gap-1.5">
+                                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: g.color }} />
+                                        {g.name}
+                                    </button>
+                                    <button
+                                        title={`Rename ${g.name}`}
+                                        onClick={() => openGroupEditor(g)}
+                                        className="rounded-full p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
+                                    >
+                                        <Pencil size={11} />
+                                    </button>
+                                    <button
+                                        title={`Delete ${g.name}`}
+                                        onClick={() => handleDeleteGroup(g.id, g.name)}
+                                        className="rounded-full p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-100/60 transition-colors"
+                                    >
+                                        <X size={11} />
+                                    </button>
+                                </span>
+                            ))}
+                        </>
+                    )}
+                    {groups.length < 2 && !creatingGroup && (
+                        <button
+                            onClick={() => setCreatingGroup(true)}
+                            className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-400 bg-white px-3 py-1 text-xs font-black text-slate-600 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                        >
+                            <Plus size={12} />
+                            Create Group
+                        </button>
+                    )}
+                    {groups.length === 0 && !creatingGroup && (
+                        <span className="text-xs text-slate-400 font-semibold">Belum ada group. Buat group untuk mengelompokkan batch.</span>
+                    )}
+                </div>
+                {creatingGroup && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50/30 p-3">
+                        <input
+                            type="text"
+                            value={newGroupName}
+                            maxLength={50}
+                            placeholder="Nama group baru..."
+                            onChange={(e) => setNewGroupName(e.target.value)}
+                            className="min-w-40 flex-1 rounded-xl border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 shadow-sm focus:border-blue-600 focus:ring-blue-600"
+                            autoFocus
+                        />
+                        <input
+                            type="color"
+                            value={newGroupColor}
+                            onChange={(e) => setNewGroupColor(e.target.value)}
+                            className="h-9 w-12 cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
+                        />
+                        <button
+                            onClick={handleCreateGroup}
+                            disabled={!newGroupName.trim()}
+                            className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-black text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Simpan Group
+                        </button>
+                        <button
+                            onClick={() => { setCreatingGroup(false); setNewGroupName(''); setNewGroupColor('#3b82f6'); }}
+                            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-100 transition-colors"
+                        >
+                            Batal
+                        </button>
+                        <span className="text-[10px] text-slate-400 font-semibold">Maks. 2 group</span>
                     </div>
                 )}
                 {editingGroup && (
@@ -453,11 +528,7 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                             <span className="font-mono text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-lg">
                                                 Batch #{h.id}
                                             </span>
-                                            {status === 'running' ? (
-                                                <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md animate-pulse">
-                                                    Proses Berjalan
-                                                </span>
-                                            ) : status === 'verified' ? (
+                                            {status === 'verified' ? (
                                                 <span
                                                     title={`by ${h.verified_by ?? '-'} · ${h.verified_at ? new Date(h.verified_at).toLocaleString('id-ID') : '-'}`}
                                                     className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md"
@@ -493,13 +564,7 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                                     >
                                                         <Eye size={14} className="text-blue-600" /> Lihat Detail Log
                                                     </Link>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => { handleDownload(h, 'csv'); setActiveMenu(null); }}
-                                                        className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left"
-                                                    >
-                                                        <Download size={14} className="text-emerald-600" /> Export CSV
-                                                    </button>
+
                                                     <button
                                                         type="button"
                                                         onClick={() => { handleDownload(h, 'pdf'); setActiveMenu(null); }}
@@ -530,7 +595,7 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                         </div>
                                         <div className="flex items-center justify-between text-slate-600 font-semibold">
                                             <span>Waktu Selesai:</span>
-                                            <span className="font-mono text-slate-900 font-bold">{endTime ? endTime.toLocaleString('id-ID') : 'Sedang Berjalan'}</span>
+                                            <span className="font-mono text-slate-900 font-bold">{endTime ? endTime.toLocaleString('id-ID') : '--'}</span>
                                         </div>
                                         <div className="flex items-center justify-between text-slate-600 font-semibold">
                                             <span>Durasi:</span>
@@ -565,9 +630,9 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                     )}
                                     <button
                                         type="button"
-                                        onClick={() => handleDownload(h, 'csv')}
+                                        onClick={() => handleDownload(h, 'excel')}
                                         className="rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 p-2.5 transition-colors"
-                                        title="Export CSV"
+                                        title="Export Excel"
                                     >
                                         <Download size={14} />
                                     </button>
