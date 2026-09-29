@@ -56,11 +56,12 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
         ? (isOnline && telemetry.targetTemperature !== null && telemetry.targetTemperature !== undefined && telemetry.targetTemperature !== 121.1 && telemetry.targetTemperature > 0 ? telemetry.targetTemperature : 25)
         : (telemetry.targetTemperature ?? 25);
 
-    const targetSvFormatted = isStopped
-        ? (Number(targetSv) === 25 ? '25' : (typeof targetSv === 'number' && Number.isInteger(targetSv) ? String(targetSv) : Number(targetSv).toFixed(1)))
-        : (typeof targetSv === 'number' ? targetSv.toFixed(1) : '25.0');
+    // Format SV dengan 1 desimal (misal 25.0), sama seperti tampilan PV
+    const targetSvFormatted = typeof targetSv === 'number'
+        ? targetSv.toFixed(1)
+        : '25.0';
 
-    // SV berkedip bergantian antara '25' dan 'STOP' setiap 0.5 detik saat STOP / offline
+    // SV berkedip bergantian antara '25.0' dan 'STOP' setiap 0.5 detik saat STOP / offline
     const svValueDisplay = isStopped
         ? (blinkToggle ? 'STOP' : targetSvFormatted)
         : targetSvFormatted;
@@ -129,20 +130,25 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
 
                 {/* ROW 2: SV (Status & Set Value) */}
                 <div className="flex items-center justify-between border-b border-slate-900 pb-3">
-                    <div className="flex items-center gap-3">
-                        <span className="text-2xl sm:text-3xl text-[#00e676] font-black">➔</span>
+                    <div className="flex items-baseline gap-2 sm:gap-3">
+                        <span className="text-2xl sm:text-3xl text-[#00e676] font-black self-center">➔</span>
                         {isStopped ? (
-                            <span className="bg-[#ffeb3b] text-black font-black text-xs sm:text-sm px-2 py-0.5 rounded shadow-sm">
+                            <span className="bg-[#ffeb3b] text-black font-black text-xs sm:text-sm px-2 py-0.5 rounded shadow-sm self-center">
                                 STOP
                             </span>
                         ) : (
-                            <span className="bg-[#00e676] text-black font-black text-xs sm:text-sm px-2 py-0.5 rounded shadow-sm">
+                            <span className="bg-[#00e676] text-black font-black text-xs sm:text-sm px-2 py-0.5 rounded shadow-sm self-center">
                                 RUN
                             </span>
                         )}
                         <span className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-[#00e676] drop-shadow-[0_0_12px_rgba(0,230,118,0.4)] opacity-100">
                             {svValueDisplay}
                         </span>
+                        {svValueDisplay !== 'STOP' && (
+                            <span className="text-2xl sm:text-3xl font-bold text-[#00e676]">
+                                ℃
+                            </span>
+                        )}
                     </div>
                     <span className="text-2xl sm:text-3xl font-black text-[#00e676] tracking-wider">
                         SV
