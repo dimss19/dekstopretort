@@ -8,6 +8,7 @@ import {
     FileSpreadsheet,
     CheckCircle2,
     Clock,
+    AlertCircle,
 } from 'lucide-react';
 import RetortThermalChart from '@/Components/Tn/RetortThermalChart';
 import { calculateF0 } from '@/Pages/Tn/retortTelemetry';
@@ -424,6 +425,13 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
     const [groupId, setGroupId] = useState<string>(
         batch.group_id !== null && batch.group_id !== undefined ? String(batch.group_id) : groups.length > 0 ? String(groups[0].id) : ''
     );
+    const [errors, setErrors] = useState<{
+        product?: string;
+        batchCode?: string;
+        scheduledProcess?: string;
+        minF0?: string;
+        targetF0?: string;
+    }>({});
 
     const liveResult = targetF0.trim() === '' ? null : compareF0(systemF0, Number(targetF0));
     const liveFail = isUnverified && liveResult === 'FAIL';
@@ -438,6 +446,49 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
 
     const handleVerifySubmit = (e: React.FormEvent) => {
         e.preventDefault();
+
+        const newErrors: {
+            product?: string;
+            batchCode?: string;
+            scheduledProcess?: string;
+            minF0?: string;
+            targetF0?: string;
+        } = {};
+
+        if (!product.trim()) {
+            newErrors.product = 'Product belum diisi';
+        }
+        if (!batchCode.trim()) {
+            newErrors.batchCode = 'Batch belum diisi';
+        }
+        if (!scheduledProcess.trim()) {
+            newErrors.scheduledProcess = 'Scheduled Process belum diisi';
+        }
+        if (minF0.trim() === '') {
+            newErrors.minF0 = 'Minimum F0 belum diisi';
+        }
+        if (targetF0.trim() === '') {
+            newErrors.targetF0 = 'Target F0 belum diisi';
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            if (newErrors.product) {
+                document.getElementById('verify-product-input')?.focus();
+            } else if (newErrors.batchCode) {
+                document.getElementById('verify-batch-input')?.focus();
+            } else if (newErrors.scheduledProcess) {
+                document.getElementById('verify-process-input')?.focus();
+            } else if (newErrors.minF0) {
+                document.getElementById('verify-minf0-input')?.focus();
+            } else if (newErrors.targetF0) {
+                document.getElementById('verify-targetf0-input')?.focus();
+            }
+            return;
+        }
+
+        setErrors({});
+
         router.post(route('tn.history.verify', batch.id), {
             product,
             batch_code: batchCode,
@@ -448,6 +499,16 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
             sterility_criterion: effectiveCriterion,
             thermal_record: 'VERIFIED',
             group_id: groupId ? Number(groupId) : null,
+        }, {
+            onError: (err) => {
+                const mapped: Record<string, string> = {};
+                if (err.product) mapped.product = err.product;
+                if (err.batch_code) mapped.batchCode = err.batch_code;
+                if (err.scheduled_process) mapped.scheduledProcess = err.scheduled_process;
+                if (err.min_f0_achieved) mapped.minF0 = err.min_f0_achieved;
+                if (err.target_f0) mapped.targetF0 = err.target_f0;
+                setErrors(mapped);
+            }
         });
     };
 
@@ -1070,23 +1131,92 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                             Wajib Dilengkapi
                         </span>
                     </div>
-                    <form onSubmit={handleVerifySubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <form onSubmit={handleVerifySubmit} noValidate className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {Object.keys(errors).length > 0 && (
+                            <div className="sm:col-span-2 rounded-2xl border border-rose-300 bg-rose-50/90 p-3.5 text-xs text-rose-800 flex items-start gap-2.5 shadow-sm">
+                                <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                                <div>
+                                    <span className="font-extrabold block">Data verifikasi belum lengkap:</span>
+                                    <span className="font-medium text-rose-700">Mohon lengkapi {Object.values(errors).filter(Boolean).join(', ')}.</span>
+                                </div>
+                            </div>
+                        )}
                         <label className="block text-xs font-bold text-slate-700">
                             Product
-                            <input type="text" required value={product} onChange={(e) => setProduct(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3" />
+                            <input
+                                id="verify-product-input"
+                                type="text"
+                                value={product}
+                                placeholder="Masukkan nama produk..."
+                                onChange={(e) => {
+                                    setProduct(e.target.value);
+                                    if (errors.product) setErrors(prev => ({ ...prev, product: undefined }));
+                                }}
+                                className={`mt-1 w-full rounded-xl text-xs font-bold text-slate-800 shadow-sm py-2 px-3 transition-all ${
+                                    errors.product
+                                        ? 'border-2 border-rose-500 bg-rose-50/40 focus:border-rose-600 focus:ring-rose-500 ring-2 ring-rose-200'
+                                        : 'border border-slate-300 bg-white focus:border-rose-500 focus:ring-rose-500'
+                                }`}
+                            />
+                            {errors.product && (
+                                <span className="mt-1.5 flex items-center gap-1 text-[11px] font-extrabold text-rose-600">
+                                    <AlertCircle size={12} className="shrink-0" />
+                                    {errors.product}
+                                </span>
+                            )}
                         </label>
                         <label className="block text-xs font-bold text-slate-700">
                             Batch
-                            <input type="text" required value={batchCode} onChange={(e) => setBatchCode(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3" />
+                            <input
+                                id="verify-batch-input"
+                                type="text"
+                                value={batchCode}
+                                placeholder="Masukkan kode batch..."
+                                onChange={(e) => {
+                                    setBatchCode(e.target.value);
+                                    if (errors.batchCode) setErrors(prev => ({ ...prev, batchCode: undefined }));
+                                }}
+                                className={`mt-1 w-full rounded-xl text-xs font-bold text-slate-800 shadow-sm py-2 px-3 transition-all ${
+                                    errors.batchCode
+                                        ? 'border-2 border-rose-500 bg-rose-50/40 focus:border-rose-600 focus:ring-rose-500 ring-2 ring-rose-200'
+                                        : 'border border-slate-300 bg-white focus:border-rose-500 focus:ring-rose-500'
+                                }`}
+                            />
+                            {errors.batchCode && (
+                                <span className="mt-1.5 flex items-center gap-1 text-[11px] font-extrabold text-rose-600">
+                                    <AlertCircle size={12} className="shrink-0" />
+                                    {errors.batchCode}
+                                </span>
+                            )}
                         </label>
                         <label className="block text-xs font-bold text-slate-700">
                             Scheduled Process
-                            <input type="text" required value={scheduledProcess} onChange={(e) => setScheduledProcess(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3" />
+                            <input
+                                id="verify-process-input"
+                                type="text"
+                                value={scheduledProcess}
+                                placeholder="Masukkan scheduled process..."
+                                onChange={(e) => {
+                                    setScheduledProcess(e.target.value);
+                                    if (errors.scheduledProcess) setErrors(prev => ({ ...prev, scheduledProcess: undefined }));
+                                }}
+                                className={`mt-1 w-full rounded-xl text-xs font-bold text-slate-800 shadow-sm py-2 px-3 transition-all ${
+                                    errors.scheduledProcess
+                                        ? 'border-2 border-rose-500 bg-rose-50/40 focus:border-rose-600 focus:ring-rose-500 ring-2 ring-rose-200'
+                                        : 'border border-slate-300 bg-white focus:border-rose-500 focus:ring-rose-500'
+                                }`}
+                            />
+                            {errors.scheduledProcess && (
+                                <span className="mt-1.5 flex items-center gap-1 text-[11px] font-extrabold text-rose-600">
+                                    <AlertCircle size={12} className="shrink-0" />
+                                    {errors.scheduledProcess}
+                                </span>
+                            )}
                         </label>
                         {groups.length > 0 && (
                         <label className="block text-xs font-bold text-slate-700">
                             Group
-                            <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3">
+                            <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3">
                                 <option value="">— Tanpa Group —</option>
                                 {groups.map((g) => (
                                     <option key={g.id} value={g.id}>{g.name}</option>
@@ -1096,15 +1226,59 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         )}
                         <label className="block text-xs font-bold text-slate-700">
                             Minimum F0
-                            <input type="number" required step="0.01" min="0" value={minF0} onChange={(e) => setMinF0(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3" />
+                            <input
+                                id="verify-minf0-input"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={minF0}
+                                placeholder="0.00"
+                                onChange={(e) => {
+                                    setMinF0(e.target.value);
+                                    if (errors.minF0) setErrors(prev => ({ ...prev, minF0: undefined }));
+                                }}
+                                className={`mt-1 w-full rounded-xl text-xs font-bold text-slate-800 shadow-sm py-2 px-3 transition-all ${
+                                    errors.minF0
+                                        ? 'border-2 border-rose-500 bg-rose-50/40 focus:border-rose-600 focus:ring-rose-500 ring-2 ring-rose-200'
+                                        : 'border border-slate-300 bg-white focus:border-rose-500 focus:ring-rose-500'
+                                }`}
+                            />
+                            {errors.minF0 && (
+                                <span className="mt-1.5 flex items-center gap-1 text-[11px] font-extrabold text-rose-600">
+                                    <AlertCircle size={12} className="shrink-0" />
+                                    {errors.minF0}
+                                </span>
+                            )}
                         </label>
                         <label className="block text-xs font-bold text-slate-700">
                             Target F0
-                            <input type="number" required step="0.01" min="0" value={targetF0} onChange={(e) => setTargetF0(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3" />
+                            <input
+                                id="verify-targetf0-input"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={targetF0}
+                                placeholder="0.00"
+                                onChange={(e) => {
+                                    setTargetF0(e.target.value);
+                                    if (errors.targetF0) setErrors(prev => ({ ...prev, targetF0: undefined }));
+                                }}
+                                className={`mt-1 w-full rounded-xl text-xs font-bold text-slate-800 shadow-sm py-2 px-3 transition-all ${
+                                    errors.targetF0
+                                        ? 'border-2 border-rose-500 bg-rose-50/40 focus:border-rose-600 focus:ring-rose-500 ring-2 ring-rose-200'
+                                        : 'border border-slate-300 bg-white focus:border-rose-500 focus:ring-rose-500'
+                                }`}
+                            />
+                            {errors.targetF0 && (
+                                <span className="mt-1.5 flex items-center gap-1 text-[11px] font-extrabold text-rose-600">
+                                    <AlertCircle size={12} className="shrink-0" />
+                                    {errors.targetF0}
+                                </span>
+                            )}
                         </label>
                         <label className="block text-xs font-bold text-slate-700">
                             Process deviation
-                            <select required value={deviation} onChange={(e) => setDeviation(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3">
+                            <select value={deviation} onChange={(e) => setDeviation(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3">
                                 <option value="None">None</option>
                                 <option value="Minor">Minor</option>
                                 <option value="Major">Major</option>
@@ -1112,7 +1286,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         </label>
                         <label className="block text-xs font-bold text-slate-700">
                             Sterility criterion
-                            <select required value={effectiveCriterion} disabled={liveFail} onChange={(e) => setCriterion(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3 disabled:opacity-60">
+                            <select value={effectiveCriterion} disabled={liveFail} onChange={(e) => setCriterion(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3 disabled:opacity-60">
                                 <option value="PASS">PASS</option>
                                 <option value="FAIL">FAIL</option>
                             </select>
@@ -1125,7 +1299,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         <div className="sm:col-span-2 flex justify-end">
                             <button
                                 type="submit"
-                                className="rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black px-6 py-2.5 shadow-md shadow-rose-200 transition-all flex items-center gap-2"
+                                className="rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black px-6 py-2.5 shadow-md shadow-rose-200 transition-all flex items-center gap-2 cursor-pointer"
                             >
                                 <CheckCircle2 size={15} />
                                 Tulis & Simpan Verifikasi Batch
@@ -1202,7 +1376,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                     setPageSize(Number(e.target.value));
                                     setTablePage(1);
                                 }}
-                                className="rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 py-1.5 px-3"
+                                className="rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 py-1.5 px-5"
                             >
                                 <option value={25}>25</option>
                                 <option value={50}>50</option>
