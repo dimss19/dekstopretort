@@ -27,8 +27,13 @@ interface Props {
 
 export default function RetortMonitorShell(props: Props) {
     const { controller, telemetry, isOnline, serialPort } = props;
-    const controllerName = controller.name || `Controller #${controller.id}`;
-    const displayName = controller.machine?.machine_name ? `${controller.machine.machine_name} (${controllerName})` : controllerName;
+    const rawControllerName = controller.name || `Controller #${controller.id}`;
+    const controllerName = rawControllerName.replace(/Retort TNS/gi, 'Retort TN').replace(/TNS Controller/gi, 'TN Controller');
+    const rawMachineName = controller.machine?.machine_name;
+    const machineName = rawMachineName ? rawMachineName.replace(/Retort TNS/gi, 'Retort TN') : null;
+    const displayName = (machineName?.toLowerCase().includes('retort') || controllerName?.toLowerCase().includes('tn'))
+        ? 'Retort TN Controller'
+        : (machineName ? `${machineName} (${controllerName})` : controllerName);
     const activePortDisplay = serialPort || controller.serial_port || 'AUTO';
 
     return (
@@ -58,7 +63,7 @@ export default function RetortMonitorShell(props: Props) {
                 </div>
             </div>
         }>
-            <Head title={`Monitor Retort - ${controllerName}`} />
+            <Head title={`Monitor - ${displayName}`} />
             <div className="py-8">
                 <div className="mx-auto max-w-[1600px] space-y-6 px-4 sm:px-6 lg:px-8">
                     {/* Navigation Tabs */}
