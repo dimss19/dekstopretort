@@ -421,7 +421,6 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
     );
     const [deviation, setDeviation] = useState<string>(batch.process_deviation ?? 'None');
     const [criterion, setCriterion] = useState<string>(batch.sterility_criterion ?? 'PASS');
-    const [thermal, setThermal] = useState<string>(batch.thermal_record ?? 'VERIFIED');
     const [groupId, setGroupId] = useState<string>(
         batch.group_id !== null && batch.group_id !== undefined ? String(batch.group_id) : groups.length > 0 ? String(groups[0].id) : ''
     );
@@ -451,7 +450,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
             target_f0: targetF0 === '' ? null : Number(targetF0),
             process_deviation: deviation,
             sterility_criterion: effectiveCriterion,
-            thermal_record: thermal,
+            thermal_record: 'VERIFIED',
             group_id: Number(groupId),
         });
     };
@@ -1143,7 +1142,6 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Target F0</dt><dd className="font-extrabold text-slate-900 text-right">{batch.target_f0 ?? '-'} min</dd></div>
                         <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Process deviation</dt><dd className="font-extrabold text-slate-900 text-right">{batch.process_deviation ?? '-'}</dd></div>
                         <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Sterility criterion</dt><dd className="font-extrabold text-slate-900 text-right">{batch.sterility_criterion ?? '-'}</dd></div>
-                        <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Thermal record</dt><dd className="font-extrabold text-slate-900 text-right">{batch.thermal_record ?? '-'}</dd></div>
                         <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Group</dt><dd className="font-extrabold text-slate-900 text-right">{groups.find((g) => g.id === batch.group_id)?.name ?? batch.group_id ?? '-'}</dd></div>
                         <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Verified by</dt><dd className="font-extrabold text-slate-900 text-right">{batch.verified_by ?? '-'}</dd></div>
                         <div className="flex justify-between gap-4 pb-1.5"><dt className="font-bold text-slate-500">Verified at</dt><dd className="font-extrabold text-slate-900 text-right">{batch.verified_at ? new Date(batch.verified_at).toLocaleString('id-ID') : '-'}</dd></div>
@@ -1210,13 +1208,6 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                             <select required value={effectiveCriterion} disabled={liveFail} onChange={(e) => setCriterion(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3 disabled:opacity-60">
                                 <option value="PASS">PASS</option>
                                 <option value="FAIL">FAIL</option>
-                            </select>
-                        </label>
-                        <label className="block text-xs font-bold text-slate-700">
-                            Thermal record
-                            <select required value={thermal} onChange={(e) => setThermal(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3">
-                                <option value="VERIFIED">VERIFIED</option>
-                                <option value="REJECTED">REJECTED</option>
                             </select>
                         </label>
                         {liveFail && (

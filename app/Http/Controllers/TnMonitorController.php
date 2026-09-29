@@ -237,7 +237,7 @@ class TnMonitorController extends Controller
             'target_f0' => 'required|numeric|min:0',
             'process_deviation' => 'required|in:None,Minor,Major',
             'sterility_criterion' => 'required|in:PASS,FAIL',
-            'thermal_record' => 'required|in:VERIFIED,REJECTED',
+            'thermal_record' => 'nullable|in:VERIFIED,REJECTED',
             'group_id' => 'required|exists:history_groups,id',
         ]);
 
@@ -257,7 +257,7 @@ class TnMonitorController extends Controller
             'target_f0' => $data['target_f0'],
             'process_deviation' => $data['process_deviation'],
             'sterility_criterion' => $criterion,
-            'thermal_record' => $data['thermal_record'],
+            'thermal_record' => $data['thermal_record'] ?? 'VERIFIED',
             'group_id' => $data['group_id'],
             'verification_status' => 'verified',
             'verified_by' => $verifiedBy,
