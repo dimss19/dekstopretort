@@ -1,5 +1,5 @@
-import { ReactNode, useState, useEffect, useMemo } from 'react';
-import { router } from '@inertiajs/react';
+import React, { ReactNode, useState, useEffect, useMemo } from 'react';
+import { router, Link } from '@inertiajs/react';
 import {
     CheckCircle2,
     Download,
@@ -486,13 +486,13 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                             </button>
                                             {activeMenu === h.id && (
                                                 <div className="absolute right-0 mt-1 w-44 rounded-2xl bg-white p-1.5 shadow-xl border border-slate-200 z-50 animate-in fade-in">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => { setSelectedBatch(h); setActiveMenu(null); }}
+                                                    <Link
+                                                        href={route('historian.show', h.id)}
+                                                        onClick={() => setActiveMenu(null)}
                                                         className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left"
                                                     >
                                                         <Eye size={14} className="text-blue-600" /> Lihat Detail Log
-                                                    </button>
+                                                    </Link>
                                                     <button
                                                         type="button"
                                                         onClick={() => { handleDownload(h, 'csv'); setActiveMenu(null); }}
@@ -549,21 +549,19 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
 
                                 <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                                     {status === 'unverified' ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => setSelectedBatch(h)}
+                                        <Link
+                                            href={route('historian.show', h.id)}
                                             className="flex-1 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black py-2.5 px-3 transition-all shadow-sm shadow-rose-200 text-center"
                                         >
                                             Verifikasi
-                                        </button>
+                                        </Link>
                                     ) : (
-                                        <button
-                                            type="button"
-                                            onClick={() => setSelectedBatch(h)}
+                                        <Link
+                                            href={route('historian.show', h.id)}
                                             className="flex-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-black py-2.5 px-3 transition-colors text-center"
                                         >
                                             Lihat Detail
-                                        </button>
+                                        </Link>
                                     )}
                                     <button
                                         type="button"

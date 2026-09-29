@@ -24,6 +24,15 @@ Route::group([], function () {
         return Inertia::render('Operations', ['module' => 'historian', 'histories' => $histories, 'groups' => $groups]);
     })->name('historian.index');
 
+    Route::get('/historian/{history}', function (\App\Models\TnProcessHistory $history) {
+        $history->load('controller.machine');
+        $groups = \App\Models\HistoryGroup::orderBy('id')->get();
+        return Inertia::render('History/Show', [
+            'batch' => $history,
+            'groups' => $groups,
+        ]);
+    })->name('historian.show');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

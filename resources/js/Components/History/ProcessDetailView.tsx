@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { router } from '@inertiajs/react';
+import { router, Link } from '@inertiajs/react';
 import {
     ChevronLeft,
     ChevronDown,
@@ -991,14 +991,13 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
         <div className="space-y-6">
             {/* Top Toolbar */}
             <div className="flex items-center justify-between gap-4">
-                <button
-                    type="button"
-                    onClick={onBack}
+                <Link
+                    href={route('historian.index')}
                     className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
                 >
                     <ChevronLeft size={16} />
-                    <span>Kembali ke Daftar</span>
-                </button>
+                    <span>Kembali ke History</span>
+                </Link>
 
                 {/* Download Dropdown */}
                 <div className="relative">
@@ -1152,13 +1151,6 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                 </section>
             ) : isUnverified ? (
                 <section className="relative rounded-3xl border-2 border-rose-300 bg-rose-50/20 p-6 sm:p-7 shadow-lg backdrop-blur-xl ring-1 ring-rose-200">
-                    <span
-                        title="Harap segera lengkapi verifikasi batch ini"
-                        className="absolute -top-2 -right-2 flex h-5 w-5 z-10"
-                    >
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-5 w-5 bg-rose-600 border-2 border-white shadow-md"></span>
-                    </span>
                     <div className="mb-4 border-b border-rose-200/80 pb-3 flex flex-wrap items-center justify-between gap-2">
                         <div>
                             <div className="flex items-center gap-2">
