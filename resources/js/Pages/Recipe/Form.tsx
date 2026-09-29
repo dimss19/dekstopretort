@@ -1188,7 +1188,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                             disabled={processing}
                             className="px-5 py-2.5 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 shadow-sm transition-all disabled:opacity-50"
                         >
-                            Simpan ke Database Saja
+                            Save to Database
                         </button>
                         <button
                             type="button"
@@ -1196,7 +1196,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                             disabled={processing}
                             className="px-7 py-3 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-lg transition-all border-none disabled:opacity-50"
                         >
-                            {isEditing ? 'Simpan & Tulis ke TN Controller' : 'Simpan & Tulis ke TN Controller'}
+                            Save & Write
                         </button>
                     </div>
                 </form>
