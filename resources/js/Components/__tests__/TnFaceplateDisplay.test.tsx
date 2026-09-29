@@ -39,21 +39,22 @@ describe('TnFaceplateDisplay Component', () => {
         );
 
         expect(screen.getByText('STOP')).toBeInTheDocument();
-        expect(screen.getByText('25.0')).toBeInTheDocument();
+        expect(screen.getByText('25')).toBeInTheDocument();
 
-        // Advance 500ms to test blink toggle to 'Stop'
+        // Advance 500ms to test blink toggle to 'STOP'
         act(() => {
             vi.advanceTimersByTime(500);
         });
 
-        expect(screen.getByText('Stop')).toBeInTheDocument();
+        expect(screen.getAllByText('STOP').length).toBe(2);
 
-        // Advance another 500ms back to '25.0'
+        // Advance another 500ms back to '25'
         act(() => {
             vi.advanceTimersByTime(500);
         });
 
-        expect(screen.getByText('25.0')).toBeInTheDocument();
+        expect(screen.getByText('25')).toBeInTheDocument();
+        expect(screen.getAllByText('STOP').length).toBe(1);
 
         unmount();
     });

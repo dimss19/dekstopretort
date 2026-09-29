@@ -50,13 +50,19 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
         )
     );
     const isStopped = !isOnline || !isProcessRunning;
-    const targetSvFormatted = telemetry.targetTemperature !== null && telemetry.targetTemperature !== undefined
-        ? telemetry.targetTemperature.toFixed(1)
-        : '25.0';
 
-    // SV berkedip bergantian antara 'Stop' dan target SV setiap 0.5 detik
+    // Nilai target SV: saat offline atau saat controller stopped/idle, default ke 25
+    const targetSv = !isOnline || isStopped
+        ? (isOnline && telemetry.targetTemperature !== null && telemetry.targetTemperature !== undefined && telemetry.targetTemperature !== 121.1 && telemetry.targetTemperature > 0 ? telemetry.targetTemperature : 25)
+        : (telemetry.targetTemperature ?? 25);
+
+    const targetSvFormatted = isStopped
+        ? (Number(targetSv) === 25 ? '25' : (typeof targetSv === 'number' && Number.isInteger(targetSv) ? String(targetSv) : Number(targetSv).toFixed(1)))
+        : (typeof targetSv === 'number' ? targetSv.toFixed(1) : '25.0');
+
+    // SV berkedip bergantian antara '25' dan 'STOP' setiap 0.5 detik saat STOP / offline
     const svValueDisplay = isStopped
-        ? (blinkToggle ? 'Stop' : targetSvFormatted)
+        ? (blinkToggle ? 'STOP' : targetSvFormatted)
         : targetSvFormatted;
 
     // Format MV
@@ -134,9 +140,7 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
                                 RUN
                             </span>
                         )}
-                        <span className={`text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-[#00e676] drop-shadow-[0_0_12px_rgba(0,230,118,0.4)] transition-opacity duration-150 ${
-                            isStopped ? (blinkToggle ? 'opacity-100' : 'opacity-40') : 'opacity-100'
-                        }`}>
+                        <span className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-[#00e676] drop-shadow-[0_0_12px_rgba(0,230,118,0.4)] opacity-100">
                             {svValueDisplay}
                         </span>
                     </div>
