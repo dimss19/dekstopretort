@@ -16,7 +16,7 @@ class DesktopLoginTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertRedirect(route('login'));
+        $response->assertRedirect(route('tn.index'));
     }
 
     /**
@@ -40,9 +40,9 @@ class DesktopLoginTest extends TestCase
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
 
-        // Test bahwa dashboard dapat diakses dengan sukses (HTTP 200)
+        // Test bahwa dashboard me-redirect langsung ke menu monitoring USB RS-485
         $dashboardResponse = $this->get('/dashboard');
-        $dashboardResponse->assertStatus(200);
+        $dashboardResponse->assertRedirect(route('tn.index'));
     }
 
     /**
@@ -67,7 +67,7 @@ class DesktopLoginTest extends TestCase
         $response->assertRedirect(route('dashboard', absolute: false));
 
         $dashboardResponse = $this->get('/dashboard');
-        $dashboardResponse->assertStatus(200);
+        $dashboardResponse->assertRedirect(route('tn.index'));
     }
 
     /**
@@ -103,6 +103,6 @@ class DesktopLoginTest extends TestCase
         $loginResponse->assertRedirect(route('dashboard', absolute: false));
 
         $dashboardResponse = $this->get('/dashboard');
-        $dashboardResponse->assertStatus(200);
+        $dashboardResponse->assertRedirect(route('tn.index'));
     }
 }

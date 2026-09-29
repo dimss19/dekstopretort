@@ -1,10 +1,9 @@
 import React from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { ScadaCanvas, ScadaMapping, SensorData } from '@/types';
-import { RetortEvent, RetortTelemetry, formatControllerTime } from '@/Pages/Tn/retortTelemetry';
+import { RetortEvent, RetortTelemetry } from '@/Pages/Tn/retortTelemetry';
 import TnNormalMonitor from './TnNormalMonitor';
-import ScadaCanvasView from '@/Components/ScadaCanvas';
 import RetortIndustrialHmi from './RetortIndustrialHmi';
 
 interface Props {
@@ -50,11 +49,6 @@ export default function RetortMonitorShell(props: Props) {
                         <span className="text-slate-300">•</span>
                         <span>Update: <strong className="text-slate-700">{props.lastUpdate}</strong></span>
                     </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2.5">
-                    <Link href={route('dashboard')} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
-                        Dashboard
-                    </Link>
                 </div>
             </div>
         }>

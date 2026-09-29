@@ -16,51 +16,27 @@ export default function Authenticated({
     children,
 }: PropsWithChildren<{ header?: ReactNode; navContent?: ReactNode; user?: unknown }>) {
     const pageProps = usePage().props as any;
-    const user = pageProps.auth?.user;
-    const activeMode = pageProps.ui?.active_mode;
     const activeTnId = pageProps.ui?.active_tn_id;
-    const activeTnModel = pageProps.ui?.active_tn_model;
-
-    // Evaluasi mode aktif: apakah sedang dalam mode TN (Autonics) atau ESP Logger
-    const isCurrentTnRoute = Boolean(route().current('tn.*'));
-    const isCurrentEspRoute = Boolean(route().current('esp.*'));
-
-    const isTn = (activeMode === 'tn' || isCurrentTnRoute) && !isCurrentEspRoute;
-    const isEsp = (activeMode === 'esp' || isCurrentEspRoute) && !isCurrentTnRoute;
 
     const visibleNavigation: NavItem[] = [
-        { label: 'Dashboard', routeName: 'dashboard', activePattern: 'dashboard' },
-    ];
-
-    if (isTn) {
-        // Mode USB RS-485 terpilih
-        visibleNavigation.push({
-            label: 'Monitoring USB RS-485',
+        {
+            label: 'Dashboard',
             routeName: activeTnId ? 'tn.monitor' : 'tn.index',
             routeParam: activeTnId ? String(activeTnId) : undefined,
             activePattern: 'tn.*',
             excludePattern: 'tn.recipes.*',
-        });
-        visibleNavigation.push({
-            label: 'Pattern Recipe',
+        },
+        {
+            label: 'Pattern',
             routeName: 'tn.recipes.index',
             activePattern: 'tn.recipes.*',
-        });
-    } else if (isEsp) {
-        // Mode ESP Logger terpilih
-        visibleNavigation.push({
-            label: 'ESP Logger',
-            routeName: 'esp.monitor',
-            activePattern: 'esp.*',
-        });
-    }
-
-    // Historian Log selalu tersedia
-    visibleNavigation.push({
-        label: 'Historian Log',
-        routeName: 'historian.index',
-        activePattern: 'historian.*',
-    });
+        },
+        {
+            label: 'History',
+            routeName: 'historian.index',
+            activePattern: 'historian.*',
+        },
+    ];
 
     return (
         <div className="relative min-h-screen bg-[#f0f4f9] font-sans text-slate-800 selection:bg-yellow-400 selection:text-slate-950">
@@ -74,7 +50,7 @@ export default function Authenticated({
             {/* Fresh Royal Blue & Gold Header */}
             <header className="sticky top-0 z-40 border-b border-blue-900/40 bg-[#0f172a] shadow-[0_4px_25px_0_rgba(15,23,42,0.15)] text-white">
                 <div className="flex h-16 items-center px-4 sm:px-6 lg:px-8">
-                    <Link href={route('dashboard')} className="flex shrink-0 items-center gap-3 group">
+                    <Link href={route('tn.index')} className="flex shrink-0 items-center gap-3 group">
                         <ApplicationLogo className="h-9 w-9 filter drop-shadow-[0_0_8px_rgba(250,204,21,0.8)] transition-transform duration-300 group-hover:scale-105" />
                         <div className="hidden xl:block">
                             <p className="text-base font-black tracking-wider text-white">
@@ -106,19 +82,6 @@ export default function Authenticated({
                             })
                         )}
                     </nav>
-
-                    <div className="ml-3 flex shrink-0 items-center gap-2.5 border-l border-blue-800/60 pl-4">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-500 text-sm font-black text-slate-950 shadow-[0_0_10px_rgba(250,204,21,0.4)]">
-                            {((user as any)?.name || 'O').charAt(0).toUpperCase()}
-                        </div>
-                        <div className="hidden sm:block text-left">
-                            <p className="text-xs font-bold text-white leading-tight">{(user as any)?.name || 'Operator SCADA'}</p>
-                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-semibold">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                                Workstation
-                            </span>
-                        </div>
-                    </div>
                 </div>
             </header>
 
