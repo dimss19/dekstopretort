@@ -16,10 +16,10 @@ export default function RetortIndustrialHmi({
     controllerModel = 'TNH',
     sensorData,
     telemetry,
-    isOnline = true,
+    isOnline = false,
 }: Props) {
     // Live Process Values
-    const isRunning = Boolean(telemetry?.running || (sensorData && sensorData.run_status === false));
+    const isRunning = Boolean(isOnline && (telemetry?.running || (sensorData && sensorData.run_status === false)));
 
     // Determine model capabilities (TNS = 2 Alarms, TNH = 4 Alarms, TNL = 6 Alarms)
     const model = (controllerModel || 'TNH').toUpperCase();
@@ -39,22 +39,24 @@ export default function RetortIndustrialHmi({
         return '--.-';
     };
 
-    const pv = formatValue(telemetry?.actualTemperature, sensorData?.pv, sensorData?.decimal_point ?? 1);
+    const pv = isOnline ? formatValue(telemetry?.actualTemperature, sensorData?.pv, sensorData?.decimal_point ?? 1) : '--.-';
     const sv = formatValue(telemetry?.targetTemperature, sensorData?.sv, sensorData?.decimal_point ?? 1);
 
     // Valve & MV Logic: Initially 0, becomes active when heating output active
     const isValveOpen = Boolean(
-        Boolean(sensorData?.out1_active) ||
-        Boolean(telemetry?.heatingActive) ||
-        (typeof telemetry?.heatingPercent === 'number' && telemetry.heatingPercent > 0) ||
-        (typeof sensorData?.heating_mv === 'number' && sensorData.heating_mv > 0)
+        isOnline && (
+            Boolean(sensorData?.out1_active) ||
+            Boolean(telemetry?.heatingActive) ||
+            (typeof telemetry?.heatingPercent === 'number' && telemetry.heatingPercent > 0) ||
+            (typeof sensorData?.heating_mv === 'number' && sensorData.heating_mv > 0)
+        )
     );
 
-    const displayMv = telemetry?.heatingPercent !== null && telemetry?.heatingPercent !== undefined
+    const displayMv = isOnline ? (telemetry?.heatingPercent !== null && telemetry?.heatingPercent !== undefined
         ? Math.round(telemetry.heatingPercent)
         : (typeof sensorData?.heating_mv === 'number'
             ? Math.round(sensorData.heating_mv > 100 ? sensorData.heating_mv / 10 : sensorData.heating_mv)
-            : (isValveOpen ? 100 : 0));
+            : (isValveOpen ? 100 : 0))) : 0;
 
     const currentStep = Number(sensorData?.step_current ?? telemetry?.step ?? 0);
     const currentPattern = Number(sensorData?.pattern_current ?? telemetry?.pattern ?? 1);

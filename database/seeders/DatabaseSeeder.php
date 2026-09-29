@@ -79,12 +79,14 @@ class DatabaseSeeder extends Seeder
                 'machine_id' => $machine->id,
                 'name' => $model.' Controller',
                 'control_model' => 'program',
-                'serial_port' => config('tn.serial_port', 'COM3'),
+                'serial_port' => config('tn.serial_port', 'auto'),
                 'baudrate' => config('tn.baudrate', 9600),
                 'parity' => config('tn.parity', 'N'),
                 'stopbits' => config('tn.stopbits', 2),
                 'communication' => 'RS485',
-                'is_online' => true,
+                'is_online' => false,
+                'last_seen_at' => null,
+                'last_error' => 'Menunggu koneksi controller TN...',
             ])->save();
 
             ControllerDevice::firstOrCreate(
@@ -92,33 +94,6 @@ class DatabaseSeeder extends Seeder
                 ['device_type' => 'Thermocouple', 'sensor_type' => 'K', 'unit' => '°C', 'register_pv' => 1000, 'register_sv' => 0, 'register_output' => 1, 'status' => 'Active']
             );
 
-            // Baseline Readings untuk grafik realtime
-            if ($controller->readings()->count() === 0) {
-                for ($i = 30; $i >= 0; $i--) {
-                    \App\Models\TnReading::create([
-                        'tn_controller_id' => $controller->id,
-                        'pv' => (int)((121.1 + sin($i / 3) * 0.4) * 10),
-                        'decimal_point' => 1,
-                        'sv' => 1211,
-                        'heating_mv' => 350,
-                        'cooling_mv' => 0,
-                        'run_status' => true,
-                        'auto_manual' => 1,
-                        'out1_active' => true,
-                        'out2_active' => false,
-                        'at_running' => false,
-                        'alarm_bits' => 0,
-                        'event_bits' => 0,
-                        'ct1_current' => 12,
-                        'ct2_current' => 0,
-                        'pattern_current' => 1,
-                        'step_current' => 2,
-                        'process_time' => 1200 - ($i * 10),
-                        'rest_time' => 600 + ($i * 10),
-                        'created_at' => now()->subSeconds($i * 5),
-                    ]);
-                }
-            }
         }
 
         $this->seedScadaTemplates();

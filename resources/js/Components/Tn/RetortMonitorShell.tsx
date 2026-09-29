@@ -15,6 +15,7 @@ interface Props {
     canvas?: ScadaCanvas | null;
     sensorData?: SensorData;
     isOnline: boolean;
+    serialPort?: string;
     commandPending: 'run' | 'stop' | 'reset' | null;
     lastUpdate: string;
     activeTab: 'monitor' | 'scada';
@@ -25,9 +26,10 @@ interface Props {
 }
 
 export default function RetortMonitorShell(props: Props) {
-    const { controller, telemetry, isOnline } = props;
+    const { controller, telemetry, isOnline, serialPort } = props;
     const controllerName = controller.name || `Controller #${controller.id}`;
     const displayName = controller.machine?.machine_name ? `${controller.machine.machine_name} (${controllerName})` : controllerName;
+    const activePortDisplay = serialPort || controller.serial_port || 'AUTO';
 
     return (
         <AuthenticatedLayout header={
@@ -46,6 +48,10 @@ export default function RetortMonitorShell(props: Props) {
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
                         <span>Tipe: <strong className="font-mono text-blue-700">{controller.model_type}</strong></span>
+                        <span className="text-slate-300">•</span>
+                        <span>Port: <strong className="font-mono text-slate-800">{activePortDisplay}</strong></span>
+                        <span className="text-slate-300">•</span>
+                        <span>Baudrate: <strong className="font-mono text-slate-800">{controller.baudrate || 9600} bps</strong></span>
                         <span className="text-slate-300">•</span>
                         <span>Update: <strong className="text-slate-700">{props.lastUpdate}</strong></span>
                     </div>
@@ -88,6 +94,7 @@ export default function RetortMonitorShell(props: Props) {
                             telemetry={telemetry}
                             history={props.history}
                             isOnline={isOnline}
+                            serialPort={activePortDisplay}
                         />
                     ) : (
                         <section className="overflow-hidden rounded-3xl border border-slate-200/90 bg-[#060b18] shadow-2xl backdrop-blur-xl">

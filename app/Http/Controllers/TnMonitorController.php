@@ -40,33 +40,37 @@ class TnMonitorController extends Controller
         }
         
         $runState = $validated['run'] ? 'RUN' : 'STOP';
-        $tn->update([
-            'is_online' => true,
-            'last_seen_at' => now(),
-            'last_error' => null,
-        ]);
+        if ($result['success']) {
+            $tn->update([
+                'is_online' => true,
+                'last_seen_at' => now(),
+                'last_error' => null,
+            ]);
 
-        // Record a reading reflecting the new state
-        TnReading::create([
-            'tn_controller_id' => $tn->id,
-            'pv' => $tn->current_pv ?? 121.1,
-            'decimal_point' => 1,
-            'sv' => $tn->current_sv ?? 121.1,
-            'heating_mv' => $validated['run'] ? 65 : 0,
-            'cooling_mv' => 0,
-            'run_status' => $runState,
-            'auto_manual' => 'AUTO',
-            'created_at' => now(),
-        ]);
+            // Record a reading reflecting the new state
+            TnReading::create([
+                'tn_controller_id' => $tn->id,
+                'pv' => $tn->current_pv ?? 121.1,
+                'decimal_point' => 1,
+                'sv' => $tn->current_sv ?? 121.1,
+                'heating_mv' => $validated['run'] ? 65 : 0,
+                'cooling_mv' => 0,
+                'run_status' => $runState,
+                'auto_manual' => 'AUTO',
+                'created_at' => now(),
+            ]);
 
-        $msg = $validated['run']
-            ? 'Perintah START (RUN) berhasil dikirim (' . ($result['success'] ? 'Modbus OK' : 'Operasional Aktif') . ').'
-            : 'Perintah STOP berhasil dikirim (' . ($result['success'] ? 'Modbus OK' : 'Operasional Aktif') . ').';
+            $msg = $validated['run']
+                ? 'Perintah START (RUN) berhasil dikirim.'
+                : 'Perintah STOP berhasil dikirim.';
+        } else {
+            $msg = 'Gagal mengirim perintah: ' . ($result['error'] ?? 'Controller offline');
+        }
 
         if (request()->wantsJson() || request()->header('Accept') === 'application/json') {
-            return response()->json(['success' => true, 'message' => $msg, 'run_status' => $runState]);
+            return response()->json(['success' => $result['success'], 'message' => $msg, 'run_status' => $runState]);
         }
-        return back()->with('success', $msg);
+        return back()->with($result['success'] ? 'success' : 'error', $msg);
     }
 
     public function setSv(TnController $tn, TnModbusService $modbus)
@@ -82,29 +86,35 @@ class TnMonitorController extends Controller
         }
 
         $svDisplay = $newSv > 300 ? ($newSv / 10) : $newSv;
-        $tn->update([
-            'current_sv' => $svDisplay,
-            'is_online' => true,
-            'last_seen_at' => now(),
-        ]);
+        if ($result['success']) {
+            $tn->update([
+                'current_sv' => $svDisplay,
+                'is_online' => true,
+                'last_seen_at' => now(),
+                'last_error' => null,
+            ]);
 
-        TnReading::create([
-            'tn_controller_id' => $tn->id,
-            'pv' => $tn->current_pv ?? $svDisplay,
-            'decimal_point' => 1,
-            'sv' => $svDisplay,
-            'heating_mv' => 50,
-            'cooling_mv' => 0,
-            'run_status' => 'RUN',
-            'auto_manual' => 'AUTO',
-            'created_at' => now(),
-        ]);
+            TnReading::create([
+                'tn_controller_id' => $tn->id,
+                'pv' => $tn->current_pv ?? $svDisplay,
+                'decimal_point' => 1,
+                'sv' => $svDisplay,
+                'heating_mv' => 50,
+                'cooling_mv' => 0,
+                'run_status' => 'RUN',
+                'auto_manual' => 'AUTO',
+                'created_at' => now(),
+            ]);
 
-        $msg = "Nilai SV berhasil diperbarui ke {$svDisplay} °C (" . ($result['success'] ? 'Modbus OK' : 'Tersimpan') . ").";
-        if (request()->wantsJson() || request()->header('Accept') === 'application/json') {
-            return response()->json(['success' => true, 'message' => $msg, 'sv' => $svDisplay]);
+            $msg = "Nilai SV berhasil diperbarui ke {$svDisplay} °C.";
+        } else {
+            $msg = "Gagal memperbarui SV: " . ($result['error'] ?? 'Controller offline');
         }
-        return back()->with('success', $msg);
+
+        if (request()->wantsJson() || request()->header('Accept') === 'application/json') {
+            return response()->json(['success' => $result['success'], 'message' => $msg, 'sv' => $svDisplay]);
+        }
+        return back()->with($result['success'] ? 'success' : 'error', $msg);
     }
 
     public function startAutoTune(TnController $tn, TnModbusService $modbus)
@@ -162,7 +172,13 @@ class TnMonitorController extends Controller
         $limit = request('limit', 1800); // 30 minutes of data at 1Hz
         $readings = $tn->readings()->latest()->limit($limit)->get()->reverse()->values();
 
-        return response()->json($readings);
+        return response()->json([
+            'is_online' => (bool) $tn->is_online,
+            'serial_port' => $tn->serial_port ?? 'AUTO',
+            'last_seen_at' => $tn->last_seen_at,
+            'last_error' => $tn->last_error,
+            'readings' => $readings,
+        ]);
     }
 
     public function saveHistory(TnController $tn, Request $request)

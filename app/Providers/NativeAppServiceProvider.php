@@ -27,6 +27,15 @@ class NativeAppServiceProvider implements ProvidesPhpIni
             $this->ensureDatabaseReady();
         }
 
+        // Set semua controller awalnya offline sampai polling mendeteksi perangkat riil
+        try {
+            if (Schema::hasTable('tn_controllers')) {
+                \App\Models\TnController::query()->update(['is_online' => false]);
+            }
+        } catch (\Throwable $e) {
+            // Ignore if schema not ready
+        }
+
         Window::open()
             ->title('SCADA Retort - PT Indah Mesin')
             ->url(route('tn.index'))

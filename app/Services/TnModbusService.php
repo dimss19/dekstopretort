@@ -101,25 +101,50 @@ class TnModbusService
         Cache::forget('tn_auto_port_' . $controller->id);
     }
 
-    protected function resolvePort(TnController $controller, $baud, $parity, $stopbits, $timeout)
+    protected function resolvePort(TnController $controller, $baud, $parity, $stopbits, $timeout): ?string
     {
         $cacheKey = 'tn_auto_port_' . $controller->id;
+        $cachedPort = Cache::get($cacheKey);
+        if ($cachedPort && is_string($cachedPort)) {
+            return $cachedPort;
+        }
 
-        return Cache::remember($cacheKey, 30, function () use ($controller, $baud, $parity, $stopbits, $timeout) {
-            $result = $this->runPython([
-                '--baud', (string)$baud,
-                '--parity', $parity,
-                '--stopbits', (string)$stopbits,
-                '--timeout', (string)$timeout,
-                'scan_ports',
-                '--slave', (string)$controller->slave_id
-            ], 30);
-
-            if ($result['success'] && !empty($result['port'])) {
-                return $result['port'];
-            }
+        // Cek apakah ada COM port serial yang terpasang di sistem (sangat cepat, ~50ms)
+        $availablePorts = $this->listAvailablePorts();
+        if (empty($availablePorts)) {
+            // Belum ada USB RS-485 yang terhubung ke PC
+            Cache::forget($cacheKey);
             return null;
-        });
+        }
+
+        // Jika ada port terpasang, coba scan port yang merespons slave id controller ini
+        $result = $this->runPython([
+            '--baud', (string)$baud,
+            '--parity', $parity,
+            '--stopbits', (string)$stopbits,
+            '--timeout', (string)$timeout,
+            'scan_ports',
+            '--slave', (string)$controller->slave_id
+        ], 10);
+
+        if ($result['success'] && !empty($result['port'])) {
+            $port = $result['port'];
+            Cache::put($cacheKey, $port, 15); // Cache port terverifikasi selama 15 detik
+            if (strtolower((string) $controller->serial_port) === 'auto' || empty($controller->serial_port)) {
+                $controller->update(['serial_port' => $port]);
+            }
+            return $port;
+        }
+
+        // Jika hanya ada 1 port serial USB pada PC, gunakan port tersebut
+        if (count($availablePorts) === 1) {
+            $singlePort = $availablePorts[0]['device'];
+            Cache::put($cacheKey, $singlePort, 5);
+            return $singlePort;
+        }
+
+        Cache::forget($cacheKey);
+        return null;
     }
 
     protected function executeCommand(string $command, TnController $controller, array $args = [], ?string $overridePort = null)
@@ -283,7 +308,7 @@ class TnModbusService
             ], (config('tn.timeout') * 2) + 5);
 
             if (!$result['success'] || !isset($result['controllers'])) {
-                if (!$first->serial_port && $this->isConnectionError($result['error'] ?? '')) {
+                if ($this->isConnectionError($result['error'] ?? '')) {
                     $this->clearPortCache($first);
                 }
                 return [];
@@ -302,7 +327,27 @@ class TnModbusService
         $configuredPort = $controller->serial_port
             ?? (strtoupper((string) $configPort) === 'AUTO' ? 'AUTO' : $configPort);
 
-        if (strtoupper($configuredPort) === 'AUTO') {
+        if (empty($configuredPort) || strtoupper($configuredPort) === 'AUTO') {
+            return $this->resolvePort($controller,
+                $controller->baudrate ?? config('tn.baudrate'),
+                $controller->parity ?? config('tn.parity'),
+                $controller->stopbits ?? config('tn.stopbits'),
+                config('tn.timeout'));
+        }
+
+        // Jika port spesifik diset (e.g. COM3), pastikan port tersebut masih ada di sistem
+        $available = $this->listAvailablePorts();
+        $portExists = false;
+        foreach ($available as $p) {
+            if (strcasecmp($p['device'] ?? '', $configuredPort) === 0) {
+                $portExists = true;
+                break;
+            }
+        }
+
+        // Jika port spesifik tidak terpasang di Windows, coba auto-resolve
+        if (!$portExists) {
+            $this->clearPortCache($controller);
             return $this->resolvePort($controller,
                 $controller->baudrate ?? config('tn.baudrate'),
                 $controller->parity ?? config('tn.parity'),

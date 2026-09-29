@@ -5,9 +5,10 @@ interface Props {
     telemetry: RetortTelemetry;
     modelType?: string;
     isOnline: boolean;
+    serialPort?: string | null;
 }
 
-export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isOnline }: Props) {
+export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isOnline, serialPort }: Props) {
     const [blinkToggle, setBlinkToggle] = useState(false);
 
     useEffect(() => {
@@ -30,42 +31,42 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
         })
         : new Date().toLocaleDateString('id-ID') + ' --:--:--';
 
-    // Format PV
-    const pvDisplay = telemetry.actualTemperature !== null && telemetry.actualTemperature !== undefined
+    // Format PV: Saat offline / tidak terhubung, PV wajib '--.-'
+    const pvDisplay = (isOnline && telemetry.actualTemperature !== null && telemetry.actualTemperature !== undefined)
         ? telemetry.actualTemperature.toFixed(1)
         : '--.-';
 
     // Format SV / Status
-    // Blinking STOP only happens when the controller is STOP / IDLE.
-    // When MV is 100 or when process is already running, STOP mode is stopped,
-    // switching to RUN badge and showing static SV value.
-    const isMv100 = telemetry.heatingPercent !== null && telemetry.heatingPercent >= 100;
+    // Blinking terjadi saat offline atau saat controller dalam kondisi STOP/IDLE.
+    const isMv100 = isOnline && telemetry.heatingPercent !== null && telemetry.heatingPercent >= 100;
     const isProcessRunning = Boolean(
-        telemetry.running ||
-        isMv100 ||
-        (telemetry.processTime !== null && telemetry.processTime > 0) ||
-        telemetry.heatingActive ||
-        telemetry.coolingActive ||
-        (telemetry.phase !== 'Waiting' && telemetry.phase !== 'Offline')
+        isOnline && (
+            telemetry.running ||
+            isMv100 ||
+            (telemetry.processTime !== null && telemetry.processTime > 0) ||
+            telemetry.heatingActive ||
+            telemetry.coolingActive ||
+            (telemetry.phase !== 'Waiting' && telemetry.phase !== 'Offline')
+        )
     );
-    const isStopped = !isProcessRunning;
+    const isStopped = !isOnline || !isProcessRunning;
     const targetSvFormatted = telemetry.targetTemperature !== null && telemetry.targetTemperature !== undefined
         ? telemetry.targetTemperature.toFixed(1)
         : '25.0';
 
-    // Alternates between 'Stop' and target SV every 0.5s ONLY when in STOP mode
+    // SV berkedip bergantian antara 'Stop' dan target SV setiap 0.5 detik
     const svValueDisplay = isStopped
         ? (blinkToggle ? 'Stop' : targetSvFormatted)
         : targetSvFormatted;
 
     // Format MV
-    const mvDisplay = telemetry.heatingPercent !== null && telemetry.heatingPercent !== undefined
+    const mvDisplay = (isOnline && telemetry.heatingPercent !== null && telemetry.heatingPercent !== undefined)
         ? telemetry.heatingPercent.toFixed(1)
         : '0.0';
 
     // Format P/S (Pattern.Step -> e.g. 02.00)
-    const pVal = String(telemetry.pattern ?? 0).padStart(2, '0');
-    const sVal = String(telemetry.step ?? 0).padStart(2, '0');
+    const pVal = isOnline ? String(telemetry.pattern ?? 0).padStart(2, '0') : '00';
+    const sVal = isOnline ? String(telemetry.step ?? 0).padStart(2, '0') : '00';
     const psDisplay = `${pVal}.${sVal}`;
 
     // Format TOT M:S (Total Process Time)
@@ -75,15 +76,16 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
         return `${str.slice(0, -2) || '00'}.${str.slice(-2)}`;
     };
 
-    const totDisplay = formatTimeDot(telemetry.processTime);
-    const stpDisplay = formatTimeDot(telemetry.remainingTime);
+    const totDisplay = isOnline ? formatTimeDot(telemetry.processTime) : '00.00';
+    const stpDisplay = isOnline ? formatTimeDot(telemetry.remainingTime) : '00.00';
+    const displayPort = serialPort || 'AUTO';
 
     return (
         <section className="rounded-3xl border border-slate-800 bg-[#060a12] p-6 shadow-2xl backdrop-blur-xl text-white">
             {/* Header / Title Bar */}
             <div className="mb-4 pb-3 border-b border-slate-800">
                 <div className="flex flex-wrap items-center justify-between text-xs font-mono font-bold text-slate-400 mb-1">
-                    <span className="tracking-wider">UPDATE : {updateTime}</span>
+                    <span className="tracking-wider">PORT: {displayPort} | UPDATE : {updateTime}</span>
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase ${
                         isOnline ? 'bg-emerald-950 text-emerald-400 border border-emerald-700' : 'bg-rose-950 text-rose-400 border border-rose-700'
                     }`}>
@@ -132,7 +134,9 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
                                 RUN
                             </span>
                         )}
-                        <span className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-[#00e676] drop-shadow-[0_0_12px_rgba(0,230,118,0.4)]">
+                        <span className={`text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-[#00e676] drop-shadow-[0_0_12px_rgba(0,230,118,0.4)] transition-opacity duration-150 ${
+                            isStopped ? (blinkToggle ? 'opacity-100' : 'opacity-40') : 'opacity-100'
+                        }`}>
                             {svValueDisplay}
                         </span>
                     </div>

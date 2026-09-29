@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Contracts\Console\Isolatable;
 use App\Models\TnController;
 use App\Models\TnReading;
 use App\Services\TnModbusService;
@@ -11,7 +10,7 @@ use App\Services\TnRegisterMap;
 use App\Events\TnDataReceived;
 use Carbon\Carbon;
 
-class PollTnControllers extends Command implements Isolatable
+class PollTnControllers extends Command
 {
     protected $signature = 'tn:poll {--interval=1 : Polling interval in seconds} {--once : Poll controllers once and exit} {--controller= : Poll one TN controller id only}';
     protected $description = 'Poll TN Controllers for monitoring data';
@@ -20,6 +19,12 @@ class PollTnControllers extends Command implements Isolatable
     {
         $interval = (int) $this->option('interval');
         $this->info("Starting TN Controller polling every {$interval} second(s)...");
+
+        // Set status awal controller offline sampai Modbus terhubung
+        TnController::query()->update([
+            'is_online' => false,
+            'last_error' => 'Menghubungkan ke controller Autonics TN...',
+        ]);
 
         do {
             $start = microtime(true);

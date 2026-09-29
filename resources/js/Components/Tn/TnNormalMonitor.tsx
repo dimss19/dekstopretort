@@ -9,9 +9,10 @@ interface Props {
     telemetry: RetortTelemetry;
     history: any[];
     isOnline: boolean;
+    serialPort?: string;
 }
 
-export default function TnNormalMonitor({ controllerModel = 'TNH', telemetry, history, isOnline }: Props) {
+export default function TnNormalMonitor({ controllerModel = 'TNH', telemetry, history, isOnline, serialPort }: Props) {
     const heatingLogs = useMemo(() => history
         .filter((item) => Number(item.heating_mv ?? 0) > 0)
         .slice(-100)
@@ -24,6 +25,7 @@ export default function TnNormalMonitor({ controllerModel = 'TNH', telemetry, hi
                 telemetry={telemetry}
                 modelType={controllerModel}
                 isOnline={isOnline}
+                serialPort={serialPort}
             />
 
             {/* Industrial Thermal Sterilization Profile Chart */}

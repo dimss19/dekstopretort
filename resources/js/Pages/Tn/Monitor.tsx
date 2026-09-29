@@ -58,9 +58,12 @@ export default function Monitor({ controller, latestReading: initialReading }: P
             window.history.replaceState({}, '', url.toString());
         }
     };
-    const [isLiveOnline, setIsLiveOnline] = useState(Boolean(
-        controller.is_online && isFreshTimestamp(getReadingTimestamp(initialReading)),
-    ));
+    const [currentPort, setCurrentPort] = useState<string>(controller.serial_port || 'AUTO');
+    const [isLiveOnline, setIsLiveOnline] = useState<boolean>(() => {
+        return Boolean(
+            controller.is_online && isFreshTimestamp(getReadingTimestamp(initialReading))
+        );
+    });
     const [commandPending, setCommandPending] = useState<'run' | 'stop' | 'reset' | null>(null);
     const lastReadingTimestampRef = useRef<any>(getReadingTimestamp(initialReading));
     const lastSeenAtRef = useRef<number | false>(timestampToMs(getReadingTimestamp(initialReading)));
@@ -96,12 +99,42 @@ export default function Monitor({ controller, latestReading: initialReading }: P
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
                 const data = await response.json();
-                if (!isMounted || !Array.isArray(data)) return;
+                if (!isMounted) return;
 
-                setHistory(data);
-                const latest = data[data.length - 1];
+                let readingsList: any[] = [];
+                let onlineStatus: boolean | null = null;
+                let activePort: string | null = null;
 
-                if (latest) {
+                if (Array.isArray(data)) {
+                    readingsList = data;
+                } else if (data && typeof data === 'object') {
+                    readingsList = Array.isArray(data.readings) ? data.readings : [];
+                    onlineStatus = typeof data.is_online === 'boolean' ? data.is_online : null;
+                    if (data.serial_port) {
+                        activePort = data.serial_port;
+                    }
+                }
+
+                setHistory(readingsList);
+                const latest = readingsList[readingsList.length - 1];
+
+                if (activePort && activePort !== currentPort) {
+                    setCurrentPort(activePort);
+                }
+
+                if (onlineStatus !== null) {
+                    if (!onlineStatus) {
+                        setIsLiveOnline(false);
+                    } else {
+                        const isFresh = latest ? isFreshTimestamp(getReadingTimestamp(latest)) : false;
+                        setIsLiveOnline(isFresh);
+                    }
+                    if (latest) {
+                        lastReadingTimestampRef.current = getReadingTimestamp(latest);
+                        lastSeenAtRef.current = timestampToMs(getReadingTimestamp(latest));
+                        setReading(latest);
+                    }
+                } else if (latest) {
                     const timestamp = getReadingTimestamp(latest);
                     const timestampMs = timestampToMs(timestamp);
                     lastReadingTimestampRef.current = timestamp;
@@ -224,6 +257,7 @@ export default function Monitor({ controller, latestReading: initialReading }: P
             canvas={controller.scada_canvas}
             sensorData={sensorData}
             isOnline={isOnline}
+            serialPort={currentPort}
             commandPending={commandPending}
             lastUpdate={lastUpdate}
             activeTab={activeTab}
