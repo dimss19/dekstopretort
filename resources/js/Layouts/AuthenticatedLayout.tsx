@@ -76,7 +76,7 @@ export default function Authenticated({
                         </div>
                     </Link>
 
-                    <nav className="ml-6 flex min-w-0 flex-1 items-center gap-2 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:ml-10">
+                    <nav className="ml-6 flex min-w-0 flex-1 items-center gap-2 h-full overflow-visible xl:ml-10">
                         {navContent ? (
                             navContent
                         ) : (
@@ -98,10 +98,10 @@ export default function Authenticated({
                                         {hasUnverifiedWarning && (
                                             <span
                                                 title={`${unverifiedCount} batch proses belum diverifikasi! Segera lengkapi di menu History.`}
-                                                className="absolute -top-1.5 -right-1.5 flex h-4 w-4"
+                                                className="absolute -top-1 -right-1 flex h-3.5 w-3.5"
                                             >
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-90 duration-1000"></span>
-                                                <span className="relative inline-flex rounded-full h-4 w-4 bg-rose-600 border-2 border-[#0f172a] shadow-[0_0_12px_rgba(225,29,72,0.9)]"></span>
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-90 duration-1000"></span>
+                                                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-600 ring-2 ring-white/90 shadow-[0_0_10px_rgba(225,29,72,0.9)]"></span>
                                             </span>
                                         )}
                                     </Link>
