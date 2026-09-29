@@ -62,7 +62,7 @@ export default function Index({ recipes = [], controllers = [] }: { recipes?: an
             header={
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between max-w-7xl mx-auto">
                     <div>
-                        <h1 className="text-2xl font-black tracking-tight text-slate-900">Manajemen Pattern</h1>
+                        <h1 className="text-2xl font-black tracking-tight text-slate-900">Pattern Management</h1>
                         <p className="text-sm font-semibold text-slate-600">Kelola, simpan, dan tulis profil sterilisasi langsung ke controller retort</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
@@ -73,7 +73,7 @@ export default function Index({ recipes = [], controllers = [] }: { recipes?: an
                             <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
                             </svg>
-                            Tambah Pattern
+                            Create
                         </Link>
                         <button
                             onClick={handleAutoScan}
@@ -89,14 +89,14 @@ export default function Index({ recipes = [], controllers = [] }: { recipes?: an
                                     Scanning...
                                 </>
                             ) : (
-                                'Auto Scan All Patterns'
+                                'Auto Scan'
                             )}
                         </button>
                     </div>
                 </div>
             }
         >
-            <Head title="Manajemen Pattern" />
+            <Head title="Pattern Management" />
 
             <div className="py-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {scanMessage.text && (
