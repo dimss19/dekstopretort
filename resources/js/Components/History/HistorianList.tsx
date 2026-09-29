@@ -395,7 +395,7 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                 Perhatian: Terdapat {totalUnverifiedCount} Batch Proses Berstatus UNVERIFIED
                             </p>
                             <p className="text-xs font-semibold text-rose-700 mt-0.5">
-                                Batch selesai memerlukan data verifikasi tertulis. Klik tombol "Tulis / Verifikasi" pada kartu bertanda merah di bawah ini untuk melengkapi.
+                                Batch selesai memerlukan data verifikasi tertulis. Klik tombol "Verifikasi" pada kartu di bawah ini untuk melengkapi.
                             </p>
                         </div>
                     </div>
@@ -444,15 +444,6 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                         : 'border-slate-200 bg-white shadow-md hover:shadow-xl'
                                 } p-6 transition-all duration-300 flex flex-col justify-between`}
                             >
-                                {status === 'unverified' && (
-                                    <span
-                                        title="Batch belum diverifikasi! Segera lengkapi data verifikasi."
-                                        className="absolute -top-1.5 -right-1.5 flex h-4 w-4 z-10"
-                                    >
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                                        <span className="relative inline-flex rounded-full h-4 w-4 bg-rose-600 border-2 border-white shadow-md"></span>
-                                    </span>
-                                )}
                                 <div>
                                     <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-3">
                                         <div className="flex items-center gap-2">
@@ -558,13 +549,9 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                         <button
                                             type="button"
                                             onClick={() => setSelectedBatch(h)}
-                                            className="flex-1 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black py-2.5 px-3 transition-all shadow-sm shadow-rose-200 flex items-center justify-center gap-1.5 text-center"
+                                            className="flex-1 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black py-2.5 px-3 transition-all shadow-sm shadow-rose-200 text-center"
                                         >
-                                            <span className="relative flex h-2 w-2">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-                                            </span>
-                                            <Pencil size={13} /> Tulis / Verifikasi
+                                            Verifikasi
                                         </button>
                                     ) : (
                                         <button
