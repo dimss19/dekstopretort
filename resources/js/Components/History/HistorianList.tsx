@@ -1,5 +1,6 @@
 import React, { ReactNode, useState, useEffect, useMemo } from 'react';
 import { router, Link } from '@inertiajs/react';
+import axios from 'axios';
 import {
     CheckCircle2,
     Download,
@@ -176,60 +177,67 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
         } else if (format === 'pdf') {
-            const printWindow = window.open('', '_blank');
-            if (printWindow) {
-                printWindow.document.write(`
-                    <html>
-                    <head>
-                        <title>${title}</title>
-                        <style>
-                            body { font-family: sans-serif; padding: 20px; }
-                            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-                            th { background-color: #f0f0f0; }
-                            .no-print { margin-bottom: 16px; }
-                            .btn-print { background: #1e3a5f; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-                            .btn-close { background: #fff; color: #333; border: 1px solid #ccc; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-left: 8px; }
-                            @media print { .no-print { display: none !important; } }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="no-print">
-                            <button onclick="window.print()" class="btn-print">Cetak / Simpan PDF</button>
-                            <button onclick="window.close()" class="btn-close">Tutup</button>
-                        </div>
-                        <h2>${title}</h2>
-                        <p>Start Time: ${new Date(batch.start_time).toLocaleString()}</p>
-                        <p>End Time: ${new Date(batch.end_time).toLocaleString()}</p>
-                        <p>Status Verifikasi: ${v.statusLabel}</p>
-                        <p>Product: ${v.product}</p>
-                        <p>Batch: ${v.batchCode}</p>
-                        <p>Group: ${v.groupName}</p>
-                        <p>F0 Sistem: ${v.systemF0.toFixed(2)} min</p>
-                        <p>Hasil F0: ${v.f0Result}</p>
-                        <p>Diverifikasi Oleh: ${v.verifiedBy}</p>
-                        <p>Diverifikasi Tanggal: ${v.verifiedAt}</p>
-                        <table>
-                            <thead>
-                                <tr><th>Time</th><th>PV (&deg;C)</th><th>SV (&deg;C)</th></tr>
-                            </thead>
-                            <tbody>
-                                ${rows.map((r: any) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}
-                            </tbody>
-                        </table>
-                    </body>
-                    </html>
-                `);
-                printWindow.document.close();
-                setTimeout(() => {
-                    try {
-                        printWindow.focus();
-                        printWindow.print();
-                    } catch (e) {
-                        console.warn('Print failed:', e);
-                    }
-                }, 500);
-            }
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>${title}</title>
+                    <style>
+                        @page { size: A4 portrait; margin: 10mm 12mm 12mm 12mm; }
+                        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; font-size: 11px; color: #1e293b; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
+                        th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
+                        th { background-color: #1e3a5f; color: #ffffff; }
+                        .num { text-align: right; font-family: monospace; }
+                        .no-print { margin-bottom: 16px; display: flex; gap: 8px; }
+                        .btn-print { background: #1e3a5f; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+                        .btn-close { background: #fff; color: #333; border: 1px solid #ccc; padding: 8px 12px; border-radius: 4px; cursor: pointer; }
+                        @media print { .no-print { display: none !important; } }
+                    </style>
+                </head>
+                <body>
+                    <h2 style="color: #1e3a5f; margin-bottom: 6px;">${title}</h2>
+                    <table style="width: 100%; margin-bottom: 15px;">
+                        <tr><td style="background: #f1f5f9; font-weight: bold; width: 25%;">Waktu Mulai</td><td>${new Date(batch.start_time).toLocaleString('id-ID')}</td></tr>
+                        <tr><td style="background: #f1f5f9; font-weight: bold;">Waktu Selesai</td><td>${batch.end_time ? new Date(batch.end_time).toLocaleString('id-ID') : 'Sedang Berjalan'}</td></tr>
+                        <tr><td style="background: #f1f5f9; font-weight: bold;">Status Verifikasi</td><td>${v.statusLabel}</td></tr>
+                        <tr><td style="background: #f1f5f9; font-weight: bold;">Product</td><td>${v.product}</td></tr>
+                        <tr><td style="background: #f1f5f9; font-weight: bold;">Batch</td><td>${v.batchCode}</td></tr>
+                        <tr><td style="background: #f1f5f9; font-weight: bold;">Group</td><td>${v.groupName}</td></tr>
+                        <tr><td style="background: #f1f5f9; font-weight: bold;">F0 Sistem</td><td>${v.systemF0.toFixed(2)} min</td></tr>
+                        <tr><td style="background: #f1f5f9; font-weight: bold;">Hasil F0</td><td>${v.f0Result}</td></tr>
+                        <tr><td style="background: #f1f5f9; font-weight: bold;">Diverifikasi Oleh</td><td>${v.verifiedBy}</td></tr>
+                        <tr><td style="background: #f1f5f9; font-weight: bold;">Diverifikasi Tanggal</td><td>${v.verifiedAt}</td></tr>
+                    </table>
+                    <table>
+                        <thead>
+                            <tr><th>Time</th><th class="num">PV (&deg;C)</th><th class="num">SV (&deg;C)</th></tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map((r: any) => `<tr><td style="text-align: center;">${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            `;
+
+            axios.post(`/historian/${batch.id}/export-pdf`, { html: htmlContent }, { responseType: 'blob' })
+                .then(res => {
+                    const blob = new Blob([res.data], { type: 'application/pdf' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.setAttribute("download", `batch_${batch.id}_log.pdf`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                })
+                .catch(err => {
+                    console.error('PDF download error:', err);
+                    alert('Gagal mendownload PDF: ' + (err.response?.data?.message || err.message || 'Layanan tidak merespons'));
+                });
         }
     };
 

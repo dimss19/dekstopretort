@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\TnController;
 use App\Models\TnReading;
+use App\Models\TnProcessHistory;
 use App\Services\TnModbusService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -378,4 +379,65 @@ class TnMonitorController extends Controller
 
         return response()->json(['success' => true, 'reading_id' => $reading->id]);
     }
+
+    public function exportPdf(TnProcessHistory $history, Request $request)
+    {
+        $html = $request->input('html');
+        if (empty($html)) {
+            return response()->json(['success' => false, 'message' => 'Konten HTML laporan tidak ditemukan.'], 422);
+        }
+
+        $rawMachine = $history->controller?->machine?->machine_name ?? 'TN';
+        $sanitizedTitle = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $rawMachine);
+        $filename = "Laporan_Batch_{$history->id}_{$sanitizedTitle}.pdf";
+
+        if (config('nativephp-internal.running') && class_exists(\Native\Desktop\Facades\System::class)) {
+            try {
+                $base64 = \Native\Desktop\Facades\System::printToPDF($html, [
+                    'pageSize' => 'A4',
+                    'printBackground' => true,
+                    'preferCSSPageSize' => true,
+                ]);
+
+                if (!empty($base64)) {
+                    $binary = base64_decode($base64);
+                    return response($binary, 200, [
+                        'Content-Type' => 'application/pdf',
+                        'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                        'Cache-Control' => 'no-cache, private',
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Native printToPDF failed: ' . $e->getMessage());
+                return response()->json(['success' => false, 'message' => 'Gagal membuat PDF: ' . $e->getMessage()], 500);
+            }
+        }
+
+        return response()->json(['success' => false, 'message' => 'Layanan ekspor PDF Native desktop tidak tersedia.'], 500);
+    }
+
+    public function printNative(TnProcessHistory $history, Request $request)
+    {
+        $html = $request->input('html');
+        if (empty($html)) {
+            return response()->json(['success' => false, 'message' => 'Konten HTML laporan tidak ditemukan.'], 422);
+        }
+
+        if (config('nativephp-internal.running') && class_exists(\Native\Desktop\Facades\System::class)) {
+            try {
+                \Native\Desktop\Facades\System::print($html, null, [
+                    'silent' => false,
+                    'printBackground' => true,
+                    'pageSize' => 'A4',
+                ]);
+                return response()->json(['success' => true, 'message' => 'Dialog cetak printer berhasil dibuka.']);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Native print failed: ' . $e->getMessage());
+                return response()->json(['success' => false, 'message' => 'Gagal membuka printer: ' . $e->getMessage()], 500);
+            }
+        }
+
+        return response()->json(['success' => false, 'message' => 'Fitur cetak native hanya tersedia pada aplikasi desktop.'], 400);
+    }
 }
+

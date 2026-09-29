@@ -350,7 +350,7 @@ export default function RetortThermalChart({ data = [], targetSv = 121.0, height
         ctx.fillStyle = '#0f172a';
         ctx.font = 'black 12px Inter, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('Heating Time (minutes)', padding.left + plotWidth / 2, h - 8);
+        ctx.fillText('Heating Time (minutes)', padding.left + plotWidth / 2, h - 16);
 
         // Border around chart area
         ctx.strokeStyle = '#94a3b8';

@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { router, Link } from '@inertiajs/react';
+import axios from 'axios';
 import {
     ChevronLeft,
     ChevronDown,
     Download,
     FileText,
     FileSpreadsheet,
+    Printer,
+    Eye,
+    Loader2,
     CheckCircle2,
     Clock,
     AlertCircle,
@@ -512,11 +516,11 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
         });
     };
 
-    // Export Handlers
-    const handleDownloadPDF = () => {
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) return;
+    const [isExportingPdf, setIsExportingPdf] = useState(false);
+    const [isPrintingNative, setIsPrintingNative] = useState(false);
 
+    // Helper: generate full HTML string for report
+    const generateReportHtml = (isForPreview: boolean = false) => {
         const chartDataUrl = generateThermalChartDataUrl();
 
         const rows = logs.map((l, idx) => {
@@ -543,7 +547,71 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
             };
         });
 
-        printWindow.document.write(`
+        const previewBarHtml = isForPreview ? `
+            <div class="no-print">
+                <div>
+                    <strong>Laporan Sterilisasi Batch #${batch.id}</strong> — Siap untuk dicetak atau disimpan sebagai PDF.
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button id="btnSavePdf" class="btn-print" style="background: #2563eb;">Simpan File PDF</button>
+                    <button id="btnPrintNative" class="btn-print" style="background: #1e3a5f;">Cetak ke Printer</button>
+                    <button onclick="window.close()" class="btn-close">Tutup</button>
+                </div>
+            </div>
+        ` : '';
+
+        const previewScriptHtml = isForPreview ? `
+            <script>
+                document.getElementById('btnSavePdf')?.addEventListener('click', function() {
+                    if (window.opener && window.opener.saveReportPdf) {
+                        window.opener.saveReportPdf();
+                    } else {
+                        fetch('/historian/${batch.id}/export-pdf', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ html: document.documentElement.outerHTML })
+                        })
+                        .then(function(res) { return res.blob(); })
+                        .then(function(blob) {
+                            var url = URL.createObjectURL(blob);
+                            var a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'Laporan_Batch_${batch.id}.pdf';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                        })
+                        .catch(function(err) {
+                            alert('Gagal mendownload PDF: ' + err.message);
+                        });
+                    }
+                });
+
+                document.getElementById('btnPrintNative')?.addEventListener('click', function() {
+                    if (window.opener && window.opener.printReportNative) {
+                        window.opener.printReportNative();
+                    } else {
+                        fetch('/historian/${batch.id}/print-native', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ html: document.documentElement.outerHTML })
+                        })
+                        .then(function(res) { return res.json(); })
+                        .then(function(data) {
+                            if (!data.success) {
+                                window.print();
+                            }
+                        })
+                        .catch(function() {
+                            window.print();
+                        });
+                    }
+                });
+            </script>
+        ` : '';
+
+        return `
             <!DOCTYPE html>
             <html lang="id">
             <head>
@@ -580,7 +648,9 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         border-radius: 6px;
                         cursor: pointer;
                         font-size: 12px;
+                        transition: opacity 0.2s;
                     }
+                    .btn-print:hover { opacity: 0.9; }
                     .btn-close {
                         background: #ffffff;
                         color: #475569;
@@ -609,7 +679,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         color: #475569;
                         font-weight: 600;
                     }
-                    /* Summary KPI Table (Surface Mine Production Style) */
+                    /* Summary KPI Table */
                     .summary-table {
                         width: 100%;
                         border-collapse: collapse;
@@ -706,15 +776,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                 </style>
             </head>
             <body>
-                <div class="no-print">
-                    <div>
-                        <strong>Laporan Sterilisasi Batch #${batch.id}</strong> — Siap untuk dicetak atau disimpan sebagai PDF.
-                    </div>
-                    <div>
-                        <button onclick="window.print()" class="btn-print">Cetak / Simpan PDF</button>
-                        <button onclick="window.close()" class="btn-close">Tutup</button>
-                    </div>
-                </div>
+                ${previewBarHtml}
 
                 <div class="header">
                     <h1>Laporan Proses Sterilisasi Batch #${batch.id}</h1>
@@ -724,7 +786,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                     </div>
                 </div>
 
-                <!-- Summary KPI Table (Surface Mine Production Layout) -->
+                <!-- Summary KPI Table -->
                 <table class="summary-table">
                     <tr>
                         <td class="lbl">Waktu Mulai</td>
@@ -821,19 +883,80 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                     </tbody>
                 </table>
 
+                ${previewScriptHtml}
             </body>
             </html>
-        `);
-        printWindow.document.close();
-        setTimeout(() => {
-            try {
-                printWindow.focus();
-                printWindow.print();
-            } catch (e) {
-                console.warn('Print failed:', e);
-            }
-        }, 600);
+        `;
     };
+
+    // Export Handlers
+    const handleDownloadPDF = async () => {
+        if (isExportingPdf) return;
+        setIsExportingPdf(true);
+        try {
+            const reportHtml = generateReportHtml(false);
+            const response = await axios.post(`/historian/${batch.id}/export-pdf`, {
+                html: reportHtml,
+            }, {
+                responseType: 'blob',
+                timeout: 60000,
+            });
+
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Laporan_Batch_${batch.id}_${machineTitle.replace(/\s+/g, '_')}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (err: any) {
+            console.error('Download PDF error:', err);
+            alert('Gagal mendownload PDF secara otomatis: ' + (err.response?.data?.message || err.message || 'Layanan tidak merespons'));
+        } finally {
+            setIsExportingPdf(false);
+        }
+    };
+
+    const handlePrintReport = async () => {
+        if (isPrintingNative) return;
+        setIsPrintingNative(true);
+        try {
+            const reportHtml = generateReportHtml(false);
+            const res = await axios.post(`/historian/${batch.id}/print-native`, {
+                html: reportHtml,
+            }, {
+                timeout: 30000,
+            });
+            if (res.data?.success) {
+                return;
+            }
+            handleOpenPreview();
+        } catch (err) {
+            console.warn('Native print error, falling back to preview window', err);
+            handleOpenPreview();
+        } finally {
+            setIsPrintingNative(false);
+        }
+    };
+
+    const handleOpenPreview = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+        const reportHtml = generateReportHtml(true);
+        printWindow.document.write(reportHtml);
+        printWindow.document.close();
+    };
+
+    useEffect(() => {
+        (window as any).saveReportPdf = handleDownloadPDF;
+        (window as any).printReportNative = handlePrintReport;
+        return () => {
+            delete (window as any).saveReportPdf;
+            delete (window as any).printReportNative;
+        };
+    }, [batch.id, logs, machineTitle]);
 
     // Excel (.xls) Export matching surface-mine-production
     const handleDownloadExcel = () => {
@@ -1004,16 +1127,42 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         >
                             <button
                                 type="button"
+                                disabled={isExportingPdf}
                                 onClick={() => {
                                     handleDownloadPDF();
                                     setShowDownloadMenu(false);
                                 }}
-                                className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left"
+                                className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left disabled:opacity-50"
                             >
-                                <FileText size={15} className="text-blue-600" />
+                                {isExportingPdf ? (
+                                    <Loader2 size={15} className="animate-spin text-blue-600" />
+                                ) : (
+                                    <FileText size={15} className="text-blue-600" />
+                                )}
                                 <div>
-                                    <div className="font-extrabold text-slate-900">Download PDF</div>
-                                    <div className="text-[10px] text-slate-500 font-medium">Lengkap dengan Grafik Suhu</div>
+                                    <div className="font-extrabold text-slate-900">
+                                        {isExportingPdf ? 'Membuat PDF...' : 'Download PDF (.pdf)'}
+                                    </div>
+                                    <div className="text-[10px] text-slate-500 font-medium">Simpan dokumen langsung ke komputer</div>
+                                </div>
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isPrintingNative}
+                                onClick={() => {
+                                    handlePrintReport();
+                                    setShowDownloadMenu(false);
+                                }}
+                                className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left disabled:opacity-50"
+                            >
+                                {isPrintingNative ? (
+                                    <Loader2 size={15} className="animate-spin text-indigo-600" />
+                                ) : (
+                                    <Printer size={15} className="text-indigo-600" />
+                                )}
+                                <div>
+                                    <div className="font-extrabold text-slate-900">Cetak ke Printer</div>
+                                    <div className="text-[10px] text-slate-500 font-medium">Buka dialog printer Windows</div>
                                 </div>
                             </button>
                             <button
@@ -1028,6 +1177,20 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                 <div>
                                     <div className="font-extrabold text-slate-900">Download Excel (.xls)</div>
                                     <div className="text-[10px] text-slate-500 font-medium">Tabel Berformat & Ringkasan KPI</div>
+                                </div>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    handleOpenPreview();
+                                    setShowDownloadMenu(false);
+                                }}
+                                className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left border-t border-slate-100 mt-1 pt-2"
+                            >
+                                <Eye size={15} className="text-amber-600" />
+                                <div>
+                                    <div className="font-extrabold text-slate-900">Pratinjau Dokumen</div>
+                                    <div className="text-[10px] text-slate-500 font-medium">Lihat tampilan laporan di jendela terpisah</div>
                                 </div>
                             </button>
 
