@@ -1074,9 +1074,19 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                 Proses #{batch.id} ({machineTitle})
                             </h2>
                             {batch.end_time ? (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
-                                    <CheckCircle2 size={12} /> Selesai
-                                </span>
+                                isUnverified ? (
+                                    <span className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 border border-rose-300 px-2.5 py-0.5 text-xs font-black text-rose-700 shadow-sm">
+                                        <span className="relative flex h-2 w-2">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
+                                        </span>
+                                        UNVERIFIED (Belum Ditulis / Diverifikasi)
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+                                        <CheckCircle2 size={12} /> Selesai & VERIFIED
+                                    </span>
+                                )
                             ) : (
                                 <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-bold text-amber-700 animate-pulse">
                                     Sedang Berjalan
@@ -1139,27 +1149,47 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                     </dl>
                 </section>
             ) : isUnverified ? (
-                <section className="rounded-3xl border border-slate-200/90 bg-white/95 p-6 sm:p-7 shadow-lg backdrop-blur-xl">
-                    <div className="mb-4 border-b border-slate-100 pb-3">
-                        <h2 className="font-extrabold text-slate-900 text-lg tracking-tight">Verifikasi Batch</h2>
-                        <p className="text-xs text-slate-500 mt-0.5 font-medium">F0 sistem (otomatis): {systemF0.toFixed(2)} min — lengkapi data lalu submit.</p>
+                <section className="relative rounded-3xl border-2 border-rose-300 bg-rose-50/20 p-6 sm:p-7 shadow-lg backdrop-blur-xl ring-1 ring-rose-200">
+                    <span
+                        title="Harap segera lengkapi verifikasi batch ini"
+                        className="absolute -top-2 -right-2 flex h-5 w-5 z-10"
+                    >
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-5 w-5 bg-rose-600 border-2 border-white shadow-md"></span>
+                    </span>
+                    <div className="mb-4 border-b border-rose-200/80 pb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="relative flex h-2.5 w-2.5">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
+                                </span>
+                                <h2 className="font-extrabold text-slate-900 text-lg tracking-tight">Tulis & Verifikasi Batch (UNVERIFIED)</h2>
+                            </div>
+                            <p className="text-xs text-rose-700 mt-1 font-semibold">
+                                ⚠️ Batch ini belum diverifikasi. F0 sistem: {systemF0.toFixed(2)} min — Lengkapi data di bawah ini lalu klik Simpan Verifikasi.
+                            </p>
+                        </div>
+                        <span className="text-[11px] font-black px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 border border-rose-300 uppercase tracking-wide">
+                            Wajib Dilengkapi
+                        </span>
                     </div>
                     <form onSubmit={handleVerifySubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <label className="block text-xs font-bold text-slate-700">
                             Product
-                            <input type="text" required value={product} onChange={(e) => setProduct(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 py-2 px-3" />
+                            <input type="text" required value={product} onChange={(e) => setProduct(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3" />
                         </label>
                         <label className="block text-xs font-bold text-slate-700">
                             Batch
-                            <input type="text" required value={batchCode} onChange={(e) => setBatchCode(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 py-2 px-3" />
+                            <input type="text" required value={batchCode} onChange={(e) => setBatchCode(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3" />
                         </label>
                         <label className="block text-xs font-bold text-slate-700">
                             Scheduled Process
-                            <input type="text" required value={scheduledProcess} onChange={(e) => setScheduledProcess(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 py-2 px-3" />
+                            <input type="text" required value={scheduledProcess} onChange={(e) => setScheduledProcess(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3" />
                         </label>
                         <label className="block text-xs font-bold text-slate-700">
                             Group
-                            <select required value={groupId} onChange={(e) => setGroupId(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 py-2 px-3">
+                            <select required value={groupId} onChange={(e) => setGroupId(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3">
                                 {groups.map((g) => (
                                     <option key={g.id} value={g.id}>{g.name}</option>
                                 ))}
@@ -1167,15 +1197,15 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         </label>
                         <label className="block text-xs font-bold text-slate-700">
                             Minimum F0
-                            <input type="number" required step="0.01" min="0" value={minF0} onChange={(e) => setMinF0(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 py-2 px-3" />
+                            <input type="number" required step="0.01" min="0" value={minF0} onChange={(e) => setMinF0(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3" />
                         </label>
                         <label className="block text-xs font-bold text-slate-700">
                             Target F0
-                            <input type="number" required step="0.01" min="0" value={targetF0} onChange={(e) => setTargetF0(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 py-2 px-3" />
+                            <input type="number" required step="0.01" min="0" value={targetF0} onChange={(e) => setTargetF0(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3" />
                         </label>
                         <label className="block text-xs font-bold text-slate-700">
                             Process deviation
-                            <select required value={deviation} onChange={(e) => setDeviation(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 py-2 px-3">
+                            <select required value={deviation} onChange={(e) => setDeviation(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3">
                                 <option value="None">None</option>
                                 <option value="Minor">Minor</option>
                                 <option value="Major">Major</option>
@@ -1183,14 +1213,14 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         </label>
                         <label className="block text-xs font-bold text-slate-700">
                             Sterility criterion
-                            <select required value={effectiveCriterion} disabled={liveFail} onChange={(e) => setCriterion(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 py-2 px-3 disabled:opacity-60">
+                            <select required value={effectiveCriterion} disabled={liveFail} onChange={(e) => setCriterion(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3 disabled:opacity-60">
                                 <option value="PASS">PASS</option>
                                 <option value="FAIL">FAIL</option>
                             </select>
                         </label>
                         <label className="block text-xs font-bold text-slate-700">
                             Thermal record
-                            <select required value={thermal} onChange={(e) => setThermal(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 py-2 px-3">
+                            <select required value={thermal} onChange={(e) => setThermal(e.target.value)} className="mt-1 w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3">
                                 <option value="VERIFIED">VERIFIED</option>
                                 <option value="REJECTED">REJECTED</option>
                             </select>
@@ -1201,8 +1231,12 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                             </p>
                         )}
                         <div className="sm:col-span-2 flex justify-end">
-                            <button type="submit" className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black px-6 py-2.5 shadow-md transition-all">
-                                Verifikasi Batch
+                            <button
+                                type="submit"
+                                className="rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black px-6 py-2.5 shadow-md shadow-rose-200 transition-all flex items-center gap-2"
+                            >
+                                <CheckCircle2 size={15} />
+                                Tulis & Simpan Verifikasi Batch
                             </button>
                         </div>
                     </form>

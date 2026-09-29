@@ -29,6 +29,18 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $unverifiedCount = rescue(function () {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('tn_process_histories')) {
+                return 0;
+            }
+            return \App\Models\TnProcessHistory::whereNotNull('end_time')
+                ->where(function ($q) {
+                    $q->whereNull('verification_status')
+                      ->orWhere('verification_status', '!=', 'verified');
+                })
+                ->count();
+        }, 0, false) ?: 0;
+
         return [
             ...parent::share($request),
             'auth' => [
@@ -42,6 +54,7 @@ class HandleInertiaRequests extends Middleware
                 'active_mode' => $request->session()->get('active_mode'),
                 'active_tn_id' => $request->session()->get('active_tn_id'),
                 'active_tn_model' => $request->session()->get('active_tn_model'),
+                'unverified_count' => $unverifiedCount,
             ],
         ];
     }

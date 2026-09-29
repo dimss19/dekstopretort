@@ -1,6 +1,6 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import { Link, usePage } from '@inertiajs/react';
-import { PropsWithChildren, ReactNode } from 'react';
+import { PropsWithChildren, ReactNode, useEffect, useState } from 'react';
 
 type NavItem = {
     label: string;
@@ -17,6 +17,22 @@ export default function Authenticated({
 }: PropsWithChildren<{ header?: ReactNode; navContent?: ReactNode; user?: unknown }>) {
     const pageProps = usePage().props as any;
     const activeTnId = pageProps.ui?.active_tn_id;
+    const initialUnverified = Number(pageProps.ui?.unverified_count ?? 0);
+    const [unverifiedCount, setUnverifiedCount] = useState<number>(initialUnverified);
+
+    useEffect(() => {
+        setUnverifiedCount(Number(pageProps.ui?.unverified_count ?? 0));
+    }, [pageProps.ui?.unverified_count]);
+
+    useEffect(() => {
+        const handleUpdate = (e: any) => {
+            if (typeof e.detail === 'number') {
+                setUnverifiedCount(e.detail);
+            }
+        };
+        window.addEventListener('unverified-count-update', handleUpdate);
+        return () => window.removeEventListener('unverified-count-update', handleUpdate);
+    }, []);
 
     const visibleNavigation: NavItem[] = [
         {
@@ -66,17 +82,28 @@ export default function Authenticated({
                         ) : (
                             visibleNavigation.map((item) => {
                                 const active = (route().current(item.activePattern) ?? false) && !(item.excludePattern && route().current(item.excludePattern));
+                                const hasUnverifiedWarning = item.label === 'History' && unverifiedCount > 0;
+
                                 return (
                                     <Link
                                         key={item.label}
                                         href={item.routeParam ? route(item.routeName, item.routeParam) : route(item.routeName)}
-                                        className={`shrink-0 rounded-xl px-4 py-2 text-sm font-extrabold transition-all duration-200 ${
+                                        className={`relative shrink-0 rounded-xl px-4 py-2 text-sm font-extrabold transition-all duration-200 ${
                                             active
                                                 ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 shadow-[0_0_15px_rgba(250,204,21,0.4)]'
                                                 : 'text-slate-200 hover:bg-blue-900/50 hover:text-white'
                                         }`}
                                     >
-                                        {item.label}
+                                        <span>{item.label}</span>
+                                        {hasUnverifiedWarning && (
+                                            <span
+                                                title={`${unverifiedCount} batch proses belum diverifikasi! Segera lengkapi di menu History.`}
+                                                className="absolute -top-1.5 -right-1.5 flex h-4 w-4"
+                                            >
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-90 duration-1000"></span>
+                                                <span className="relative inline-flex rounded-full h-4 w-4 bg-rose-600 border-2 border-[#0f172a] shadow-[0_0_12px_rgba(225,29,72,0.9)]"></span>
+                                            </span>
+                                        )}
                                     </Link>
                                 );
                             })

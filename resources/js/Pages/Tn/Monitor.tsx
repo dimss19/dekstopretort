@@ -113,6 +113,9 @@ export default function Monitor({ controller, latestReading: initialReading }: P
                     if (data.serial_port) {
                         activePort = data.serial_port;
                     }
+                    if (typeof data.unverified_count === 'number') {
+                        window.dispatchEvent(new CustomEvent('unverified-count-update', { detail: data.unverified_count }));
+                    }
                 }
 
                 setHistory(readingsList);

@@ -67,6 +67,8 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
     const [editName, setEditName] = useState<string>('');
     const [editColor, setEditColor] = useState<string>('#a3a3a3');
 
+    const totalUnverifiedCount = useMemo(() => histories.filter((h) => getHistoryStatus(h) === 'unverified').length, [histories]);
+
     const filteredHistories = useMemo(() => {
         const byPeriod = histories.filter((h) => {
             const startTime = new Date(h.start_time).getTime();
@@ -280,19 +282,37 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                         className="min-w-52 flex-1 rounded-xl border-slate-300 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 shadow-sm focus:border-blue-600 focus:ring-blue-600"
                     />
                     <div className="flex gap-1.5 rounded-2xl bg-slate-100 p-1.5 border border-slate-200">
-                        {(['all', 'verified', 'unverified', 'running'] as const).map((s) => (
-                            <button
-                                key={s}
-                                onClick={() => setStatusFilter(s)}
-                                className={`rounded-xl px-4 py-2 text-xs font-black transition-all ${
-                                    statusFilter === s
-                                        ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-sm'
-                                        : 'text-slate-600 hover:text-slate-900'
-                                }`}
-                            >
-                                {s === 'all' ? 'Semua' : s === 'verified' ? 'Verified' : s === 'unverified' ? 'Unverified' : 'Berjalan'}
-                            </button>
-                        ))}
+                        {(['all', 'verified', 'unverified', 'running'] as const).map((s) => {
+                            const count = s === 'unverified'
+                                ? histories.filter((h) => getHistoryStatus(h) === 'unverified').length
+                                : s === 'verified'
+                                ? histories.filter((h) => getHistoryStatus(h) === 'verified').length
+                                : s === 'running'
+                                ? histories.filter((h) => getHistoryStatus(h) === 'running').length
+                                : histories.length;
+
+                            return (
+                                <button
+                                    key={s}
+                                    onClick={() => setStatusFilter(s)}
+                                    className={`relative flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-black transition-all ${
+                                        statusFilter === s
+                                            ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-sm'
+                                            : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                                >
+                                    {s === 'unverified' && count > 0 && (
+                                        <span className="relative flex h-2 w-2">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
+                                        </span>
+                                    )}
+                                    <span>
+                                        {s === 'all' ? 'Semua' : s === 'verified' ? 'Verified' : s === 'unverified' ? `Unverified (${count})` : 'Berjalan'}
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
                 {groups.length > 0 && (
@@ -362,6 +382,39 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                 )}
             </Panel>
 
+            {/* Unverified Alert Banner */}
+            {totalUnverifiedCount > 0 && (
+                <div className="rounded-3xl border-2 border-rose-300 bg-rose-50/80 p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                        <span className="relative flex h-3.5 w-3.5 shrink-0">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-600"></span>
+                        </span>
+                        <div>
+                            <p className="text-sm font-black text-rose-900">
+                                Perhatian: Terdapat {totalUnverifiedCount} Batch Proses Berstatus UNVERIFIED
+                            </p>
+                            <p className="text-xs font-semibold text-rose-700 mt-0.5">
+                                Batch selesai memerlukan data verifikasi tertulis. Klik tombol "Tulis / Verifikasi" pada kartu bertanda merah di bawah ini untuk melengkapi.
+                            </p>
+                        </div>
+                    </div>
+                    {statusFilter !== 'unverified' && (
+                        <button
+                            type="button"
+                            onClick={() => setStatusFilter('unverified')}
+                            className="rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black px-4 py-2.5 shadow-sm transition-all shrink-0 flex items-center gap-2"
+                        >
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                            </span>
+                            Filter Unverified ({totalUnverifiedCount})
+                        </button>
+                    )}
+                </div>
+            )}
+
             {/* Batch Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredHistories.length === 0 ? (
@@ -383,7 +436,23 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                         const status = getHistoryStatus(h);
 
                         return (
-                            <div key={h.id} className="relative rounded-3xl border border-slate-200 bg-white p-6 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+                            <div
+                                key={h.id}
+                                className={`relative rounded-3xl border ${
+                                    status === 'unverified'
+                                        ? 'border-rose-300 bg-white shadow-md hover:shadow-xl ring-1 ring-rose-200/80'
+                                        : 'border-slate-200 bg-white shadow-md hover:shadow-xl'
+                                } p-6 transition-all duration-300 flex flex-col justify-between`}
+                            >
+                                {status === 'unverified' && (
+                                    <span
+                                        title="Batch belum diverifikasi! Segera lengkapi data verifikasi."
+                                        className="absolute -top-1.5 -right-1.5 flex h-4 w-4 z-10"
+                                    >
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-4 w-4 bg-rose-600 border-2 border-white shadow-md"></span>
+                                    </span>
+                                )}
                                 <div>
                                     <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-3">
                                         <div className="flex items-center gap-2">
@@ -402,7 +471,11 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                                     <CheckCircle2 size={12} /> VERIFIED
                                                 </span>
                                             ) : (
-                                                <span className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md">
+                                                <span className="flex items-center gap-1.5 text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-300 px-2.5 py-0.5 rounded-md shadow-sm">
+                                                    <span className="relative flex h-2 w-2">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
+                                                    </span>
                                                     UNVERIFIED
                                                 </span>
                                             )}
@@ -481,13 +554,27 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                 </div>
 
                                 <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedBatch(h)}
-                                        className="flex-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-black py-2.5 px-3 transition-colors text-center"
-                                    >
-                                        Lihat Detail
-                                    </button>
+                                    {status === 'unverified' ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedBatch(h)}
+                                            className="flex-1 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black py-2.5 px-3 transition-all shadow-sm shadow-rose-200 flex items-center justify-center gap-1.5 text-center"
+                                        >
+                                            <span className="relative flex h-2 w-2">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                                            </span>
+                                            <Pencil size={13} /> Tulis / Verifikasi
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedBatch(h)}
+                                            className="flex-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-black py-2.5 px-3 transition-colors text-center"
+                                        >
+                                            Lihat Detail
+                                        </button>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={() => handleDownload(h, 'csv')}
