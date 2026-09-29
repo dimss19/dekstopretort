@@ -102,7 +102,7 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
                 </div>
                 <div className="flex items-center justify-between font-mono">
                     <span className="text-xl font-black tracking-wider text-white">
-                        TN
+                        TN Controller
                     </span>
                     <span className="text-xl font-black tracking-[0.2em] text-white">
                         AUTONICS
