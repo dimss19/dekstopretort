@@ -13,10 +13,42 @@ interface Props {
 }
 
 export default function TnNormalMonitor({ controllerModel = 'TNH', telemetry, history, isOnline, serialPort }: Props) {
-    const heatingLogs = useMemo(() => history
-        .filter((item) => Number(item.heating_mv ?? 0) > 0)
-        .slice(-100)
-        .reverse(), [history]);
+    const isProcessRunning = Boolean(
+        isOnline &&
+        telemetry.running &&
+        telemetry.phase !== 'Waiting' &&
+        telemetry.phase !== 'Offline'
+    );
+
+    // Hanya ambil data point dari sesi proses yang sedang berjalan saat ini
+    const currentRunHistory = useMemo(() => {
+        if (!isProcessRunning || !history.length) return [];
+
+        let startIndex = history.length - 1;
+        let zeroCount = 0;
+        for (let i = history.length - 1; i >= 0; i--) {
+            const mv = Number(history[i].heating_mv ?? 0);
+            const ptime = Number(history[i].process_time ?? 0);
+            if (mv > 0 || ptime > 0) {
+                zeroCount = 0;
+                startIndex = i;
+            } else {
+                zeroCount++;
+                if (zeroCount > 10) {
+                    break;
+                }
+            }
+        }
+        return history.slice(startIndex);
+    }, [history, isProcessRunning]);
+
+    const heatingLogs = useMemo(() => {
+        if (!isProcessRunning) return [];
+        return currentRunHistory
+            .filter((item) => Number(item.heating_mv ?? 0) > 0)
+            .slice(-100)
+            .reverse();
+    }, [currentRunHistory, isProcessRunning]);
 
     return (
         <div className="space-y-6">
@@ -55,10 +87,10 @@ export default function TnNormalMonitor({ controllerModel = 'TNH', telemetry, hi
                 </div>
                 
                 <RetortThermalChart
-                    data={isOnline ? history : []}
+                    data={currentRunHistory}
                     targetSv={(telemetry.targetTemperature && telemetry.targetTemperature > 60) ? telemetry.targetTemperature : 121.0}
                     height={380}
-                    isRunning={Boolean(telemetry.running && telemetry.phase !== 'Waiting' && telemetry.phase !== 'Offline')}
+                    isRunning={isProcessRunning}
                 />
             </section>
 

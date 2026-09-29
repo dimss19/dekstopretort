@@ -79,7 +79,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
         (batch.controller as any)?.name ||
         batch.controller?.model_type ||
         `Controller #${batch.tn_controller_id || batch.id}`;
-    const machineTitle = rawMachineTitle.replace(/Retort TNS/gi, 'Retort TN').replace(/TNS Controller/gi, 'Retort TN').replace(/^TNS$/i, 'Retort TN');
+    const machineTitle = rawMachineTitle.replace(/Retort TNS/gi, 'TN').replace(/TNS Controller/gi, 'TN').replace(/^TNS$/i, 'TN');
 
     // Target SV detection from logs
     const targetSv = useMemo(() => {

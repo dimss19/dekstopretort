@@ -11,7 +11,7 @@ interface Props {
 
 export default function Show({ batch, groups = [] }: Props) {
     const rawMachine = batch.controller?.machine?.machine_name || (batch.controller as any)?.name || batch.controller?.model_type || 'Retort TN';
-    const machineName = rawMachine.replace(/Retort TNS/gi, 'Retort TN').replace(/TNS Controller/gi, 'Retort TN').replace(/^TNS$/i, 'Retort TN');
+    const machineName = rawMachine.replace(/Retort TNS/gi, 'TN').replace(/TNS Controller/gi, 'TN').replace(/^TNS$/i, 'TN');
 
     return (
         <AuthenticatedLayout

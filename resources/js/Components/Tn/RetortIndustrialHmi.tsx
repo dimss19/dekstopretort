@@ -52,17 +52,17 @@ export default function RetortIndustrialHmi({
         )
     );
 
-    const displayMv = isOnline ? (telemetry?.heatingPercent !== null && telemetry?.heatingPercent !== undefined
+    const displayMv = (isOnline && isRunning) ? (telemetry?.heatingPercent !== null && telemetry?.heatingPercent !== undefined
         ? Math.round(telemetry.heatingPercent)
         : (typeof sensorData?.heating_mv === 'number'
             ? Math.round(sensorData.heating_mv > 100 ? sensorData.heating_mv / 10 : sensorData.heating_mv)
             : (isValveOpen ? 100 : 0))) : 0;
 
-    const currentStep = Number(sensorData?.step_current ?? telemetry?.step ?? 0);
-    const currentPattern = Number(sensorData?.pattern_current ?? telemetry?.pattern ?? 1);
-    const restTime = typeof sensorData?.rest_time === 'number'
+    const currentStep = isRunning ? Number(sensorData?.step_current ?? telemetry?.step ?? 0) : 0;
+    const currentPattern = isRunning ? Number(sensorData?.pattern_current ?? telemetry?.pattern ?? 0) : 0;
+    const restTime = isRunning && typeof sensorData?.rest_time === 'number'
         ? sensorData.rest_time
-        : (typeof telemetry?.remainingTime === 'number' ? telemetry.remainingTime : 0);
+        : (isRunning && typeof telemetry?.remainingTime === 'number' ? telemetry.remainingTime : 0);
 
     const timeFormatted = String(Math.max(0, Math.trunc(restTime))).padStart(2, '0');
     const timeSec = timeFormatted.slice(-2) || '00';

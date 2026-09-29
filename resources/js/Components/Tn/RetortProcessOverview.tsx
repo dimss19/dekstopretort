@@ -140,6 +140,12 @@ export default function RetortProcessOverview({
         Running: '#22d3ee',
     };
     const unsupportedReason = 'I/O fisik belum dipetakan pada controller TN';
+    const isProcessRunning = Boolean(
+        isOnline &&
+        telemetry.running &&
+        telemetry.phase !== 'Waiting' &&
+        telemetry.phase !== 'Offline'
+    );
 
     return (
         <div className="overflow-hidden rounded-2xl border border-slate-700 bg-[#07101d] shadow-2xl">
@@ -191,7 +197,7 @@ export default function RetortProcessOverview({
                             <Metric label="Burner" value="--" available={false} />
                             <Metric label="Steam Ready" value="--" available={false} />
                             <div className="col-span-2">
-                                <Metric label="TN Heating Output" value={formatNumber(telemetry.heatingPercent)} unit="%" available={telemetry.heatingPercent !== null} accent="text-orange-300" />
+                                <Metric label="TN Heating Output" value={formatNumber(isProcessRunning ? telemetry.heatingPercent : 0)} unit="%" available={true} accent="text-orange-300" />
                             </div>
                         </VesselShell>
 
@@ -218,9 +224,9 @@ export default function RetortProcessOverview({
                             statusTone={phaseColors[telemetry.phase]}
                         >
                             <Metric label="Temp Aktual" value={formatNumber(telemetry.actualTemperature)} unit="°C" available={telemetry.actualTemperature !== null} />
-                            <Metric label="Target Temp" value={formatNumber(telemetry.targetTemperature)} unit="°C" available={telemetry.targetTemperature !== null} accent="text-emerald-300" />
-                            <Metric label="Current Step" value={telemetry.step ?? '--'} available={telemetry.step !== null} />
-                            <Metric label="Remaining" value={formatControllerTime(telemetry.remainingTime)} available={telemetry.remainingTime !== null} accent="text-indigo-300" />
+                            <Metric label="Target Temp" value={formatNumber(isProcessRunning ? telemetry.targetTemperature : 0)} unit="°C" available={true} accent="text-emerald-300" />
+                            <Metric label="Current Step" value={isProcessRunning ? (telemetry.step ?? 0) : 0} available={true} />
+                            <Metric label="Remaining" value={isProcessRunning ? formatControllerTime(telemetry.remainingTime) : '00:00'} available={true} accent="text-indigo-300" />
                             <Metric label="Door Lock" value="--" available={false} />
                             <Metric label="Compressor" value="--" available={false} />
                             <Metric label="Cooling Air" value="--" available={false} />
@@ -232,8 +238,8 @@ export default function RetortProcessOverview({
                         <div className="rounded-xl border border-slate-700 bg-slate-900/70 p-4">
                             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Status controller TN</p>
                             <div className="mt-3 grid grid-cols-2 gap-2">
-                                <Metric label="Pattern" value={telemetry.pattern ?? '--'} available={telemetry.pattern !== null} />
-                                <Metric label="Process Time" value={formatControllerTime(telemetry.processTime)} available={telemetry.processTime !== null} />
+                                <Metric label="Pattern" value={isProcessRunning ? (telemetry.pattern ?? 0) : 0} available={true} />
+                                <Metric label="Process Time" value={isProcessRunning ? formatControllerTime(telemetry.processTime) : '00:00'} available={true} />
                             </div>
                         </div>
 
@@ -243,12 +249,12 @@ export default function RetortProcessOverview({
                                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-sky-300">Cooling output TN</p>
                                     <p className="mt-1 text-[10px] text-slate-500">Belum diklaim sebagai water/air sampai wiring dipetakan.</p>
                                 </div>
-                                <span className="font-mono text-xl font-black text-sky-300">{formatNumber(telemetry.coolingPercent)}%</span>
+                                <span className="font-mono text-xl font-black text-sky-300">{formatNumber(isProcessRunning ? telemetry.coolingPercent : 0)}%</span>
                             </div>
                             <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-950">
                                 <div
                                     className={`h-full rounded-full bg-gradient-to-r from-blue-700 to-cyan-300 transition-all ${telemetry.coolingActive ? 'animate-pulse' : ''}`}
-                                    style={{ width: `${telemetry.coolingPercent ?? 0}%` }}
+                                    style={{ width: `${isProcessRunning ? (telemetry.coolingPercent ?? 0) : 0}%` }}
                                 />
                             </div>
                         </div>

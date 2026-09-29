@@ -31,10 +31,10 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
         })
         : new Date().toLocaleDateString('id-ID') + ' --:--:--';
 
-    // Format PV: Saat offline / tidak terhubung, PV wajib '--.-'
+    // Format PV: Saat offline / tidak terhubung, default ke '0.0'
     const pvDisplay = (isOnline && telemetry.actualTemperature !== null && telemetry.actualTemperature !== undefined)
         ? telemetry.actualTemperature.toFixed(1)
-        : '--.-';
+        : '0.0';
 
     // Format SV / Status
     // Blinking terjadi saat offline atau saat controller dalam kondisi STOP/IDLE.
@@ -51,29 +51,29 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
     );
     const isStopped = !isOnline || !isProcessRunning;
 
-    // Nilai target SV: saat offline atau saat controller stopped/idle, default ke 25
+    // Nilai target SV: saat offline atau saat controller stopped/idle, default ke 0
     const targetSv = !isOnline || isStopped
-        ? (isOnline && telemetry.targetTemperature !== null && telemetry.targetTemperature !== undefined && telemetry.targetTemperature !== 121.1 && telemetry.targetTemperature > 0 ? telemetry.targetTemperature : 25)
-        : (telemetry.targetTemperature ?? 25);
+        ? 0
+        : (telemetry.targetTemperature ?? 0);
 
-    // Format SV dengan 1 desimal (misal 25.0), sama seperti tampilan PV
+    // Format SV dengan 1 desimal (misal 0.0), sama seperti tampilan PV
     const targetSvFormatted = typeof targetSv === 'number'
         ? targetSv.toFixed(1)
-        : '25.0';
+        : '0.0';
 
-    // SV berkedip bergantian antara '25.0' dan 'STOP' setiap 0.5 detik saat STOP / offline
+    // SV berkedip bergantian antara '0.0' dan 'STOP' setiap 0.5 detik saat STOP / offline
     const svValueDisplay = isStopped
-        ? (blinkToggle ? 'STOP' : targetSvFormatted)
+        ? (blinkToggle ? 'STOP' : '0.0')
         : targetSvFormatted;
 
-    // Format MV
-    const mvDisplay = (isOnline && telemetry.heatingPercent !== null && telemetry.heatingPercent !== undefined)
+    // Format MV: jika tidak running, pastikan 0.0
+    const mvDisplay = (isOnline && isProcessRunning && telemetry.heatingPercent !== null && telemetry.heatingPercent !== undefined)
         ? telemetry.heatingPercent.toFixed(1)
         : '0.0';
 
-    // Format P/S (Pattern.Step -> e.g. 02.00)
-    const pVal = isOnline ? String(telemetry.pattern ?? 0).padStart(2, '0') : '00';
-    const sVal = isOnline ? String(telemetry.step ?? 0).padStart(2, '0') : '00';
+    // Format P/S (Pattern.Step -> e.g. 00.00)
+    const pVal = (isOnline && isProcessRunning) ? String(telemetry.pattern ?? 0).padStart(2, '0') : '00';
+    const sVal = (isOnline && isProcessRunning) ? String(telemetry.step ?? 0).padStart(2, '0') : '00';
     const psDisplay = `${pVal}.${sVal}`;
 
     // Format TOT M:S (Total Process Time)
@@ -83,8 +83,8 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
         return `${str.slice(0, -2) || '00'}.${str.slice(-2)}`;
     };
 
-    const totDisplay = isOnline ? formatTimeDot(telemetry.processTime) : '00.00';
-    const stpDisplay = isOnline ? formatTimeDot(telemetry.remainingTime) : '00.00';
+    const totDisplay = (isOnline && isProcessRunning) ? formatTimeDot(telemetry.processTime) : '00.00';
+    const stpDisplay = (isOnline && isProcessRunning) ? formatTimeDot(telemetry.remainingTime) : '00.00';
     return (
         <section className="rounded-3xl border border-slate-800 bg-[#060a12] p-6 shadow-2xl backdrop-blur-xl text-white">
             {/* Header / Title Bar */}
