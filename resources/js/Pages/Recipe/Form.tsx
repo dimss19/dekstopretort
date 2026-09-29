@@ -232,30 +232,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                         <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
                             <h3 className="text-lg font-black text-slate-900">Informasi Resep Sterilisasi</h3>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                            <div>
-                                <div className="flex items-center justify-between">
-                                    <label className="block text-xs font-extrabold text-slate-700 uppercase">Target Controller TN</label>
-                                    <span className="text-[10px] font-mono font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">DEVICE</span>
-                                </div>
-                                <select
-                                    value={selectedController}
-                                    onChange={e => {
-                                        setSelectedController(e.target.value);
-                                        setData('tn_controller_id', e.target.value);
-                                    }}
-                                    className="mt-1.5 block w-full rounded-xl border-slate-300 bg-slate-50 text-slate-900 font-bold focus:border-blue-600 focus:ring-blue-600 text-sm py-2 px-3"
-                                >
-                                    {controllers.map((c: any) => (
-                                        <option key={c.id} value={c.id}>
-                                            {c.name || `Controller #${c.id}`} ({c.model_type}) {c.is_online ? '• Online' : '• Offline'}
-                                        </option>
-                                    ))}
-                                    {controllers.length === 0 && (
-                                        <option value="">Controller Utama</option>
-                                    )}
-                                </select>
-                            </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                             <div>
                                 <div className="flex items-center justify-between">
                                     <label className="block text-xs font-extrabold text-slate-700 uppercase">Kode Pattern</label>
