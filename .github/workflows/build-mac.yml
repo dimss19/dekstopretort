@@ -44,12 +44,13 @@ jobs:
           cache: 'npm'
 
       - name: Copy .env.example to .env
-        run: |
-          cp .env.example .env
-          php artisan key:generate
+        run: cp .env.example .env
 
       - name: Install Composer Dependencies
-        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+        run: |
+          composer install --no-interaction --prefer-dist --optimize-autoloader
+          php artisan key:generate
+          sed -i '' "s/'packages',//g" vendor/nativephp/desktop/config/nativephp-internal.php || true
 
       - name: Install NPM Dependencies & Build Frontend
         run: |
