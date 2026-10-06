@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { toEngineeringValue, segmentThermalSteps, calculateF0, RetortStepSegment } from '@/Pages/Tn/retortTelemetry';
+import { toEngineeringValue, segmentThermalSteps, calculateF0, calculateF0FromLogs, RetortStepSegment } from '@/Pages/Tn/retortTelemetry';
 
 interface Props {
     data: any[];
@@ -33,7 +33,7 @@ export default function RetortThermalChart({ data = [], targetSv = 121.0, height
         const currentTemp = temps.length > 0 ? temps[temps.length - 1] : 0;
         const maxTemp = temps.length > 0 ? Math.max(...temps) : 0;
         const totalMinutes = Math.max(1, Math.round((data.length / 60) * 10) / 10);
-        const totalF0 = calculateF0(temps, 1);
+        const totalF0 = calculateF0FromLogs(data);
 
         return {
             currentTemp,

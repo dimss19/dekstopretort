@@ -155,8 +155,17 @@ export function buildRetortTelemetry(reading: any, isOnline: boolean): RetortTel
 
 export function formatControllerTime(value: number | null | undefined): string {
     if (value === null || value === undefined || !Number.isFinite(value)) return '--:--';
-    const text = String(Math.max(0, Math.trunc(value))).padStart(4, '0');
-    return `${text.slice(0, -2) || '0'}:${text.slice(-2)}`;
+    const num = Math.max(0, Math.trunc(value));
+    const hi = Math.floor(num / 100);
+    const lo = num % 100;
+    if (lo >= 60) {
+        // Fallback for raw seconds input (e.g. 75s -> 01:15)
+        const totalSec = (hi * 60) + lo;
+        const mm = Math.floor(totalSec / 60);
+        const ss = totalSec % 60;
+        return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+    }
+    return `${String(hi).padStart(2, '0')}:${String(lo).padStart(2, '0')}`;
 }
 
 export function buildRetortEvents(readings: any[], limit = 12): RetortEvent[] {
@@ -224,17 +233,121 @@ export interface RetortStepSegment {
     isHolding: boolean;
 }
 
+export interface F0CalculationOptions {
+    tRef?: number;
+    z?: number;
+    threshold?: number;
+    maxGapSeconds?: number;
+}
+
 /**
- * Calculates F0 sterilization lethality value given temperature history
- * F0 = sum(dt_minutes * 10^((T - 121.1) / 10)) for T >= 100°C
+ * Normalizes temperature reading (handles 'pv' or 'actual', decimal point scaling, and overscale).
  */
-export function calculateF0(temperatures: number[], intervalSeconds: number = 1): number {
+export function normalizeReadingPv(r: any): number {
+    const raw = Number(r?.pv ?? r?.actual ?? 0);
+    const dp = Number(r?.decimal_point ?? 0);
+    let pv = dp > 0 ? raw / Math.pow(10, dp) : raw;
+    if (pv > 300) pv = pv / 10.0;
+    return pv;
+}
+
+/**
+ * Calculates F0 sterilization lethality value from logs using Trapezoidal integration
+ * and actual timestamp differences (converted to minutes).
+ */
+export function calculateF0FromLogs(logs: any[], options: F0CalculationOptions = {}): number {
+    const {
+        tRef = 121.1,
+        z = 10.0,
+        threshold = 100.0,
+        maxGapSeconds = 120,
+    } = options;
+
+    if (!logs || logs.length < 2) return 0;
+
+    const hasTimestamps = logs.some((l) => Boolean(l?.created_at || l?.recorded_at));
+
+    if (hasTimestamps) {
+        // Sort chronologically ascending
+        const sorted = [...logs].sort((a, b) => {
+            const ta = new Date(a?.created_at || a?.recorded_at || 0).getTime();
+            const tb = new Date(b?.created_at || b?.recorded_at || 0).getTime();
+            return ta - tb;
+        });
+
+        let f0 = 0;
+        for (let i = 1; i < sorted.length; i++) {
+            const prev = sorted[i - 1];
+            const curr = sorted[i];
+
+            const tPrevMs = new Date(prev?.created_at || prev?.recorded_at || 0).getTime();
+            const tCurrMs = new Date(curr?.created_at || curr?.recorded_at || 0).getTime();
+
+            let dtSeconds = 1;
+            if (!isNaN(tPrevMs) && !isNaN(tCurrMs) && tPrevMs > 0 && tCurrMs > 0) {
+                dtSeconds = (tCurrMs - tPrevMs) / 1000;
+            }
+
+            // Skip duplicate (dt = 0) or backward timestamp
+            if (dtSeconds <= 0) continue;
+
+            // Suppress phantom lethality if gap is too large
+            if (dtSeconds > maxGapSeconds) continue;
+
+            const dtMinutes = dtSeconds / 60.0;
+            const pvPrev = normalizeReadingPv(prev);
+            const pvCurr = normalizeReadingPv(curr);
+
+            const lPrev = pvPrev >= threshold ? Math.pow(10, (pvPrev - tRef) / z) : 0;
+            const lCurr = pvCurr >= threshold ? Math.pow(10, (pvCurr - tRef) / z) : 0;
+
+            f0 += ((lPrev + lCurr) / 2.0) * dtMinutes;
+        }
+
+        return Math.round(f0 * 100) / 100;
+    }
+
+    // Fallback for timestamp-less synthetic logs: assume 1-second trapezoidal interval
+    let f0 = 0;
+    const dtMinutes = 1.0 / 60.0;
+    for (let i = 1; i < logs.length; i++) {
+        const pvPrev = normalizeReadingPv(logs[i - 1]);
+        const pvCurr = normalizeReadingPv(logs[i]);
+
+        const lPrev = pvPrev >= threshold ? Math.pow(10, (pvPrev - tRef) / z) : 0;
+        const lCurr = pvCurr >= threshold ? Math.pow(10, (pvCurr - tRef) / z) : 0;
+
+        f0 += ((lPrev + lCurr) / 2.0) * dtMinutes;
+    }
+
+    return Math.round(f0 * 100) / 100;
+}
+
+/**
+ * Calculates F0 sterilization lethality value given temperature array
+ * Uses Trapezoidal integration across consecutive temperatures.
+ */
+export function calculateF0(
+    temperatures: number[],
+    intervalSeconds: number = 1,
+    options: F0CalculationOptions = {}
+): number {
+    const { tRef = 121.1, z = 10.0, threshold = 100.0 } = options;
+    if (!temperatures || temperatures.length === 0) return 0;
+    if (temperatures.length === 1) {
+        const temp = temperatures[0];
+        if (temp < threshold) return 0;
+        return Math.round(Math.pow(10, (temp - tRef) / z) * (intervalSeconds / 60) * 100) / 100;
+    }
+
     let f0 = 0;
     const dtMinutes = intervalSeconds / 60;
-    for (const temp of temperatures) {
-        if (temp >= 100) {
-            f0 += dtMinutes * Math.pow(10, (temp - 121.1) / 10);
-        }
+    for (let i = 1; i < temperatures.length; i++) {
+        const tPrev = temperatures[i - 1];
+        const tCurr = temperatures[i];
+        const lPrev = tPrev >= threshold ? Math.pow(10, (tPrev - tRef) / z) : 0;
+        const lCurr = tCurr >= threshold ? Math.pow(10, (tCurr - tRef) / z) : 0;
+        f0 += ((lPrev + lCurr) / 2.0) * dtMinutes;
     }
     return Math.round(f0 * 100) / 100;
 }
@@ -248,6 +361,10 @@ export function segmentThermalSteps(readings: any[]): RetortStepSegment[] {
     const segments: RetortStepSegment[] = [];
     let currentStep = readings[0].step_current ?? 0;
     let segStartIndex = 0;
+
+    // Detect if readings have valid timestamp info
+    const baseStartMs = new Date(readings[0]?.created_at || readings[0]?.recorded_at || 0).getTime();
+    const hasTimestamps = !isNaN(baseStartMs) && baseStartMs > 0;
 
     for (let i = 0; i < readings.length; i++) {
         const itemStep = readings[i].step_current ?? 0;
@@ -263,19 +380,21 @@ export function segmentThermalSteps(readings: any[]): RetortStepSegment[] {
 
             const maxTemp = temps.length > 0 ? Math.max(...temps) : 0;
             const avgTemp = temps.length > 0 ? temps.reduce((a, b) => a + b, 0) / temps.length : 0;
-            const f0Val = calculateF0(temps, 1);
+            const f0Val = calculateF0FromLogs(slice);
 
             let category: 'CUT' | 'HOLD' | 'COOL' | 'STEP' = 'STEP';
             let stepName = `Step ${currentStep}`;
 
-            // Automatic semantic category naming
+            const hasPriorHold = segments.some(s => s.category === 'HOLD');
+
+            // Semantic category naming: Come-Up Time (CUT), Holding, or Cooling
             if (currentStep === 0) {
                 category = 'CUT';
                 stepName = 'CUT (Come-Up Time)';
             } else if (avgTemp >= 115 || currentStep === 1) {
                 category = 'HOLD';
                 stepName = 'Holding Time';
-            } else if (currentStep === 2) {
+            } else if (currentStep === 2 || hasPriorHold) {
                 category = 'COOL';
                 stepName = 'Cooling Time in Retort';
             } else {
@@ -283,9 +402,22 @@ export function segmentThermalSteps(readings: any[]): RetortStepSegment[] {
                 stepName = `Step ${currentStep}`;
             }
 
-            const startMin = Math.round((segStartIndex / 60) * 10) / 10;
-            const endMin = Math.round(((segEndIndex + 1) / 60) * 10) / 10;
-            const durationMin = Math.max(0.1, Math.round((endMin - startMin) * 10) / 10);
+            let startMin: number;
+            let endMin: number;
+            let durationMin: number;
+
+            const segFirstMs = hasTimestamps ? new Date(slice[0]?.created_at || slice[0]?.recorded_at || 0).getTime() : NaN;
+            const segLastMs = hasTimestamps ? new Date(slice[slice.length - 1]?.created_at || slice[slice.length - 1]?.recorded_at || 0).getTime() : NaN;
+
+            if (hasTimestamps && !isNaN(segFirstMs) && !isNaN(segLastMs) && segLastMs >= segFirstMs) {
+                startMin = Math.round(((segFirstMs - baseStartMs) / 60000) * 10) / 10;
+                endMin = Math.round(((segLastMs - baseStartMs) / 60000) * 10) / 10;
+                durationMin = Math.max(0.1, Math.round(((segLastMs - segFirstMs) / 60000) * 10) / 10);
+            } else {
+                startMin = Math.round((segStartIndex / 60) * 10) / 10;
+                endMin = Math.round(((segEndIndex + 1) / 60) * 10) / 10;
+                durationMin = Math.max(0.1, Math.round((endMin - startMin) * 10) / 10);
+            }
 
             segments.push({
                 stepIndex: currentStep,

@@ -51,19 +51,19 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
     );
     const isStopped = !isOnline || !isProcessRunning;
 
-    // Nilai target SV: saat offline atau saat controller stopped/idle, default ke 0
-    const targetSv = !isOnline || isStopped
-        ? 0
-        : (telemetry.targetTemperature ?? 0);
+    // Nilai target SV: gunakan target temperature dari controller
+    const targetSv = (telemetry.targetTemperature !== null && telemetry.targetTemperature !== undefined)
+        ? telemetry.targetTemperature
+        : (isOnline ? 25.0 : 0.0);
 
-    // Format SV dengan 1 desimal (misal 0.0), sama seperti tampilan PV
+    // Format SV dengan 1 desimal (misal 25.0), sama seperti tampilan fisik Autonics TN
     const targetSvFormatted = typeof targetSv === 'number'
         ? targetSv.toFixed(1)
-        : '0.0';
+        : '25.0';
 
-    // SV berkedip bergantian antara '0.0' dan 'STOP' setiap 0.5 detik saat STOP / offline
+    // SV berkedip bergantian antara 'STOP' dan SV aktual (misal '25.0') setiap 0.5 detik saat STOP / offline
     const svValueDisplay = isStopped
-        ? (blinkToggle ? 'STOP' : '0.0')
+        ? (blinkToggle ? 'STOP' : targetSvFormatted)
         : targetSvFormatted;
 
     // Format MV: jika tidak running, pastikan 0.0
@@ -79,8 +79,17 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
     // Format TOT M:S (Total Process Time)
     const formatTimeDot = (val: number | null | undefined) => {
         if (val === null || val === undefined || !Number.isFinite(val)) return '00.00';
-        const str = String(Math.max(0, Math.trunc(val))).padStart(4, '0');
-        return `${str.slice(0, -2) || '00'}.${str.slice(-2)}`;
+        const num = Math.max(0, Math.trunc(val));
+        const hi = Math.floor(num / 100);
+        const lo = num % 100;
+        if (lo >= 60) {
+            // Fallback for raw seconds input (e.g. 75s -> 01.15)
+            const totalSec = (hi * 60) + lo;
+            const mm = Math.floor(totalSec / 60);
+            const ss = totalSec % 60;
+            return `${String(mm).padStart(2, '0')}.${String(ss).padStart(2, '0')}`;
+        }
+        return `${String(hi).padStart(2, '0')}.${String(lo).padStart(2, '0')}`;
     };
 
     const totDisplay = (isOnline && isProcessRunning) ? formatTimeDot(telemetry.processTime) : '00.00';

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\TnController;
 use App\Models\TnReading;
-use App\Models\TnProcessHistory;
 use App\Services\TnModbusService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -34,8 +33,12 @@ class TnMonitorController extends Controller
         $validated = request()->validate(['run' => 'required|boolean']);
 
         try {
-            // TN coil 000001 uses 0 for RUN and 1 for STOP.
-            $result = $modbus->writeSingleCoil($tn, 0, ! $validated['run']);
+            // TN uses 0 for RUN and 1 for STOP (Coil 000001 or Holding Register 400001)
+            $isStop = ! $validated['run'];
+            $result = $modbus->writeSingleCoil($tn, 0, $isStop);
+            if (!($result['success'] ?? false)) {
+                $result = $modbus->writeSingleRegister($tn, 0, $isStop ? 1 : 0);
+            }
         } catch (\Throwable $e) {
             $result = ['success' => false, 'error' => $e->getMessage()];
         }
@@ -46,19 +49,6 @@ class TnMonitorController extends Controller
                 'is_online' => true,
                 'last_seen_at' => now(),
                 'last_error' => null,
-            ]);
-
-            // Record a reading reflecting the new state
-            TnReading::create([
-                'tn_controller_id' => $tn->id,
-                'pv' => $tn->current_pv ?? 121.1,
-                'decimal_point' => 1,
-                'sv' => $tn->current_sv ?? 121.1,
-                'heating_mv' => $validated['run'] ? 65 : 0,
-                'cooling_mv' => 0,
-                'run_status' => $runState,
-                'auto_manual' => 'AUTO',
-                'created_at' => now(),
             ]);
 
             $msg = $validated['run']
@@ -77,34 +67,22 @@ class TnMonitorController extends Controller
     public function setSv(TnController $tn, TnModbusService $modbus)
     {
         request()->validate(['sv' => 'required|numeric']);
-        $newSv = request('sv');
+        $inputSv = (float) request('sv');
+        $rawSv = $inputSv > 300 ? (int) round($inputSv) : (int) round($inputSv * 10);
+        $svDisplay = $inputSv > 300 ? ($inputSv / 10) : $inputSv;
 
         try {
             // SV is Holding Register 400006 -> offset 5
-            $result = $modbus->writeSingleRegister($tn, 5, (int)$newSv);
+            $result = $modbus->writeSingleRegister($tn, 5, $rawSv);
         } catch (\Throwable $e) {
             $result = ['success' => false, 'error' => $e->getMessage()];
         }
-
-        $svDisplay = $newSv > 300 ? ($newSv / 10) : $newSv;
         if ($result['success']) {
             $tn->update([
                 'current_sv' => $svDisplay,
                 'is_online' => true,
                 'last_seen_at' => now(),
                 'last_error' => null,
-            ]);
-
-            TnReading::create([
-                'tn_controller_id' => $tn->id,
-                'pv' => $tn->current_pv ?? $svDisplay,
-                'decimal_point' => 1,
-                'sv' => $svDisplay,
-                'heating_mv' => 50,
-                'cooling_mv' => 0,
-                'run_status' => 'RUN',
-                'auto_manual' => 'AUTO',
-                'created_at' => now(),
             ]);
 
             $msg = "Nilai SV berhasil diperbarui ke {$svDisplay} °C.";
@@ -170,8 +148,18 @@ class TnMonitorController extends Controller
 
     public function readings(TnController $tn)
     {
-        $limit = request('limit', 1800); // 30 minutes of data at 1Hz
-        $readings = $tn->readings()->latest()->limit($limit)->get()->reverse()->values();
+        $limit = (int) request('limit', 1800); // 30 minutes of data at 1Hz
+        $sinceId = request('since_id');
+
+        if ($sinceId) {
+            $readings = $tn->readings()
+                ->where('id', '>', (int) $sinceId)
+                ->orderBy('id', 'asc')
+                ->limit(60)
+                ->get();
+        } else {
+            $readings = $tn->readings()->latest()->limit($limit)->get()->reverse()->values();
+        }
 
         $unverifiedCount = rescue(function () {
             return \App\Models\TnProcessHistory::whereNotNull('end_time')
@@ -379,65 +367,4 @@ class TnMonitorController extends Controller
 
         return response()->json(['success' => true, 'reading_id' => $reading->id]);
     }
-
-    public function exportPdf(TnProcessHistory $history, Request $request)
-    {
-        $html = $request->input('html');
-        if (empty($html)) {
-            return response()->json(['success' => false, 'message' => 'Konten HTML laporan tidak ditemukan.'], 422);
-        }
-
-        $rawMachine = $history->controller?->machine?->machine_name ?? 'TN';
-        $sanitizedTitle = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $rawMachine);
-        $filename = "Laporan_Batch_{$history->id}_{$sanitizedTitle}.pdf";
-
-        if (config('nativephp-internal.running') && class_exists(\Native\Desktop\Facades\System::class)) {
-            try {
-                $base64 = \Native\Desktop\Facades\System::printToPDF($html, [
-                    'pageSize' => 'A4',
-                    'printBackground' => true,
-                    'preferCSSPageSize' => true,
-                ]);
-
-                if (!empty($base64)) {
-                    $binary = base64_decode($base64);
-                    return response($binary, 200, [
-                        'Content-Type' => 'application/pdf',
-                        'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-                        'Cache-Control' => 'no-cache, private',
-                    ]);
-                }
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error('Native printToPDF failed: ' . $e->getMessage());
-                return response()->json(['success' => false, 'message' => 'Gagal membuat PDF: ' . $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json(['success' => false, 'message' => 'Layanan ekspor PDF Native desktop tidak tersedia.'], 500);
-    }
-
-    public function printNative(TnProcessHistory $history, Request $request)
-    {
-        $html = $request->input('html');
-        if (empty($html)) {
-            return response()->json(['success' => false, 'message' => 'Konten HTML laporan tidak ditemukan.'], 422);
-        }
-
-        if (config('nativephp-internal.running') && class_exists(\Native\Desktop\Facades\System::class)) {
-            try {
-                \Native\Desktop\Facades\System::print($html, null, [
-                    'silent' => false,
-                    'printBackground' => true,
-                    'pageSize' => 'A4',
-                ]);
-                return response()->json(['success' => true, 'message' => 'Dialog cetak printer berhasil dibuka.']);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error('Native print failed: ' . $e->getMessage());
-                return response()->json(['success' => false, 'message' => 'Gagal membuka printer: ' . $e->getMessage()], 500);
-            }
-        }
-
-        return response()->json(['success' => false, 'message' => 'Fitur cetak native hanya tersedia pada aplikasi desktop.'], 400);
-    }
 }
-

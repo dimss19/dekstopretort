@@ -1,6 +1,5 @@
 import React, { ReactNode, useState, useEffect, useMemo } from 'react';
 import { router, Link } from '@inertiajs/react';
-import axios from 'axios';
 import {
     CheckCircle2,
     Download,
@@ -15,7 +14,7 @@ import {
 } from 'lucide-react';
 import ProcessDetailView from './ProcessDetailView';
 import { compareF0, filterHistories, getHistoryStatus, type HistoryStatus } from './historyHelpers';
-import { calculateF0 } from '@/Pages/Tn/retortTelemetry';
+import { calculateF0, calculateF0FromLogs } from '@/Pages/Tn/retortTelemetry';
 
 const Panel = ({ title, children, className = '' }: { title?: string; children: ReactNode; className?: string }) => (
     <section className={`rounded-3xl border border-slate-200/90 bg-white/95 p-7 shadow-lg backdrop-blur-xl ${className}`}>
@@ -42,8 +41,7 @@ const normalizePv = (l: any): number => {
 // ponytail: ringkasan verifikasi card-level, sumber nilai sama seperti ProcessDetailView.
 const getCardVerification = (batch: any, groups: HistorianListGroup[]) => {
     const status = getHistoryStatus(batch);
-    const temps = (batch.log_data || []).map(normalizePv).filter((pv: number) => pv > 0);
-    const systemF0 = calculateF0(temps, 1);
+    const systemF0 = calculateF0FromLogs(batch.log_data || []);
     const f0Result = compareF0(systemF0, batch.target_f0 ?? null) ?? '-';
     return {
         status,
@@ -114,7 +112,7 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
         });
     };
 
-    const handleDownload = (batch: any, format: 'excel' | 'pdf') => {
+    const handleDownload = (batch: any, format: 'csv' | 'excel' | 'pdf') => {
         const logs = getChronologicalLogs(batch);
         if (!logs.length) {
             alert('Tidak ada data point pada batch ini.');
@@ -129,115 +127,75 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
         ]);
 
         const v = getCardVerification(batch, groups);
-        const rawReportMachine = batch.controller?.machine?.machine_name || (batch.controller as any)?.name || batch.controller?.model_type || 'Retort TN';
-        const reportMachine = rawReportMachine.replace(/Retort TNS/gi, 'Retort TN').replace(/TNS Controller/gi, 'Retort TN').replace(/^TNS$/i, 'Retort TN');
-        const title = `Batch Log Report: ${reportMachine}`;
 
-        if (format === 'excel') {
-            const excelTemplate = `
-                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-                <head>
-                    <meta charset="utf-8">
-                    <style>
-                        body { font-family: "Segoe UI", Arial, sans-serif; font-size: 11px; }
-                        table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
-                        th, td { border: 1px solid #cbd5e1; padding: 6px 8px; }
-                        .h { background: #1e3a5f; color: #ffffff; font-weight: bold; }
-                        .lbl { background: #f1f5f9; color: #1e3a5f; font-weight: bold; width: 25%; }
-                        .num { text-align: right; }
-                    </style>
-                </head>
-                <body>
-                    <h2 style="color: #1e3a5f; margin-bottom: 4px;">${title}</h2>
-                    <p style="color: #475569; margin-top: 0;">Start: ${new Date(batch.start_time).toLocaleString()} | End: ${new Date(batch.end_time).toLocaleString()}</p>
-                    <table border="1">
-                        <tr><td class="lbl">Status Verifikasi</td><td>${v.statusLabel}</td><td class="lbl">Product</td><td>${v.product}</td></tr>
-                        <tr><td class="lbl">Batch</td><td>${v.batchCode}</td><td class="lbl">Group</td><td>${v.groupName}</td></tr>
-                        <tr><td class="lbl">F0 Sistem</td><td>${v.systemF0.toFixed(2)} min</td><td class="lbl">Hasil F0</td><td>${v.f0Result}</td></tr>
-                        <tr><td class="lbl">Diverifikasi Oleh</td><td>${v.verifiedBy}</td><td class="lbl">Diverifikasi Tanggal</td><td>${v.verifiedAt}</td></tr>
-                    </table>
-                    <table border="1">
-                        <thead>
-                            <tr class="h"><th>Time</th><th>PV (&deg;C)</th><th>SV (&deg;C)</th></tr>
-                        </thead>
-                        <tbody>
-                            ${rows.map((r: any) => `<tr><td style="text-align: center;">${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
-                </body>
-                </html>
-            `;
-            const blob = new Blob([excelTemplate], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
+        if (format === 'csv' || format === 'excel') {
+            const summaryLines = [
+                'RINGKASAN VERIFIKASI',
+                `Status,${v.statusLabel}`,
+                `Product,"${v.product}"`,
+                `Batch,"${v.batchCode}"`,
+                `Group,"${v.groupName}"`,
+                `F0 Chamber (Retort),${v.systemF0.toFixed(2)} min`,
+                `Hasil F0,${v.f0Result}`,
+                `Diverifikasi Oleh,"${v.verifiedBy}"`,
+                `Diverifikasi Tanggal,"${v.verifiedAt}"`,
+                '',
+            ];
+            const csvContent = "data:text/csv;charset=utf-8,"
+                + [...summaryLines, headers.join(','), ...rows.map((e: any) => e.join(','))].join('\n');
+            const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
-            link.href = url;
-            link.setAttribute("download", `batch_${batch.id}_log.xls`);
+            link.setAttribute("href", encodedUri);
+            const ext = format === 'excel' ? 'csv' : 'csv';
+            link.setAttribute("download", `batch_${batch.id}_log.${ext}`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            URL.revokeObjectURL(url);
         } else if (format === 'pdf') {
-            const htmlContent = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <title>${title}</title>
-                    <style>
-                        @page { size: A4 portrait; margin: 10mm 12mm 12mm 12mm; }
-                        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; font-size: 11px; color: #1e293b; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
-                        th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
-                        th { background-color: #1e3a5f; color: #ffffff; }
-                        .num { text-align: right; font-family: monospace; }
-                        .no-print { margin-bottom: 16px; display: flex; gap: 8px; }
-                        .btn-print { background: #1e3a5f; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-                        .btn-close { background: #fff; color: #333; border: 1px solid #ccc; padding: 8px 12px; border-radius: 4px; cursor: pointer; }
-                        @media print { .no-print { display: none !important; } }
-                    </style>
-                </head>
-                <body>
-                    <h2 style="color: #1e3a5f; margin-bottom: 6px;">${title}</h2>
-                    <table style="width: 100%; margin-bottom: 15px;">
-                        <tr><td style="background: #f1f5f9; font-weight: bold; width: 25%;">Waktu Mulai</td><td>${new Date(batch.start_time).toLocaleString('id-ID')}</td></tr>
-                        <tr><td style="background: #f1f5f9; font-weight: bold;">Waktu Selesai</td><td>${batch.end_time ? new Date(batch.end_time).toLocaleString('id-ID') : 'Sedang Berjalan'}</td></tr>
-                        <tr><td style="background: #f1f5f9; font-weight: bold;">Status Verifikasi</td><td>${v.statusLabel}</td></tr>
-                        <tr><td style="background: #f1f5f9; font-weight: bold;">Product</td><td>${v.product}</td></tr>
-                        <tr><td style="background: #f1f5f9; font-weight: bold;">Batch</td><td>${v.batchCode}</td></tr>
-                        <tr><td style="background: #f1f5f9; font-weight: bold;">Group</td><td>${v.groupName}</td></tr>
-                        <tr><td style="background: #f1f5f9; font-weight: bold;">F0 Sistem</td><td>${v.systemF0.toFixed(2)} min</td></tr>
-                        <tr><td style="background: #f1f5f9; font-weight: bold;">Hasil F0</td><td>${v.f0Result}</td></tr>
-                        <tr><td style="background: #f1f5f9; font-weight: bold;">Diverifikasi Oleh</td><td>${v.verifiedBy}</td></tr>
-                        <tr><td style="background: #f1f5f9; font-weight: bold;">Diverifikasi Tanggal</td><td>${v.verifiedAt}</td></tr>
-                    </table>
-                    <table>
-                        <thead>
-                            <tr><th>Time</th><th class="num">PV (&deg;C)</th><th class="num">SV (&deg;C)</th></tr>
-                        </thead>
-                        <tbody>
-                            ${rows.map((r: any) => `<tr><td style="text-align: center;">${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td></tr>`).join('')}
-                        </tbody>
-                    </table>
-                </body>
-                </html>
-            `;
-
-            axios.post(`/historian/${batch.id}/export-pdf`, { html: htmlContent }, { responseType: 'blob' })
-                .then(res => {
-                    const blob = new Blob([res.data], { type: 'application/pdf' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement("a");
-                    link.href = url;
-                    link.setAttribute("download", `batch_${batch.id}_log.pdf`);
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
-                })
-                .catch(err => {
-                    console.error('PDF download error:', err);
-                    alert('Gagal mendownload PDF: ' + (err.response?.data?.message || err.message || 'Layanan tidak merespons'));
-                });
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+                const rawReportMachine = batch.controller?.machine?.machine_name || (batch.controller as any)?.name || batch.controller?.model_type || 'Retort TN';
+                const reportMachine = rawReportMachine.replace(/Retort TNS/gi, 'Retort TN').replace(/TNS Controller/gi, 'Retort TN').replace(/^TNS$/i, 'Retort TN');
+                const title = `Batch Log Report: ${reportMachine}`;
+                printWindow.document.write(`
+                    <html>
+                    <head>
+                        <title>${title}</title>
+                        <style>
+                            body { font-family: sans-serif; padding: 20px; }
+                            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+                            th { background-color: #f0f0f0; }
+                        </style>
+                    </head>
+                    <body>
+                        <h2>${title}</h2>
+                        <p>Start Time: ${new Date(batch.start_time).toLocaleString()}</p>
+                        <p>End Time: ${new Date(batch.end_time).toLocaleString()}</p>
+                        <p>Status Verifikasi: ${v.statusLabel}</p>
+                        <p>Product: ${v.product}</p>
+                        <p>Batch: ${v.batchCode}</p>
+                        <p>Group: ${v.groupName}</p>
+                        <p>F0 Chamber (Retort): ${v.systemF0.toFixed(2)} min</p>
+                        <p>Hasil F0: ${v.f0Result}</p>
+                        <p>Diverifikasi Oleh: ${v.verifiedBy}</p>
+                        <p>Diverifikasi Tanggal: ${v.verifiedAt}</p>
+                        <table>
+                            <thead>
+                                <tr><th>Time</th><th>PV (&deg;C)</th><th>SV (&deg;C)</th></tr>
+                            </thead>
+                            <tbody>
+                                ${rows.map((r: any) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+                        <script>
+                            window.onload = function() { window.print(); window.close(); }
+                        </script>
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+            }
         }
     };
 
@@ -305,11 +263,10 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                 <button
                                     key={x}
                                     onClick={() => { setPeriod(x as any); setCustomDate(''); }}
-                                    className={`rounded-xl px-4 py-2 text-xs font-black transition-all ${
-                                        period === x && !customDate
+                                    className={`rounded-xl px-4 py-2 text-xs font-black transition-all ${period === x && !customDate
                                             ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-sm'
                                             : 'text-slate-600 hover:text-slate-900'
-                                    }`}
+                                        }`}
                                 >
                                     {x}
                                 </button>
@@ -352,18 +309,17 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                             const count = s === 'unverified'
                                 ? histories.filter((h) => getHistoryStatus(h) === 'unverified').length
                                 : s === 'verified'
-                                ? histories.filter((h) => getHistoryStatus(h) === 'verified').length
-                                : histories.length;
+                                    ? histories.filter((h) => getHistoryStatus(h) === 'verified').length
+                                    : histories.length;
 
                             return (
                                 <button
                                     key={s}
                                     onClick={() => setStatusFilter(s)}
-                                    className={`relative flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-black transition-all ${
-                                        statusFilter === s
+                                    className={`relative flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-black transition-all ${statusFilter === s
                                             ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-sm'
                                             : 'text-slate-600 hover:text-slate-900'
-                                    }`}
+                                        }`}
                                 >
                                     {s === 'unverified' && count > 0 && (
                                         <span className="relative flex h-2 w-2">
@@ -384,22 +340,20 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                         <>
                             <button
                                 onClick={() => setGroupFilter('all')}
-                                className={`rounded-full border px-3 py-1 text-xs font-black transition-all ${
-                                    groupFilter === 'all'
+                                className={`rounded-full border px-3 py-1 text-xs font-black transition-all ${groupFilter === 'all'
                                         ? 'bg-slate-900 text-white border-slate-900'
                                         : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
-                                }`}
+                                    }`}
                             >
                                 Semua
                             </button>
                             {groups.map((g) => (
                                 <span
                                     key={g.id}
-                                    className={`inline-flex items-center gap-1 rounded-full border pl-3 pr-1 py-1 text-xs font-black transition-all ${
-                                        groupFilter === g.id
+                                    className={`inline-flex items-center gap-1 rounded-full border pl-3 pr-1 py-1 text-xs font-black transition-all ${groupFilter === g.id
                                             ? 'bg-slate-900 text-white border-slate-900'
                                             : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
-                                    }`}
+                                        }`}
                                 >
                                     <button onClick={() => setGroupFilter(groupFilter === g.id ? 'all' : g.id)} className="flex items-center gap-1.5">
                                         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: g.color }} />
@@ -557,11 +511,10 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                         return (
                             <div
                                 key={h.id}
-                                className={`relative rounded-3xl border ${
-                                    status === 'unverified'
+                                className={`relative rounded-3xl border ${status === 'unverified'
                                         ? 'border-rose-300 bg-white shadow-md hover:shadow-xl ring-1 ring-rose-200/80'
                                         : 'border-slate-200 bg-white shadow-md hover:shadow-xl'
-                                } p-6 transition-all duration-300 flex flex-col justify-between`}
+                                    } p-6 transition-all duration-300 flex flex-col justify-between`}
                             >
                                 <div>
                                     <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-3">
@@ -605,7 +558,13 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                                     >
                                                         <Eye size={14} className="text-blue-600" /> Lihat Detail Log
                                                     </Link>
-
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { handleDownload(h, 'csv'); setActiveMenu(null); }}
+                                                        className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left"
+                                                    >
+                                                        <Download size={14} className="text-emerald-600" /> Export CSV
+                                                    </button>
                                                     <button
                                                         type="button"
                                                         onClick={() => { handleDownload(h, 'pdf'); setActiveMenu(null); }}
@@ -671,9 +630,9 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                     )}
                                     <button
                                         type="button"
-                                        onClick={() => handleDownload(h, 'excel')}
+                                        onClick={() => handleDownload(h, 'csv')}
                                         className="rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 p-2.5 transition-colors"
-                                        title="Export Excel"
+                                        title="Export CSV"
                                     >
                                         <Download size={14} />
                                     </button>

@@ -3,6 +3,7 @@ import {
     buildRetortEvents,
     buildRetortTelemetry,
     calculateF0,
+    calculateF0FromLogs,
     formatControllerTime,
     getAlarmIds,
     segmentThermalSteps,
@@ -95,16 +96,62 @@ describe('retort telemetry normalization', () => {
     });
 
     it('calculates F0 thermal lethality value accurately for sterilization temperatures', () => {
-        // At exactly 121.11°C for 60 seconds (1 minute), F0 should be 1.0
-        expect(calculateF0(Array(60).fill(121.11), 1)).toBe(1);
-        // At 100°C for 10 minutes, F0 should be small (~0.08)
-        expect(calculateF0(Array(600).fill(100), 1)).toBe(0.08);
+        // At exactly 121.11°C for 61 points (60 intervals of 1s = 1 minute), F0 should be 1.0
+        expect(calculateF0(Array(61).fill(121.11), 1)).toBe(1);
+        // At 100°C for 601 points (600 intervals of 1s = 10 minutes), F0 should be small (~0.08)
+        expect(calculateF0(Array(601).fill(100), 1)).toBe(0.08);
         // Under 100°C contributes 0 to F0
-        expect(calculateF0(Array(600).fill(90), 1)).toBe(0);
+        expect(calculateF0(Array(601).fill(90), 1)).toBe(0);
     });
 
     it('uses Tref 121.1 (suhu pattern 121.0, bukan terpaku 121.11)', () => {
-        expect(calculateF0(Array(600).fill(121.0), 1)).toBe(9.77);
+        expect(calculateF0(Array(601).fill(121.0), 1)).toBe(9.77);
+    });
+
+    it('calculates F0 from logs with 1s, 1min, irregular intervals, duplicates, and gaps (matching Backend)', () => {
+        const baseTime = new Date('2026-09-30T08:00:00Z').getTime();
+
+        // 1. Log 1 detik (1801 titik = 1800 detik = 30 menit holding pada 121.1 C)
+        const logs1s = Array.from({ length: 1801 }, (_, i) => ({
+            pv: 121.1,
+            created_at: new Date(baseTime + i * 1000).toISOString(),
+        }));
+        expect(calculateF0FromLogs(logs1s)).toBe(30.0);
+
+        // 2. Log 1 menit (61 titik = 60 menit holding pada 121.1 C)
+        const logs1min = Array.from({ length: 61 }, (_, m) => ({
+            pv: 121.1,
+            created_at: new Date(baseTime + m * 60000).toISOString(),
+        }));
+        expect(calculateF0FromLogs(logs1min, { maxGapSeconds: 300 })).toBe(60.0);
+
+        // 3. Log interval tidak beraturan (10s, 20s, 30s)
+        const logsIrregular = [
+            { pv: 120.0, created_at: new Date(baseTime).toISOString() },
+            { pv: 121.0, created_at: new Date(baseTime + 10000).toISOString() },
+            { pv: 122.0, created_at: new Date(baseTime + 30000).toISOString() },
+            { pv: 121.1, created_at: new Date(baseTime + 60000).toISOString() },
+        ];
+        expect(calculateF0FromLogs(logsIrregular)).toBe(1.07);
+
+        // 4. Duplikat dan timestamp terbalik
+        const logsWithDuplicates = [
+            { pv: 121.1, created_at: new Date(baseTime + 20000).toISOString() },
+            { pv: 121.1, created_at: new Date(baseTime).toISOString() },
+            { pv: 121.1, created_at: new Date(baseTime + 20000).toISOString() }, // duplicate
+            { pv: 121.1, created_at: new Date(baseTime + 60000).toISOString() },
+        ];
+        expect(calculateF0FromLogs(logsWithDuplicates)).toBe(1.0);
+
+        // 5. Gap besar terputus (> 120s) tidak menambah phantom lethality
+        const logsWithGap = [
+            { pv: 121.1, created_at: new Date(baseTime).toISOString() },
+            { pv: 121.1, created_at: new Date(baseTime + 30000).toISOString() }, // +30s
+            // Sensor disconnect for 15 minutes (900s > 120s)
+            { pv: 121.1, created_at: new Date(baseTime + 930000).toISOString() }, // gap ignored
+            { pv: 121.1, created_at: new Date(baseTime + 960000).toISOString() }, // +30s
+        ];
+        expect(calculateF0FromLogs(logsWithGap, { maxGapSeconds: 120 })).toBe(1.0);
     });
 
     it('segments multi-step retort process into named categories with duration', () => {

@@ -1,11 +1,12 @@
 import argparse
 import json
 import sys
+import threading
+import socket
 from pymodbus.client import ModbusSerialClient
 from pymodbus.exceptions import ModbusException
 import serial.tools.list_ports
 import re
-
 import os
 if os.name == 'nt':
     try:
@@ -257,6 +258,134 @@ def read_all(client, args):
             results[slave_id] = {"success": False, "error": str(e)}
     return {"success": True, "controllers": results}
 
+HANDLERS = {
+    "read_input": read_input,
+    "read_holding": read_holding,
+    "read_coil": read_coil,
+    "read_discrete": read_discrete,
+    "write_register": write_register,
+    "write_coil": write_coil,
+    "write_registers": write_registers,
+    "test_connection": test_connection,
+    "toggle_pin": toggle_pin
+}
+
+class CommandArgs:
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+        if not hasattr(self, 'slave'): self.slave = 1
+        if not hasattr(self, 'addr'): self.addr = 0
+        if not hasattr(self, 'count'): self.count = 1
+        if not hasattr(self, 'value'): self.value = 0
+        if not hasattr(self, 'values'): self.values = ''
+        if not hasattr(self, 'channel'): self.channel = ''
+
+def execute_modbus_req(client, req, lock):
+    cmd = req.get("command")
+    if cmd == "ping":
+        return {"pong": True, "success": True}
+
+    with lock:
+        if cmd == "read_all":
+            slaves = req.get("slaves", [1])
+            addr = req.get("addr", 1000)
+            count = req.get("count", 27)
+            results = {}
+            for slave_id in slaves:
+                try:
+                    if hasattr(client, 'socket') and client.socket and getattr(client.socket, 'is_open', False):
+                        try:
+                            client.socket.reset_input_buffer()
+                            client.socket.reset_output_buffer()
+                        except Exception:
+                            pass
+                    response = client.read_input_registers(address=addr, count=count, device_id=slave_id)
+                    if response.isError():
+                        results[slave_id] = {"success": False, "error": f"Modbus Exception: {response}"}
+                    else:
+                        results[slave_id] = {"success": True, "data": response.registers}
+                except Exception as e:
+                    results[slave_id] = {"success": False, "error": str(e)}
+            return {"success": True, "controllers": results}
+
+        elif cmd in HANDLERS:
+            try:
+                args_obj = CommandArgs(**req)
+                if cmd == 'write_coil':
+                    args_obj.value = bool(args_obj.value)
+                return HANDLERS[cmd](client, args_obj)
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        else:
+            return {"success": False, "error": f"Unknown command {cmd}"}
+
+def start_tcp_listener(client, lock, port=5029):
+    def listener_thread():
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind(('127.0.0.1', port))
+            sock.listen(10)
+            while True:
+                conn, _ = sock.accept()
+                def handle_conn(c):
+                    try:
+                        f = c.makefile('r', encoding='utf-8')
+                        for line in f:
+                            raw = line.strip()
+                            if not raw:
+                                continue
+                            try:
+                                r = json.loads(raw)
+                                res = execute_modbus_req(client, r, lock)
+                                c.sendall((json.dumps(res) + "\n").encode('utf-8'))
+                            except Exception as ex:
+                                c.sendall((json.dumps({"success": False, "error": str(ex)}) + "\n").encode('utf-8'))
+                    except Exception:
+                        pass
+                    finally:
+                        c.close()
+                t = threading.Thread(target=handle_conn, args=(conn,))
+                t.daemon = True
+                t.start()
+        except Exception as e:
+            sys.stderr.write(f"TCP listener error on port {port}: {e}\n")
+            sys.stderr.flush()
+
+    tcp_thread = threading.Thread(target=listener_thread)
+    tcp_thread.daemon = True
+    tcp_thread.start()
+
+def run_worker(client, args):
+    """
+    Persistent line-based JSON-RPC worker via stdin/stdout and loopback TCP 127.0.0.1:5029.
+    Keeps the serial port open continuously for ultra-low latency (<130ms) Modbus communication.
+    """
+    lock = threading.Lock()
+    tcp_port = getattr(args, 'tcp_port', 5029) or 5029
+    start_tcp_listener(client, lock, tcp_port)
+
+    sys.stdout.write(json.dumps({"ready": True, "tcp_port": tcp_port}) + "\n")
+    sys.stdout.flush()
+
+    for raw_line in sys.stdin:
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            req = json.loads(line)
+            if req.get("command") == "exit":
+                sys.stdout.write(json.dumps({"success": True}) + "\n")
+                sys.stdout.flush()
+                break
+            res = execute_modbus_req(client, req, lock)
+            sys.stdout.write(json.dumps(res) + "\n")
+            sys.stdout.flush()
+        except Exception as e:
+            sys.stdout.write(json.dumps({"success": False, "error": str(e)}) + "\n")
+            sys.stdout.flush()
+
 def main():
     parser = argparse.ArgumentParser(description="Modbus Bridge for Laravel")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -332,6 +461,10 @@ def main():
     p_ra.add_argument("--addr", type=int, default=1000, help="Start address")
     p_ra.add_argument("--count", type=int, default=27, help="Register count")
 
+    # worker - persistent JSON-RPC worker via stdin/stdout
+    p_w = subparsers.add_parser("worker")
+    p_w.add_argument("--tcp-port", type=int, default=5029, help="Loopback TCP port for external IPC")
+
     args = parser.parse_args()
     
     # pymodbus expects bool for write_coil value
@@ -346,6 +479,18 @@ def main():
     if args.command == 'scan_ports':
         result = scan_ports(None, args)
         print(json.dumps(result))
+        sys.exit(0)
+
+    if args.command == 'worker':
+        if not args.port:
+            print(json.dumps({"success": False, "error": "--port is required for worker"}))
+            sys.exit(0)
+        client = setup_client(args)
+        if not client.connect():
+            print(json.dumps({"success": False, "error": f"Could not connect to {args.port}"}))
+            sys.exit(0)
+        run_worker(client, args)
+        client.close()
         sys.exit(0)
 
     if args.command == 'read_all':
@@ -370,19 +515,7 @@ def main():
         print(json.dumps({"success": False, "error": f"Could not connect to {args.port}"}))
         sys.exit(0)
         
-    handlers = {
-        "read_input": read_input,
-        "read_holding": read_holding,
-        "read_coil": read_coil,
-        "read_discrete": read_discrete,
-        "write_register": write_register,
-        "write_coil": write_coil,
-        "write_registers": write_registers,
-        "test_connection": test_connection,
-        "toggle_pin": toggle_pin
-    }
-    
-    result = handlers[args.command](client, args)
+    result = HANDLERS[args.command](client, args)
     client.close()
     
     print(json.dumps(result))

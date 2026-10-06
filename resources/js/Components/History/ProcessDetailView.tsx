@@ -1,21 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { router, Link } from '@inertiajs/react';
-import axios from 'axios';
 import {
     ChevronLeft,
     ChevronDown,
     Download,
     FileText,
     FileSpreadsheet,
-    Printer,
-    Eye,
-    Loader2,
     CheckCircle2,
     Clock,
-    AlertCircle,
+    Info,
 } from 'lucide-react';
 import RetortThermalChart from '@/Components/Tn/RetortThermalChart';
-import { calculateF0 } from '@/Pages/Tn/retortTelemetry';
+import { calculateF0, calculateF0FromLogs } from '@/Pages/Tn/retortTelemetry';
 import { compareF0 } from './historyHelpers';
 
 export interface ProcessBatchItem {
@@ -74,16 +70,15 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
         ? Math.max(1, Math.round((endTime.getTime() - startTime.getTime()) / 60000))
         : null;
 
-    const timeRangeStr = `${startTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} - ${
-        endTime ? endTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Sedang Berjalan'
-    }`;
+    const timeRangeStr = `${startTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} - ${endTime ? endTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Sedang Berjalan'
+        }`;
 
     const rawMachineTitle =
         batch.controller?.machine?.machine_name ||
         (batch.controller as any)?.name ||
         batch.controller?.model_type ||
         `Controller #${batch.tn_controller_id || batch.id}`;
-    const machineTitle = rawMachineTitle.replace(/Retort TNS/gi, 'TN').replace(/TNS Controller/gi, 'TN').replace(/^TNS$/i, 'TN');
+    const machineTitle = rawMachineTitle.replace(/Retort TNS/gi, 'Retort TN').replace(/TNS Controller/gi, 'Retort TN').replace(/^TNS$/i, 'Retort TN');
 
     // Target SV detection from logs
     const targetSv = useMemo(() => {
@@ -397,18 +392,9 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
         return { maxPv, minPv, avgPv };
     }, [logs]);
 
-    // F0 sistem otomatis dari logs (mapping pv/dp sama seperti statsData)
+    // F0 Chamber otomatis dari logs menggunakan metode Trapezoidal dan timestamp aktual
     const systemF0 = useMemo(() => {
-        const temps = logs
-            .map((l) => {
-                const rawPv = Number(l.pv ?? l.actual ?? 0);
-                const dp = Number(l.decimal_point ?? 0);
-                let pv = dp > 0 ? rawPv / Math.pow(10, dp) : rawPv;
-                if (pv > 300) pv = pv / 10.0;
-                return pv;
-            })
-            .filter((pv) => pv > 0);
-        return calculateF0(temps, 1);
+        return calculateF0FromLogs(logs);
     }, [logs]);
 
     const isVerified = batch.verification_status === 'verified';
@@ -426,22 +412,16 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
     );
     const [deviation, setDeviation] = useState<string>(batch.process_deviation ?? 'None');
     const [criterion, setCriterion] = useState<string>(batch.sterility_criterion ?? 'PASS');
+    const [thermalRecord, setThermalRecord] = useState<string>(batch.thermal_record ?? 'VERIFIED');
     const [groupId, setGroupId] = useState<string>(
         batch.group_id !== null && batch.group_id !== undefined ? String(batch.group_id) : groups.length > 0 ? String(groups[0].id) : ''
     );
-    const [errors, setErrors] = useState<{
-        product?: string;
-        batchCode?: string;
-        scheduledProcess?: string;
-        minF0?: string;
-        targetF0?: string;
-    }>({});
 
     const liveResult = targetF0.trim() === '' ? null : compareF0(systemF0, Number(targetF0));
     const liveFail = isUnverified && liveResult === 'FAIL';
     const effectiveCriterion = liveFail ? 'FAIL' : criterion;
 
-    // ponytail: derived sekali untuk 2 export (PDF/Excel)
+    // ponytail: derived sekali untuk 3 export (PDF/Excel/CSV)
     const groupName = groups.find((g) => g.id === batch.group_id)?.name ?? (batch.group_id ? `#${batch.group_id}` : '-');
     const verifyStatusLabel = isVerified ? 'VERIFIED' : !batch.end_time ? 'Sedang Berjalan' : 'UNVERIFIED';
     const exportF0Result = compareF0(systemF0, batch.target_f0 ?? (targetF0.trim() === '' ? null : Number(targetF0))) ?? '-';
@@ -450,49 +430,6 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
 
     const handleVerifySubmit = (e: React.FormEvent) => {
         e.preventDefault();
-
-        const newErrors: {
-            product?: string;
-            batchCode?: string;
-            scheduledProcess?: string;
-            minF0?: string;
-            targetF0?: string;
-        } = {};
-
-        if (!product.trim()) {
-            newErrors.product = 'Product belum diisi';
-        }
-        if (!batchCode.trim()) {
-            newErrors.batchCode = 'Batch belum diisi';
-        }
-        if (!scheduledProcess.trim()) {
-            newErrors.scheduledProcess = 'Scheduled Process belum diisi';
-        }
-        if (minF0.trim() === '') {
-            newErrors.minF0 = 'Minimum F0 belum diisi';
-        }
-        if (targetF0.trim() === '') {
-            newErrors.targetF0 = 'Target F0 belum diisi';
-        }
-
-        if (Object.keys(newErrors).length > 0) {
-            setErrors(newErrors);
-            if (newErrors.product) {
-                document.getElementById('verify-product-input')?.focus();
-            } else if (newErrors.batchCode) {
-                document.getElementById('verify-batch-input')?.focus();
-            } else if (newErrors.scheduledProcess) {
-                document.getElementById('verify-process-input')?.focus();
-            } else if (newErrors.minF0) {
-                document.getElementById('verify-minf0-input')?.focus();
-            } else if (newErrors.targetF0) {
-                document.getElementById('verify-targetf0-input')?.focus();
-            }
-            return;
-        }
-
-        setErrors({});
-
         router.post(route('tn.history.verify', batch.id), {
             product,
             batch_code: batchCode,
@@ -501,26 +438,16 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
             target_f0: targetF0 === '' ? null : Number(targetF0),
             process_deviation: deviation,
             sterility_criterion: effectiveCriterion,
-            thermal_record: 'VERIFIED',
+            thermal_record: thermalRecord,
             group_id: groupId ? Number(groupId) : null,
-        }, {
-            onError: (err) => {
-                const mapped: Record<string, string> = {};
-                if (err.product) mapped.product = err.product;
-                if (err.batch_code) mapped.batchCode = err.batch_code;
-                if (err.scheduled_process) mapped.scheduledProcess = err.scheduled_process;
-                if (err.min_f0_achieved) mapped.minF0 = err.min_f0_achieved;
-                if (err.target_f0) mapped.targetF0 = err.target_f0;
-                setErrors(mapped);
-            }
         });
     };
 
-    const [isExportingPdf, setIsExportingPdf] = useState(false);
-    const [isPrintingNative, setIsPrintingNative] = useState(false);
+    // Export Handlers
+    const handleDownloadPDF = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
 
-    // Helper: generate full HTML string for report
-    const generateReportHtml = (isForPreview: boolean = false) => {
         const chartDataUrl = generateThermalChartDataUrl();
 
         const rows = logs.map((l, idx) => {
@@ -547,71 +474,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
             };
         });
 
-        const previewBarHtml = isForPreview ? `
-            <div class="no-print">
-                <div>
-                    <strong>Laporan Sterilisasi Batch #${batch.id}</strong> — Siap untuk dicetak atau disimpan sebagai PDF.
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <button id="btnSavePdf" class="btn-print" style="background: #2563eb;">Simpan File PDF</button>
-                    <button id="btnPrintNative" class="btn-print" style="background: #1e3a5f;">Cetak ke Printer</button>
-                    <button onclick="window.close()" class="btn-close">Tutup</button>
-                </div>
-            </div>
-        ` : '';
-
-        const previewScriptHtml = isForPreview ? `
-            <script>
-                document.getElementById('btnSavePdf')?.addEventListener('click', function() {
-                    if (window.opener && window.opener.saveReportPdf) {
-                        window.opener.saveReportPdf();
-                    } else {
-                        fetch('/historian/${batch.id}/export-pdf', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ html: document.documentElement.outerHTML })
-                        })
-                        .then(function(res) { return res.blob(); })
-                        .then(function(blob) {
-                            var url = URL.createObjectURL(blob);
-                            var a = document.createElement('a');
-                            a.href = url;
-                            a.download = 'Laporan_Batch_${batch.id}.pdf';
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
-                        })
-                        .catch(function(err) {
-                            alert('Gagal mendownload PDF: ' + err.message);
-                        });
-                    }
-                });
-
-                document.getElementById('btnPrintNative')?.addEventListener('click', function() {
-                    if (window.opener && window.opener.printReportNative) {
-                        window.opener.printReportNative();
-                    } else {
-                        fetch('/historian/${batch.id}/print-native', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ html: document.documentElement.outerHTML })
-                        })
-                        .then(function(res) { return res.json(); })
-                        .then(function(data) {
-                            if (!data.success) {
-                                window.print();
-                            }
-                        })
-                        .catch(function() {
-                            window.print();
-                        });
-                    }
-                });
-            </script>
-        ` : '';
-
-        return `
+        printWindow.document.write(`
             <!DOCTYPE html>
             <html lang="id">
             <head>
@@ -648,9 +511,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         border-radius: 6px;
                         cursor: pointer;
                         font-size: 12px;
-                        transition: opacity 0.2s;
                     }
-                    .btn-print:hover { opacity: 0.9; }
                     .btn-close {
                         background: #ffffff;
                         color: #475569;
@@ -679,7 +540,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         color: #475569;
                         font-weight: 600;
                     }
-                    /* Summary KPI Table */
+                    /* Summary KPI Table (Surface Mine Production Style) */
                     .summary-table {
                         width: 100%;
                         border-collapse: collapse;
@@ -776,7 +637,15 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                 </style>
             </head>
             <body>
-                ${previewBarHtml}
+                <div class="no-print">
+                    <div>
+                        <strong>Laporan Sterilisasi Batch #${batch.id}</strong> — Siap untuk dicetak atau disimpan sebagai PDF.
+                    </div>
+                    <div>
+                        <button onclick="window.print()" class="btn-print">Cetak / Simpan PDF</button>
+                        <button onclick="window.close()" class="btn-close">Tutup</button>
+                    </div>
+                </div>
 
                 <div class="header">
                     <h1>Laporan Proses Sterilisasi Batch #${batch.id}</h1>
@@ -786,7 +655,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                     </div>
                 </div>
 
-                <!-- Summary KPI Table -->
+                <!-- Summary KPI Table (Surface Mine Production Layout) -->
                 <table class="summary-table">
                     <tr>
                         <td class="lbl">Waktu Mulai</td>
@@ -833,7 +702,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         <td class="val">${groupName}</td>
                     </tr>
                     <tr>
-                        <td class="lbl">F0 Sistem</td>
+                        <td class="lbl">F0 Chamber (Retort)</td>
                         <td class="num">${systemF0.toFixed(2)} min</td>
                         <td class="lbl">Hasil F0</td>
                         <td class="num">${exportF0Result}</td>
@@ -867,8 +736,8 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                     </thead>
                     <tbody>
                         ${rows
-                            .map(
-                                (r) => `
+                .map(
+                    (r) => `
                             <tr>
                                 <td style="text-align: center; color: #64748b;">${r.no}</td>
                                 <td>${r.time}</td>
@@ -878,85 +747,29 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                 <td>${r.phase}</td>
                             </tr>
                         `
-                            )
-                            .join('')}
+                )
+                .join('')}
                     </tbody>
                 </table>
 
-                ${previewScriptHtml}
+                <script>
+                    function doPrint() {
+                        setTimeout(function() {
+                            window.print();
+                        }, 350);
+                    }
+                    var img = document.getElementById('chartImg');
+                    if (img && !img.complete) {
+                        img.onload = doPrint;
+                    } else {
+                        doPrint();
+                    }
+                </script>
             </body>
             </html>
-        `;
-    };
-
-    // Export Handlers
-    const handleDownloadPDF = async () => {
-        if (isExportingPdf) return;
-        setIsExportingPdf(true);
-        try {
-            const reportHtml = generateReportHtml(false);
-            const response = await axios.post(`/historian/${batch.id}/export-pdf`, {
-                html: reportHtml,
-            }, {
-                responseType: 'blob',
-                timeout: 60000,
-            });
-
-            const blob = new Blob([response.data], { type: 'application/pdf' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `Laporan_Batch_${batch.id}_${machineTitle.replace(/\s+/g, '_')}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        } catch (err: any) {
-            console.error('Download PDF error:', err);
-            alert('Gagal mendownload PDF secara otomatis: ' + (err.response?.data?.message || err.message || 'Layanan tidak merespons'));
-        } finally {
-            setIsExportingPdf(false);
-        }
-    };
-
-    const handlePrintReport = async () => {
-        if (isPrintingNative) return;
-        setIsPrintingNative(true);
-        try {
-            const reportHtml = generateReportHtml(false);
-            const res = await axios.post(`/historian/${batch.id}/print-native`, {
-                html: reportHtml,
-            }, {
-                timeout: 30000,
-            });
-            if (res.data?.success) {
-                return;
-            }
-            handleOpenPreview();
-        } catch (err) {
-            console.warn('Native print error, falling back to preview window', err);
-            handleOpenPreview();
-        } finally {
-            setIsPrintingNative(false);
-        }
-    };
-
-    const handleOpenPreview = () => {
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) return;
-        const reportHtml = generateReportHtml(true);
-        printWindow.document.write(reportHtml);
+        `);
         printWindow.document.close();
     };
-
-    useEffect(() => {
-        (window as any).saveReportPdf = handleDownloadPDF;
-        (window as any).printReportNative = handlePrintReport;
-        return () => {
-            delete (window as any).saveReportPdf;
-            delete (window as any).printReportNative;
-        };
-    }, [batch.id, logs, machineTitle]);
 
     // Excel (.xls) Export matching surface-mine-production
     const handleDownloadExcel = () => {
@@ -1032,7 +845,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         <td class="lbl">Group</td><td>${groupName}</td>
                     </tr>
                     <tr>
-                        <td class="lbl">F0 Sistem</td><td class="num" style="mso-number-format:'0\\.00';">${systemF0.toFixed(2)} min</td>
+                        <td class="lbl">F0 Chamber (Retort)</td><td class="num" style="mso-number-format:'0\\.00';">${systemF0.toFixed(2)} min</td>
                         <td class="lbl">Hasil F0</td><td class="num">${exportF0Result}</td>
                     </tr>
                     <tr>
@@ -1092,6 +905,74 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
         URL.revokeObjectURL(url);
     };
 
+    const handleDownloadCSV = () => {
+        if (!logs.length) return;
+
+        // Construct formatted CSV with Metadata, KPI summary, and Data rows
+        const metaSection = [
+            `LAPORAN PROSES STERILISASI RETORT`,
+            `Nomor Batch,#${batch.id}`,
+            `Mesin / Controller,"${machineTitle}"`,
+            `Waktu Mulai,"${startTime.toLocaleString('id-ID')}"`,
+            `Waktu Selesai,"${endTime ? endTime.toLocaleString('id-ID') : 'Sedang Berjalan'}"`,
+            `Total Durasi,"${durationMinutes !== null ? `${durationMinutes} Menit` : '--'}"`,
+            `Status,"${batch.end_time ? 'Selesai' : 'Sedang Berjalan'}"`,
+            `Status Verifikasi,"${verifyStatusLabel}"`,
+            `Product,"${batch.product ?? '-'}"`,
+            `Batch,"${batch.batch_code ?? '-'}"`,
+            `Group,"${groupName}"`,
+            `F0 Chamber (Retort),"${systemF0.toFixed(2)} min"`,
+            `Hasil F0,"${exportF0Result}"`,
+            `Diverifikasi Oleh,"${verifiedByTxt}"`,
+            `Diverifikasi Tanggal,"${verifiedAtTxt}"`,
+            ``,
+            `RINGKASAN PARAMETER STERILISASI`,
+            `Target Suhu (SV),${targetSv.toFixed(1)} °C`,
+            `Suhu Maksimum (Max PV),${statsData.maxPv.toFixed(1)} °C`,
+            `Suhu Minimum (Min PV),${statsData.minPv.toFixed(1)} °C`,
+            `Suhu Rata-rata (PV),${statsData.avgPv.toFixed(1)} °C`,
+            `Total Titik Data Log,${logs.length} Points`,
+            ``,
+            `DATA LOG DETAIL`,
+        ];
+
+        const headers = ['No', 'Waktu', 'Actual PV (°C)', 'Setting SV (°C)', 'Heating MV (%)', 'Fase Proses'];
+        const dataRows = logs.map((l, idx) => {
+            const rawPv = Number(l.pv ?? l.actual ?? 0);
+            const dp = Number(l.decimal_point ?? 0);
+            let pv = dp > 0 ? rawPv / Math.pow(10, dp) : rawPv;
+            if (pv > 300) pv = pv / 10.0;
+
+            const rawSv = Number(l.sv ?? l.setting ?? 121.0);
+            let sv = dp > 0 ? rawSv / Math.pow(10, dp) : rawSv;
+            if (sv > 300) sv = sv / 10.0;
+
+            const mv = Number(l.heating_mv ?? l.mv ?? 0);
+            const phase = l.phase_name || l.phase || (pv >= (sv - 2) ? 'Sterilisasi (Holding)' : (pv > 40 ? 'Heating' : 'Cooling'));
+            const timeStr = l.created_at ? new Date(l.created_at).toLocaleTimeString('id-ID') : `--:${idx}`;
+
+            return [
+                idx + 1,
+                `"${timeStr}"`,
+                pv.toFixed(1),
+                sv.toFixed(1),
+                `"${mv.toFixed(0)}%"`,
+                `"${phase}"`,
+            ].join(',');
+        });
+
+        // Add UTF-8 BOM so Excel displays Indonesian characters and accents cleanly
+        const csvContent = '\uFEFF' + [...metaSection, headers.join(','), ...dataRows].join('\r\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Laporan_Batch_${batch.id}_${machineTitle.replace(/\s+/g, '_')}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
 
     return (
         <div className="space-y-6">
@@ -1127,42 +1008,16 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         >
                             <button
                                 type="button"
-                                disabled={isExportingPdf}
                                 onClick={() => {
                                     handleDownloadPDF();
                                     setShowDownloadMenu(false);
                                 }}
-                                className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left disabled:opacity-50"
+                                className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left"
                             >
-                                {isExportingPdf ? (
-                                    <Loader2 size={15} className="animate-spin text-blue-600" />
-                                ) : (
-                                    <FileText size={15} className="text-blue-600" />
-                                )}
+                                <FileText size={15} className="text-blue-600" />
                                 <div>
-                                    <div className="font-extrabold text-slate-900">
-                                        {isExportingPdf ? 'Membuat PDF...' : 'Download PDF (.pdf)'}
-                                    </div>
-                                    <div className="text-[10px] text-slate-500 font-medium">Simpan dokumen langsung ke komputer</div>
-                                </div>
-                            </button>
-                            <button
-                                type="button"
-                                disabled={isPrintingNative}
-                                onClick={() => {
-                                    handlePrintReport();
-                                    setShowDownloadMenu(false);
-                                }}
-                                className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left disabled:opacity-50"
-                            >
-                                {isPrintingNative ? (
-                                    <Loader2 size={15} className="animate-spin text-indigo-600" />
-                                ) : (
-                                    <Printer size={15} className="text-indigo-600" />
-                                )}
-                                <div>
-                                    <div className="font-extrabold text-slate-900">Cetak ke Printer</div>
-                                    <div className="text-[10px] text-slate-500 font-medium">Buka dialog printer Windows</div>
+                                    <div className="font-extrabold text-slate-900">Download PDF</div>
+                                    <div className="text-[10px] text-slate-500 font-medium">Lengkap dengan Grafik Suhu</div>
                                 </div>
                             </button>
                             <button
@@ -1182,18 +1037,17 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                             <button
                                 type="button"
                                 onClick={() => {
-                                    handleOpenPreview();
+                                    handleDownloadCSV();
                                     setShowDownloadMenu(false);
                                 }}
-                                className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left border-t border-slate-100 mt-1 pt-2"
+                                className="w-full flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left"
                             >
-                                <Eye size={15} className="text-amber-600" />
+                                <Download size={15} className="text-amber-600" />
                                 <div>
-                                    <div className="font-extrabold text-slate-900">Pratinjau Dokumen</div>
-                                    <div className="text-[10px] text-slate-500 font-medium">Lihat tampilan laporan di jendela terpisah</div>
+                                    <div className="font-extrabold text-slate-900">Download CSV (.csv)</div>
+                                    <div className="text-[10px] text-slate-500 font-medium">Data Mentah Terstruktur</div>
                                 </div>
                             </button>
-
                         </div>
                     )}
                 </div>
@@ -1208,46 +1062,47 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                 Proses #{batch.id} ({machineTitle})
                             </h2>
                             {isUnverified ? (
-                                    <span className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 border border-rose-300 px-2.5 py-0.5 text-xs font-black text-rose-700 shadow-sm">
-                                        <span className="relative flex h-2 w-2">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
-                                        </span>
-                                        UNVERIFIED (Belum Ditulis / Diverifikasi)
+                                <span className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 border border-rose-300 px-2.5 py-0.5 text-xs font-black text-rose-700 shadow-sm">
+                                    <span className="relative flex h-2 w-2">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
                                     </span>
-                                ) : (
-                                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
-                                        <CheckCircle2 size={12} /> Selesai & VERIFIED
-                                    </span>
-                                )}
+                                    Belum Diverifikasi
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
+                                    <CheckCircle2 size={12} /> Selesai & VERIFIED
+                                </span>
+                            )}
                         </div>
                         <p className="text-xs font-semibold text-slate-500 mt-1">
                             {timeRangeStr} • {durationMinutes !== null ? `${durationMinutes} Menit` : '--'} • {logs.length} Data Points
                         </p>
                         <p className="text-xs font-bold text-slate-700 mt-1.5">
-                            F0 sistem (otomatis): {systemF0.toFixed(2)} min
+                            F₀ Chamber (Retort Exposure): {systemF0.toFixed(2)} min
                             {isUnverified && liveResult && (
                                 <span
-                                    className={`ml-2 inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-black ${
-                                        liveResult === 'VALID'
+                                    className={`ml-2 inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-black ${liveResult === 'VALID'
                                             ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                                             : 'bg-rose-50 border-rose-200 text-rose-700'
-                                    }`}
+                                        }`}
                                 >
                                     {liveResult}
                                 </span>
                             )}
                             {isVerified && (
                                 <span
-                                    className={`ml-2 inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-black ${
-                                        batch.sterility_criterion === 'PASS'
+                                    className={`ml-2 inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-black ${batch.sterility_criterion === 'PASS'
                                             ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                                             : 'bg-rose-50 border-rose-200 text-rose-700'
-                                    }`}
+                                        }`}
                                 >
-                                    {batch.sterility_criterion} • F0 {Number(batch.target_f0 ?? batch.min_f0_achieved ?? systemF0).toFixed(2)} min
+                                    {batch.sterility_criterion} • F₀ {Number(batch.target_f0 ?? batch.min_f0_achieved ?? systemF0).toFixed(2)} min
                                 </span>
                             )}
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-medium mt-1">
+                            *Sensor Autonics TN membaca suhu ruang retort (Chamber PV). Sterilitas komersial produk (Coldest Spot) diverifikasi dari Scheduled Process yang divalidasi dan Minimum F₀ Achieved.
                         </p>
                     </div>
                 </div>
@@ -1266,10 +1121,11 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Product</dt><dd className="font-extrabold text-slate-900 text-right">{batch.product ?? '-'}</dd></div>
                         <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Batch</dt><dd className="font-extrabold text-slate-900 text-right">{batch.batch_code ?? '-'}</dd></div>
                         <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Scheduled Process</dt><dd className="font-extrabold text-slate-900 text-right">{batch.scheduled_process ?? '-'}</dd></div>
-                        <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Minimum F0</dt><dd className="font-extrabold text-slate-900 text-right">{batch.min_f0_achieved ?? '-'} min</dd></div>
-                        <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Target F0</dt><dd className="font-extrabold text-slate-900 text-right">{batch.target_f0 ?? '-'} min</dd></div>
-                        <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Process deviation</dt><dd className="font-extrabold text-slate-900 text-right">{batch.process_deviation ?? '-'}</dd></div>
-                        <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Sterility criterion</dt><dd className="font-extrabold text-slate-900 text-right">{batch.sterility_criterion ?? '-'}</dd></div>
+                        <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Minimum F₀ Achieved</dt><dd className="font-extrabold text-slate-900 text-right">{batch.min_f0_achieved ?? '-'} min</dd></div>
+                        <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Target F₀</dt><dd className="font-extrabold text-slate-900 text-right">{batch.target_f0 ?? '-'} min</dd></div>
+                        <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Process Deviation</dt><dd className="font-extrabold text-slate-900 text-right">{batch.process_deviation ?? '-'}</dd></div>
+                        <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Commercial Sterility Process Criterion</dt><dd className="font-extrabold text-slate-900 text-right">{batch.sterility_criterion ?? '-'}</dd></div>
+                        <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Batch Thermal Record</dt><dd className="font-extrabold text-slate-900 text-right">{batch.thermal_record ?? '-'}</dd></div>
                         <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Group</dt><dd className="font-extrabold text-slate-900 text-right">{groups.find((g) => g.id === batch.group_id)?.name ?? (batch.group_id ? `#${batch.group_id}` : '-')}</dd></div>
                         <div className="flex justify-between gap-4 border-b border-emerald-100/70 pb-1.5"><dt className="font-bold text-slate-500">Verified by</dt><dd className="font-extrabold text-slate-900 text-right">{batch.verified_by ?? '-'}</dd></div>
                         <div className="flex justify-between gap-4 pb-1.5"><dt className="font-bold text-slate-500">Verified at</dt><dd className="font-extrabold text-slate-900 text-right">{batch.verified_at ? new Date(batch.verified_at).toLocaleString('id-ID') : '-'}</dd></div>
@@ -1284,188 +1140,277 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
                                 </span>
-                                <h2 className="font-extrabold text-slate-900 text-lg tracking-tight">Tulis & Verifikasi Batch (UNVERIFIED)</h2>
+                                <h2 className="font-extrabold text-slate-900 text-lg tracking-tight">Verifikasi (UNVERIFIED)</h2>
                             </div>
                             <p className="text-xs text-rose-700 mt-1 font-semibold">
-                                ⚠️ Batch ini belum diverifikasi. F0 sistem: {systemF0.toFixed(2)} min — Lengkapi data di bawah ini lalu klik Simpan Verifikasi.
+                                ⚠️ Batch ini belum diverifikasi. F₀ Chamber (Retort Exposure): {systemF0.toFixed(2)} min — Lengkapi data di bawah ini lalu klik Simpan Verifikasi.
                             </p>
                         </div>
                         <span className="text-[11px] font-black px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 border border-rose-300 uppercase tracking-wide">
                             Wajib Dilengkapi
                         </span>
                     </div>
-                    <form onSubmit={handleVerifySubmit} noValidate className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {Object.keys(errors).length > 0 && (
-                            <div className="sm:col-span-2 rounded-2xl border border-rose-300 bg-rose-50/90 p-3.5 text-xs text-rose-800 flex items-start gap-2.5 shadow-sm">
-                                <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
-                                <div>
-                                    <span className="font-extrabold block">Data verifikasi belum lengkap:</span>
-                                    <span className="font-medium text-rose-700">Mohon lengkapi {Object.values(errors).filter(Boolean).join(', ')}.</span>
+                    <form onSubmit={handleVerifySubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                                <label htmlFor="verify-product" className="text-xs font-extrabold text-slate-800">
+                                    Product
+                                </label>
+                                <span
+                                    title="Nama produk dan ukuran kemasan yang diproses."
+                                    className="inline-flex items-center text-slate-400 hover:text-slate-600 cursor-help transition-colors"
+                                >
+                                    <Info size={13} />
+                                </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-medium leading-tight">
+                                Nama produk dan ukuran kemasan yang diproses.
+                            </p>
+                            <input
+                                id="verify-product"
+                                type="text"
+                                required
+                                placeholder="Contoh: Rendang Sapi Pouch 250g"
+                                value={product}
+                                onChange={(e) => setProduct(e.target.value)}
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
+                            />
+                        </div>
+
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                                <label htmlFor="verify-batch" className="text-xs font-extrabold text-slate-800">
+                                    Batch
+                                </label>
+                                <span
+                                    title="Nomor identifikasi unik untuk satu siklus produksi."
+                                    className="inline-flex items-center text-slate-400 hover:text-slate-600 cursor-help transition-colors"
+                                >
+                                    <Info size={13} />
+                                </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-medium leading-tight">
+                                Nomor identifikasi unik untuk satu siklus produksi.
+                            </p>
+                            <input
+                                id="verify-batch"
+                                type="text"
+                                required
+                                placeholder="Contoh: B2026-0930-01"
+                                value={batchCode}
+                                onChange={(e) => setBatchCode(e.target.value)}
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
+                            />
+                        </div>
+
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                                <label htmlFor="verify-scheduled-process" className="text-xs font-extrabold text-slate-800">
+                                    Scheduled Process
+                                </label>
+                                <span
+                                    title="Suhu target dan durasi proses termal yang ditetapkan."
+                                    className="inline-flex items-center text-slate-400 hover:text-slate-600 cursor-help transition-colors"
+                                >
+                                    <Info size={13} />
+                                </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-medium leading-tight">
+                                Suhu target dan durasi proses termal yang ditetapkan.
+                            </p>
+                            <input
+                                id="verify-scheduled-process"
+                                type="text"
+                                required
+                                placeholder="Contoh: 121.1°C / 25 min"
+                                value={scheduledProcess}
+                                onChange={(e) => setScheduledProcess(e.target.value)}
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
+                            />
+                        </div>
+
+                        {groups.length > 0 && (
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-1.5">
+                                    <label htmlFor="verify-group" className="text-xs font-extrabold text-slate-800">
+                                        Group
+                                    </label>
+                                    <span
+                                        title="Kelompok kategori atau klasifikasi batch proses."
+                                        className="inline-flex items-center text-slate-400 hover:text-slate-600 cursor-help transition-colors"
+                                    >
+                                        <Info size={13} />
+                                    </span>
                                 </div>
+                                <p className="text-[11px] text-slate-500 font-medium leading-tight">
+                                    Kelompok kategori atau klasifikasi batch proses.
+                                </p>
+                                <select
+                                    id="verify-group"
+                                    value={groupId}
+                                    onChange={(e) => setGroupId(e.target.value)}
+                                    className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
+                                >
+                                    <option value="">— Tanpa Group —</option>
+                                    {groups.map((g) => (
+                                        <option key={g.id} value={g.id}>{g.name}</option>
+                                    ))}
+                                </select>
                             </div>
                         )}
-                        <label className="block text-xs font-bold text-slate-700">
-                            Product
-                            <input
-                                id="verify-product-input"
-                                type="text"
-                                value={product}
-                                placeholder="Masukkan nama produk..."
-                                onChange={(e) => {
-                                    setProduct(e.target.value);
-                                    if (errors.product) setErrors(prev => ({ ...prev, product: undefined }));
-                                }}
-                                className={`mt-1 w-full rounded-xl text-xs font-bold text-slate-800 shadow-sm py-2 px-3 transition-all ${
-                                    errors.product
-                                        ? 'border-2 border-rose-500 bg-rose-50/40 focus:border-rose-600 focus:ring-rose-500 ring-2 ring-rose-200'
-                                        : 'border border-slate-300 bg-white focus:border-rose-500 focus:ring-rose-500'
-                                }`}
-                            />
-                            {errors.product && (
-                                <span className="mt-1.5 flex items-center gap-1 text-[11px] font-extrabold text-rose-600">
-                                    <AlertCircle size={12} className="shrink-0" />
-                                    {errors.product}
+
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                                <label htmlFor="verify-min-f0" className="text-xs font-extrabold text-slate-800">
+                                    Minimum F₀ Achieved
+                                </label>
+                                <span
+                                    title="Nilai lethality termal minimum yang benar-benar tercapai selama proses."
+                                    className="inline-flex items-center text-slate-400 hover:text-slate-600 cursor-help transition-colors"
+                                >
+                                    <Info size={13} />
                                 </span>
-                            )}
-                        </label>
-                        <label className="block text-xs font-bold text-slate-700">
-                            Batch
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-medium leading-tight">
+                                Nilai lethality termal minimum yang benar-benar tercapai selama proses.
+                            </p>
                             <input
-                                id="verify-batch-input"
-                                type="text"
-                                value={batchCode}
-                                placeholder="Masukkan kode batch..."
-                                onChange={(e) => {
-                                    setBatchCode(e.target.value);
-                                    if (errors.batchCode) setErrors(prev => ({ ...prev, batchCode: undefined }));
-                                }}
-                                className={`mt-1 w-full rounded-xl text-xs font-bold text-slate-800 shadow-sm py-2 px-3 transition-all ${
-                                    errors.batchCode
-                                        ? 'border-2 border-rose-500 bg-rose-50/40 focus:border-rose-600 focus:ring-rose-500 ring-2 ring-rose-200'
-                                        : 'border border-slate-300 bg-white focus:border-rose-500 focus:ring-rose-500'
-                                }`}
-                            />
-                            {errors.batchCode && (
-                                <span className="mt-1.5 flex items-center gap-1 text-[11px] font-extrabold text-rose-600">
-                                    <AlertCircle size={12} className="shrink-0" />
-                                    {errors.batchCode}
-                                </span>
-                            )}
-                        </label>
-                        <label className="block text-xs font-bold text-slate-700">
-                            Scheduled Process
-                            <input
-                                id="verify-process-input"
-                                type="text"
-                                value={scheduledProcess}
-                                placeholder="Masukkan scheduled process..."
-                                onChange={(e) => {
-                                    setScheduledProcess(e.target.value);
-                                    if (errors.scheduledProcess) setErrors(prev => ({ ...prev, scheduledProcess: undefined }));
-                                }}
-                                className={`mt-1 w-full rounded-xl text-xs font-bold text-slate-800 shadow-sm py-2 px-3 transition-all ${
-                                    errors.scheduledProcess
-                                        ? 'border-2 border-rose-500 bg-rose-50/40 focus:border-rose-600 focus:ring-rose-500 ring-2 ring-rose-200'
-                                        : 'border border-slate-300 bg-white focus:border-rose-500 focus:ring-rose-500'
-                                }`}
-                            />
-                            {errors.scheduledProcess && (
-                                <span className="mt-1.5 flex items-center gap-1 text-[11px] font-extrabold text-rose-600">
-                                    <AlertCircle size={12} className="shrink-0" />
-                                    {errors.scheduledProcess}
-                                </span>
-                            )}
-                        </label>
-                        {groups.length > 0 && (
-                        <label className="block text-xs font-bold text-slate-700">
-                            Group
-                            <select value={groupId} onChange={(e) => setGroupId(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3">
-                                <option value="">— Tanpa Group —</option>
-                                {groups.map((g) => (
-                                    <option key={g.id} value={g.id}>{g.name}</option>
-                                ))}
-                            </select>
-                        </label>
-                        )}
-                        <label className="block text-xs font-bold text-slate-700">
-                            Minimum F0
-                            <input
-                                id="verify-minf0-input"
+                                id="verify-min-f0"
                                 type="number"
+                                required
                                 step="0.01"
                                 min="0"
+                                placeholder="Contoh: 4.50"
                                 value={minF0}
-                                placeholder="0.00"
-                                onChange={(e) => {
-                                    setMinF0(e.target.value);
-                                    if (errors.minF0) setErrors(prev => ({ ...prev, minF0: undefined }));
-                                }}
-                                className={`mt-1 w-full rounded-xl text-xs font-bold text-slate-800 shadow-sm py-2 px-3 transition-all ${
-                                    errors.minF0
-                                        ? 'border-2 border-rose-500 bg-rose-50/40 focus:border-rose-600 focus:ring-rose-500 ring-2 ring-rose-200'
-                                        : 'border border-slate-300 bg-white focus:border-rose-500 focus:ring-rose-500'
-                                }`}
+                                onChange={(e) => setMinF0(e.target.value)}
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
                             />
-                            {errors.minF0 && (
-                                <span className="mt-1.5 flex items-center gap-1 text-[11px] font-extrabold text-rose-600">
-                                    <AlertCircle size={12} className="shrink-0" />
-                                    {errors.minF0}
+                        </div>
+
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                                <label htmlFor="verify-target-f0" className="text-xs font-extrabold text-slate-800">
+                                    Target F₀
+                                </label>
+                                <span
+                                    title="Nilai F₀ minimum yang dipersyaratkan untuk proses."
+                                    className="inline-flex items-center text-slate-400 hover:text-slate-600 cursor-help transition-colors"
+                                >
+                                    <Info size={13} />
                                 </span>
-                            )}
-                        </label>
-                        <label className="block text-xs font-bold text-slate-700">
-                            Target F0
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-medium leading-tight">
+                                Nilai F₀ minimum yang dipersyaratkan untuk proses.
+                            </p>
                             <input
-                                id="verify-targetf0-input"
+                                id="verify-target-f0"
                                 type="number"
+                                required
                                 step="0.01"
                                 min="0"
+                                placeholder="Contoh: 3.00"
                                 value={targetF0}
-                                placeholder="0.00"
-                                onChange={(e) => {
-                                    setTargetF0(e.target.value);
-                                    if (errors.targetF0) setErrors(prev => ({ ...prev, targetF0: undefined }));
-                                }}
-                                className={`mt-1 w-full rounded-xl text-xs font-bold text-slate-800 shadow-sm py-2 px-3 transition-all ${
-                                    errors.targetF0
-                                        ? 'border-2 border-rose-500 bg-rose-50/40 focus:border-rose-600 focus:ring-rose-500 ring-2 ring-rose-200'
-                                        : 'border border-slate-300 bg-white focus:border-rose-500 focus:ring-rose-500'
-                                }`}
+                                onChange={(e) => setTargetF0(e.target.value)}
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
                             />
-                            {errors.targetF0 && (
-                                <span className="mt-1.5 flex items-center gap-1 text-[11px] font-extrabold text-rose-600">
-                                    <AlertCircle size={12} className="shrink-0" />
-                                    {errors.targetF0}
+                        </div>
+
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                                <label htmlFor="verify-deviation" className="text-xs font-extrabold text-slate-800">
+                                    Process Deviation
+                                </label>
+                                <span
+                                    title="Menunjukkan apakah terjadi penyimpangan dari parameter proses yang ditetapkan."
+                                    className="inline-flex items-center text-slate-400 hover:text-slate-600 cursor-help transition-colors"
+                                >
+                                    <Info size={13} />
                                 </span>
-                            )}
-                        </label>
-                        <label className="block text-xs font-bold text-slate-700">
-                            Process deviation
-                            <select value={deviation} onChange={(e) => setDeviation(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3">
-                                <option value="None">None</option>
-                                <option value="Minor">Minor</option>
-                                <option value="Major">Major</option>
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-medium leading-tight">
+                                Menunjukkan apakah terjadi penyimpangan dari parameter proses yang ditetapkan.
+                            </p>
+                            <select
+                                id="verify-deviation"
+                                required
+                                value={deviation}
+                                onChange={(e) => setDeviation(e.target.value)}
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
+                            >
+                                <option value="None">None (Tidak ada deviasi)</option>
+                                <option value="Minor">Minor (Penyimpangan minor)</option>
+                                <option value="Major">Major (Penyimpangan mayor)</option>
                             </select>
-                        </label>
-                        <label className="block text-xs font-bold text-slate-700">
-                            Sterility criterion
-                            <select value={effectiveCriterion} disabled={liveFail} onChange={(e) => setCriterion(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2 px-3 disabled:opacity-60">
-                                <option value="PASS">PASS</option>
-                                <option value="FAIL">FAIL</option>
+                        </div>
+
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                                <label htmlFor="verify-criterion" className="text-xs font-extrabold text-slate-800">
+                                    Commercial Sterility Process Criterion
+                                </label>
+                                <span
+                                    title="Status pemenuhan kriteria proses untuk mencapai commercial sterility."
+                                    className="inline-flex items-center text-slate-400 hover:text-slate-600 cursor-help transition-colors"
+                                >
+                                    <Info size={13} />
+                                </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-medium leading-tight">
+                                Status pemenuhan kriteria proses untuk mencapai commercial sterility.
+                            </p>
+                            <select
+                                id="verify-criterion"
+                                required
+                                value={effectiveCriterion}
+                                disabled={liveFail}
+                                onChange={(e) => setCriterion(e.target.value)}
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors disabled:opacity-60"
+                            >
+                                <option value="PASS">PASS (Memenuhi Syarat Sterilitas)</option>
+                                <option value="FAIL">FAIL (Tidak Memenuhi Syarat)</option>
                             </select>
-                        </label>
+                        </div>
+
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                                <label htmlFor="verify-thermal-record" className="text-xs font-extrabold text-slate-800">
+                                    Batch Thermal Record
+                                </label>
+                                <span
+                                    title="Status verifikasi rekaman data termal batch."
+                                    className="inline-flex items-center text-slate-400 hover:text-slate-600 cursor-help transition-colors"
+                                >
+                                    <Info size={13} />
+                                </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-medium leading-tight">
+                                Status verifikasi rekaman data termal batch.
+                            </p>
+                            <select
+                                id="verify-thermal-record"
+                                required
+                                value={thermalRecord}
+                                onChange={(e) => setThermalRecord(e.target.value)}
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
+                            >
+                                <option value="VERIFIED">VERIFIED (Rekaman Data Termal Valid)</option>
+                                <option value="REJECTED">REJECTED (Rekaman Data Termal Ditolak)</option>
+                            </select>
+                        </div>
+
                         {liveFail && (
-                            <p className="sm:col-span-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
-                                F0 sistem di bawah Target F0 — Sterility criterion terkunci FAIL.
+                            <p className="sm:col-span-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-700 flex items-center gap-2">
+                                <Info size={14} className="shrink-0 text-rose-600" />
+                                F0 sistem di bawah Target F0 — Commercial Sterility Process Criterion otomatis terkunci FAIL.
                             </p>
                         )}
-                        <div className="sm:col-span-2 flex justify-end">
+                        <div className="sm:col-span-2 flex justify-end pt-2">
                             <button
                                 type="submit"
-                                className="rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black px-6 py-2.5 shadow-md shadow-rose-200 transition-all flex items-center gap-2 cursor-pointer"
+                                className="rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black px-6 py-2.5 shadow-md shadow-rose-200 transition-all flex items-center gap-2"
                             >
                                 <CheckCircle2 size={15} />
-                                Tulis & Simpan Verifikasi Batch
+                                Verifikasi Batch
                             </button>
                         </div>
                     </form>
@@ -1489,16 +1434,14 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         </p>
                     </div>
                     <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-black border ${
-                            batch.end_time
+                        className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-black border ${batch.end_time
                                 ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
                                 : 'bg-amber-100 text-amber-900 border-amber-300'
-                        }`}
+                            }`}
                     >
                         <span
-                            className={`h-2.5 w-2.5 rounded-full ${
-                                batch.end_time ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
-                            }`}
+                            className={`h-2.5 w-2.5 rounded-full ${batch.end_time ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
+                                }`}
                         ></span>
                         {batch.end_time ? 'SELESAI' : 'LIVE MONITOR'}
                     </span>
@@ -1520,9 +1463,9 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         <p className="text-xs text-slate-500 mt-0.5">
                             {totalRows > 0
                                 ? `Menampilkan ${(tablePage - 1) * pageSize + 1}–${Math.min(
-                                      tablePage * pageSize,
-                                      totalRows
-                                  )} dari ${totalRows} data points tersimpan.`
+                                    tablePage * pageSize,
+                                    totalRows
+                                )} dari ${totalRows} data points tersimpan.`
                                 : 'Belum ada reading yang tersimpan.'}
                         </p>
                     </div>
@@ -1539,7 +1482,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                     setPageSize(Number(e.target.value));
                                     setTablePage(1);
                                 }}
-                                className="rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 py-1.5 px-5"
+                                className="min-w-[4.5rem] rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-amber-500 focus:ring-amber-500 py-1.5 pl-3 pr-8"
                             >
                                 <option value={25}>25</option>
                                 <option value={50}>50</option>

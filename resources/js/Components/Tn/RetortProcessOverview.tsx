@@ -224,7 +224,7 @@ export default function RetortProcessOverview({
                             statusTone={phaseColors[telemetry.phase]}
                         >
                             <Metric label="Temp Aktual" value={formatNumber(telemetry.actualTemperature)} unit="°C" available={telemetry.actualTemperature !== null} />
-                            <Metric label="Target Temp" value={formatNumber(isProcessRunning ? telemetry.targetTemperature : 0)} unit="°C" available={true} accent="text-emerald-300" />
+                            <Metric label="Target Temp" value={formatNumber(telemetry.targetTemperature)} unit="°C" available={telemetry.targetTemperature !== null} accent="text-emerald-300" />
                             <Metric label="Current Step" value={isProcessRunning ? (telemetry.step ?? 0) : 0} available={true} />
                             <Metric label="Remaining" value={isProcessRunning ? formatControllerTime(telemetry.remainingTime) : '00:00'} available={true} accent="text-indigo-300" />
                             <Metric label="Door Lock" value="--" available={false} />

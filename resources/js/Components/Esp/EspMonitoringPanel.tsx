@@ -54,6 +54,12 @@ export default function EspMonitoringPanel({ telemetry, isOnline, f0Value = 0 }:
     const rawMv = telemetry.mv ?? 0;
     const phase = (telemetry.phase || 'IDLE').toUpperCase();
     const isValveOpen = rawMv > 0;
+    const isProcessRunning = isOnline && Boolean(
+        telemetry.run ||
+        rawMv > 0 ||
+        (telemetry.tot && telemetry.tot !== '00:00' && telemetry.tot !== '--:--') ||
+        !['IDLE', 'OFFLINE', 'WAITING'].includes(phase)
+    );
 
     const formattedPv = useMemo(() => {
         if (rawPv === null || rawPv === undefined || isNaN(rawPv)) return '--.-';
@@ -226,7 +232,9 @@ export default function EspMonitoringPanel({ telemetry, isOnline, f0Value = 0 }:
                     </div>
                     <div>
                         <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Waktu Total (TOT)</span>
-                        <p className="text-xl font-black text-slate-900 dark:text-white font-mono">{telemetry.tot || '00:00'}</p>
+                        <p className="text-xl font-black text-slate-900 dark:text-white font-mono">
+                            {isProcessRunning ? (telemetry.tot || '00:00') : '00:00'}
+                        </p>
                     </div>
                 </div>
 
@@ -237,7 +245,9 @@ export default function EspMonitoringPanel({ telemetry, isOnline, f0Value = 0 }:
                     </div>
                     <div>
                         <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Sisa Langkah (STP)</span>
-                        <p className="text-xl font-black text-purple-600 font-mono">{telemetry.stp || '00:00'}</p>
+                        <p className="text-xl font-black text-purple-600 font-mono">
+                            {isProcessRunning ? (telemetry.stp || '00:00') : '00:00'}
+                        </p>
                     </div>
                 </div>
 
@@ -249,7 +259,7 @@ export default function EspMonitoringPanel({ telemetry, isOnline, f0Value = 0 }:
                     <div>
                         <span className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Pattern & Step</span>
                         <p className="text-xl font-black text-teal-600 font-mono">
-                            {telemetry.ps || `P${telemetry.pattern ?? 0}.S${telemetry.step ?? 0}`}
+                            {isProcessRunning ? (telemetry.ps || `P${telemetry.pattern ?? 0}.S${telemetry.step ?? 0}`) : 'P0.S0'}
                         </p>
                     </div>
                 </div>

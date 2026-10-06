@@ -24,7 +24,7 @@ type MonitorTab = 'monitor' | 'scada';
 
 export default function Monitor({ controller, latestReading: initialReading }: Props) {
     const pollIntervalMs = 1000; // Pembacaan Modbus per 1 detik
-    const staleAfterMs = 4000;   // Toleransi 4 detik sebelum dianggap offline
+    const staleAfterMs = 8000;   // Toleransi 8 detik sebelum dianggap offline jika tidak ada respons
     const getReadingTimestamp = (value: any) => value?.created_at ?? value?.timestamp ?? null;
     const timestampToMs = (timestamp: any): number | false => {
         if (!timestamp) return false;
@@ -67,20 +67,28 @@ export default function Monitor({ controller, latestReading: initialReading }: P
     const [commandPending, setCommandPending] = useState<'run' | 'stop' | 'reset' | null>(null);
     const lastReadingTimestampRef = useRef<any>(getReadingTimestamp(initialReading));
     const lastSeenAtRef = useRef<number | false>(timestampToMs(getReadingTimestamp(initialReading)));
+    const lastReadingIdRef = useRef<number | null>(initialReading?.id ?? null);
+    const serverOnlineRef = useRef<boolean>(Boolean(controller.is_online));
 
     useEffect(() => {
         let isMounted = true;
+        let pollTimer: number | null = null;
         lastReadingTimestampRef.current = getReadingTimestamp(initialReading);
         lastSeenAtRef.current = timestampToMs(getReadingTimestamp(initialReading));
+        lastReadingIdRef.current = initialReading?.id ?? null;
+        serverOnlineRef.current = Boolean(controller.is_online);
 
         const applyReading = (newReading: any, appendHistory = true) => {
             if (!isMounted || !newReading) return;
 
+            if (newReading.id) {
+                lastReadingIdRef.current = newReading.id;
+            }
             const timestamp = getReadingTimestamp(newReading);
             const timestampMs = timestampToMs(timestamp);
             lastSeenAtRef.current = timestampMs !== false ? timestampMs : Date.now();
-            setIsLiveOnline(timestampMs !== false && Date.now() - timestampMs <= staleAfterMs);
             lastReadingTimestampRef.current = timestamp;
+            setIsLiveOnline(true);
             setReading(newReading);
 
             if (appendHistory) {
@@ -93,7 +101,12 @@ export default function Monitor({ controller, latestReading: initialReading }: P
 
         const loadReadings = async (replaceLatest = false) => {
             try {
-                const response = await fetch(route('tn.readings', controller.id), {
+                const sinceId = (!replaceLatest && lastReadingIdRef.current) ? lastReadingIdRef.current : null;
+                const url = sinceId
+                    ? `${route('tn.readings', controller.id)}?since_id=${sinceId}`
+                    : `${route('tn.readings', controller.id)}?limit=600`;
+
+                const response = await fetch(url, {
                     headers: { Accept: 'application/json' },
                 });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -101,14 +114,14 @@ export default function Monitor({ controller, latestReading: initialReading }: P
                 const data = await response.json();
                 if (!isMounted) return;
 
-                let readingsList: any[] = [];
+                let incomingReadings: any[] = [];
                 let onlineStatus: boolean | null = null;
                 let activePort: string | null = null;
 
                 if (Array.isArray(data)) {
-                    readingsList = data;
+                    incomingReadings = data;
                 } else if (data && typeof data === 'object') {
-                    readingsList = Array.isArray(data.readings) ? data.readings : [];
+                    incomingReadings = Array.isArray(data.readings) ? data.readings : [];
                     onlineStatus = typeof data.is_online === 'boolean' ? data.is_online : null;
                     if (data.serial_port) {
                         activePort = data.serial_port;
@@ -118,46 +131,93 @@ export default function Monitor({ controller, latestReading: initialReading }: P
                     }
                 }
 
-                setHistory(readingsList);
-                const latest = readingsList[readingsList.length - 1];
+                if (onlineStatus !== null) {
+                    serverOnlineRef.current = onlineStatus;
+                }
 
                 if (activePort && activePort !== currentPort) {
                     setCurrentPort(activePort);
                 }
 
-                if (onlineStatus !== null) {
-                    if (!onlineStatus) {
-                        setIsLiveOnline(false);
+                if (sinceId) {
+                    // Incremental update
+                    if (incomingReadings.length > 0) {
+                        const latest = incomingReadings[incomingReadings.length - 1];
+                        if (latest?.id) {
+                            lastReadingIdRef.current = latest.id;
+                        }
+                        const timestamp = getReadingTimestamp(latest);
+                        const timestampMs = timestampToMs(timestamp);
+                        lastReadingTimestampRef.current = timestamp;
+                        lastSeenAtRef.current = timestampMs !== false ? timestampMs : Date.now();
+                        setReading(latest);
+                        setHistory((previous) => {
+                            const next = [...previous, ...incomingReadings];
+                            return next.length > 1800 ? next.slice(next.length - 1800) : next;
+                        });
+                        setIsLiveOnline(onlineStatus !== false);
                     } else {
-                        const isFresh = latest ? isFreshTimestamp(getReadingTimestamp(latest)) : false;
-                        setIsLiveOnline(isFresh);
+                        // No new readings in this tick
+                        if (onlineStatus === false) {
+                            setIsLiveOnline(false);
+                        } else if (onlineStatus === true) {
+                            const lastSeen = lastSeenAtRef.current;
+                            if (lastSeen !== false && Date.now() - lastSeen > staleAfterMs) {
+                                setIsLiveOnline(false);
+                            }
+                        }
                     }
+                } else {
+                    // Full/Initial load
+                    setHistory(incomingReadings);
+                    const latest = incomingReadings[incomingReadings.length - 1];
                     if (latest) {
-                        lastReadingTimestampRef.current = getReadingTimestamp(latest);
-                        lastSeenAtRef.current = timestampToMs(getReadingTimestamp(latest));
+                        if (latest.id) {
+                            lastReadingIdRef.current = latest.id;
+                        }
+                        const timestamp = getReadingTimestamp(latest);
+                        const timestampMs = timestampToMs(timestamp);
+                        lastReadingTimestampRef.current = timestamp;
+                        lastSeenAtRef.current = timestampMs !== false ? timestampMs : Date.now();
                         setReading(latest);
                     }
-                } else if (latest) {
-                    const timestamp = getReadingTimestamp(latest);
-                    const timestampMs = timestampToMs(timestamp);
-                    lastReadingTimestampRef.current = timestamp;
-                    lastSeenAtRef.current = timestampMs;
-                    setIsLiveOnline(timestampMs !== false && (Date.now() - timestampMs <= staleAfterMs));
-                    setReading(latest);
-                } else {
-                    setIsLiveOnline(false);
+
+                    if (onlineStatus !== null) {
+                        if (!onlineStatus) {
+                            setIsLiveOnline(false);
+                        } else {
+                            const isFresh = latest ? isFreshTimestamp(getReadingTimestamp(latest)) : false;
+                            setIsLiveOnline(isFresh);
+                        }
+                    } else if (latest) {
+                        const isFresh = isFreshTimestamp(getReadingTimestamp(latest));
+                        setIsLiveOnline(isFresh);
+                    } else {
+                        setIsLiveOnline(false);
+                    }
                 }
             } catch {
                 if (isMounted) setIsLiveOnline(false);
             }
         };
 
-        loadReadings(true);
+        const schedulePoll = () => {
+            if (!isMounted) return;
+            pollTimer = window.setTimeout(async () => {
+                await loadReadings();
+                schedulePoll();
+            }, pollIntervalMs);
+        };
+
+        loadReadings(true).finally(() => {
+            schedulePoll();
+        });
 
         const echo = (window as any).Echo;
         const channel = echo?.channel(`tn.${controller.id}`);
         channel?.listen('.tn.data', (event: any) => {
             applyReading({
+                id: event.id,
                 pv: event.pv,
                 sv: event.sv,
                 heating_mv: event.heating_mv,
@@ -178,19 +238,19 @@ export default function Monitor({ controller, latestReading: initialReading }: P
             });
         });
 
-        const refreshIntervalId = window.setInterval(() => {
-            loadReadings();
-        }, pollIntervalMs);
-
         const staleIntervalId = window.setInterval(() => {
             if (!isMounted) return;
-            const lastSeenAt = lastSeenAtRef.current;
-            setIsLiveOnline(lastSeenAt !== false && Date.now() - lastSeenAt <= staleAfterMs);
+            // Only watchdog: if server is supposedly online, but no reading has arrived in > staleAfterMs, set offline
+            if (serverOnlineRef.current && lastSeenAtRef.current !== false) {
+                if (Date.now() - lastSeenAtRef.current > staleAfterMs) {
+                    setIsLiveOnline(false);
+                }
+            }
         }, 1000);
 
         return () => {
             isMounted = false;
-            window.clearInterval(refreshIntervalId);
+            if (pollTimer !== null) window.clearTimeout(pollTimer);
             window.clearInterval(staleIntervalId);
             channel?.stopListening('.tn.data');
         };

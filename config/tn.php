@@ -7,4 +7,5 @@ return [
     'stopbits' => env('TN_STOPBITS', 2),
     'timeout' => env('TN_TIMEOUT', 1),
     'poll_interval' => env('TN_POLL_INTERVAL', 1),
+    'tcp_port' => env('TN_TCP_PORT', 5029),
 ];

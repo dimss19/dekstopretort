@@ -10,6 +10,9 @@ class TnModbusService
 {
     protected string $scriptPath;
     protected string $pythonPath;
+    protected $workerProcess = null;
+    protected array $workerPipes = [];
+    protected ?string $workerPort = null;
 
     public function __construct()
     {
@@ -17,9 +20,144 @@ class TnModbusService
         $this->pythonPath = PHP_OS_FAMILY === 'Windows' ? 'python' : 'python3';
     }
 
+    public function __destruct()
+    {
+        $this->stopWorker();
+    }
+
+    public function stopWorker(): void
+    {
+        if ($this->workerProcess && is_resource($this->workerProcess)) {
+            if (isset($this->workerPipes[0]) && is_resource($this->workerPipes[0])) {
+                @fwrite($this->workerPipes[0], json_encode(['command' => 'exit']) . "\n");
+                @fflush($this->workerPipes[0]);
+            }
+            foreach ($this->workerPipes as $pipe) {
+                if (is_resource($pipe)) {
+                    @fclose($pipe);
+                }
+            }
+            @proc_terminate($this->workerProcess);
+            @proc_close($this->workerProcess);
+        }
+        $this->workerProcess = null;
+        $this->workerPipes = [];
+        $this->workerPort = null;
+    }
+
+    protected function getWorker(string $port, int $baud, string $parity, int $stopbits, float $timeout): ?array
+    {
+        if ($this->workerProcess && is_resource($this->workerProcess)) {
+            $status = proc_get_status($this->workerProcess);
+            if (!empty($status['running']) && $this->workerPort === $port) {
+                return $this->workerPipes;
+            }
+            $this->stopWorker();
+        }
+
+        $exePath = base_path('scripts/modbus_bridge.exe');
+        if (file_exists($exePath)) {
+            $cmd = [$exePath];
+        } else {
+            $cmd = [$this->pythonPath, '-u', $this->scriptPath];
+        }
+
+        $cmd = array_merge($cmd, [
+            '--port', $port,
+            '--baud', (string) $baud,
+            '--parity', $parity,
+            '--stopbits', (string) $stopbits,
+            '--timeout', (string) $timeout,
+            'worker',
+            '--tcp-port', (string) config('tn.tcp_port', 5029)
+        ]);
+
+        $descriptors = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ];
+
+        $process = proc_open($cmd, $descriptors, $pipes, null, null);
+        if (!is_resource($process)) {
+            return null;
+        }
+
+        stream_set_timeout($pipes[1], 3);
+        $readyLine = fgets($pipes[1]);
+        $ready = json_decode($readyLine ?: '', true);
+
+        if (!($ready['ready'] ?? false)) {
+            foreach ($pipes as $p) {
+                if (is_resource($p)) fclose($p);
+            }
+            @proc_close($process);
+            return null;
+        }
+
+        $this->workerProcess = $process;
+        $this->workerPipes = $pipes;
+        $this->workerPort = $port;
+
+        return $this->workerPipes;
+    }
+
+    public function tryExecuteViaTcp(string $command, TnController $controller, array $args = []): ?array
+    {
+        $tcpPort = (int) config('tn.tcp_port', 5029);
+        $fp = null;
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            $fp = @fsockopen('127.0.0.1', $tcpPort, $errno, $errstr, 1.5);
+            if ($fp) {
+                break;
+            }
+            usleep(50000);
+        }
+
+        if (!$fp) {
+            return null;
+        }
+
+        stream_set_timeout($fp, 5);
+
+        $payload = [
+            'command' => $command,
+            'slave' => (int) $controller->slave_id,
+        ];
+
+        for ($i = 0; $i < count($args); $i++) {
+            if (is_string($args[$i]) && str_starts_with($args[$i], '--') && isset($args[$i + 1])) {
+                $key = substr($args[$i], 2);
+                $val = $args[$i + 1];
+                if (is_numeric($val)) {
+                    $val = str_contains($val, '.') ? (float) $val : (int) $val;
+                }
+                $payload[$key] = $val;
+                $i++;
+            }
+        }
+
+        $req = json_encode($payload) . "\n";
+        @fwrite($fp, $req);
+        $line = @fgets($fp);
+        @fclose($fp);
+
+        if (!$line) {
+            return null;
+        }
+
+        $decoded = json_decode(trim($line), true);
+        return is_array($decoded) ? $decoded : null;
+    }
+
     protected function buildEnv(): array
     {
-        $env = $_SERVER;
+        $env = [];
+        foreach ($_SERVER as $k => $v) {
+            if (is_scalar($v)) {
+                $env[$k] = (string) $v;
+            }
+        }
         if (!isset($env['SystemRoot'])) $env['SystemRoot'] = getenv('SystemRoot') ?: 'C:\\Windows';
         return $env;
     }
@@ -67,11 +205,13 @@ class TnModbusService
 
     public function listAvailablePorts(): array
     {
-        $result = $this->runPython(['list_ports'], 10);
-        if ($result['success'] && isset($result['ports'])) {
-            return $result['ports'];
-        }
-        return [];
+        return Cache::remember('tn_available_serial_ports', 10, function () {
+            $result = $this->runPython(['list_ports'], 10);
+            if ($result['success'] && isset($result['ports'])) {
+                return $result['ports'];
+            }
+            return [];
+        });
     }
 
     public function scanPorts(TnController $controller): ?string
@@ -149,6 +289,12 @@ class TnModbusService
 
     protected function executeCommand(string $command, TnController $controller, array $args = [], ?string $overridePort = null)
     {
+        // 1. Coba eksekusi lewat TCP worker bridge (jika worker aktif di background, respon ~15ms)
+        $tcpResult = $this->tryExecuteViaTcp($command, $controller, $args);
+        if ($tcpResult !== null && (isset($tcpResult['success']) || isset($tcpResult['error']))) {
+            return $tcpResult;
+        }
+
         $configPort = config('tn.serial_port');
         // Priority: overridePort > manual port set by user > config AUTO > config fixed port
         $configuredPort = $overridePort ?: ($controller->serial_port
@@ -268,7 +414,7 @@ class TnModbusService
         if ($controllers->isEmpty()) return [];
 
         $first = $controllers->first();
-        $slaves = $controllers->pluck('slave_id')->implode(',');
+        $slaves = $controllers->pluck('slave_id')->map(fn($id) => (int)$id)->values()->all();
         $port = $this->resolveControllerPort($first);
 
         if (!$port || strtoupper((string) $port) === 'AUTO') {
@@ -276,6 +422,38 @@ class TnModbusService
             return [];
         }
 
+        $baud = (int) ($first->baudrate ?? config('tn.baudrate'));
+        $parity = $first->parity ?? config('tn.parity');
+        $stopbits = (int) ($first->stopbits ?? config('tn.stopbits'));
+        $timeout = (float) config('tn.timeout', 1);
+        $pollTimeout = min($timeout, 0.4);
+
+        // 1. Gunakan persistent worker jika tersedia (~124ms tanpa overhead spawn python)
+        $pipes = $this->getWorker($port, $baud, $parity, $stopbits, $pollTimeout);
+        if ($pipes && is_resource($pipes[0]) && is_resource($pipes[1])) {
+            $req = json_encode([
+                'command' => 'read_all',
+                'slaves' => $slaves,
+                'addr' => 1000,
+                'count' => 27
+            ]) . "\n";
+
+            stream_set_timeout($pipes[1], (int) ceil(($pollTimeout * count($slaves)) + 2));
+            if (@fwrite($pipes[0], $req) !== false) {
+                $respLine = @fgets($pipes[1]);
+                if ($respLine) {
+                    $result = json_decode(trim($respLine), true);
+                    if ($result && isset($result['controllers'])) {
+                        return $result['controllers'];
+                    }
+                }
+            }
+
+            // Jika pembacaan worker gagal, stop worker untuk recovery
+            $this->stopWorker();
+        }
+
+        // 2. Fallback: file lock + runPython biasa
         $lockFile = storage_path('app/modbus_port_' . md5($port) . '.lock');
         $fp = @fopen($lockFile, 'w+');
         if (!$fp) return [];
@@ -295,21 +473,25 @@ class TnModbusService
                 return [];
             }
 
+            $slavesStr = implode(',', $slaves);
             $result = $this->runPython([
                 '--port', $port,
-                '--baud', (string)($first->baudrate ?? config('tn.baudrate')),
-                '--parity', $first->parity ?? config('tn.parity'),
-                '--stopbits', (string)($first->stopbits ?? config('tn.stopbits')),
-                '--timeout', (string)config('tn.timeout'),
+                '--baud', (string)$baud,
+                '--parity', $parity,
+                '--stopbits', (string)$stopbits,
+                '--timeout', (string)$pollTimeout,
                 'read_all',
-                '--slaves', $slaves,
+                '--slaves', $slavesStr,
                 '--addr', '1000',
                 '--count', '27',
-            ], (config('tn.timeout') * 2) + 5);
+            ], (int) ceil(($pollTimeout * count($slaves)) + 5));
 
             if (!$result['success'] || !isset($result['controllers'])) {
                 if ($this->isConnectionError($result['error'] ?? '')) {
                     $this->clearPortCache($first);
+                    if (strtoupper((string) $first->serial_port) !== 'AUTO') {
+                        $first->update(['serial_port' => 'AUTO']);
+                    }
                 }
                 return [];
             }
@@ -328,26 +510,6 @@ class TnModbusService
             ?? (strtoupper((string) $configPort) === 'AUTO' ? 'AUTO' : $configPort);
 
         if (empty($configuredPort) || strtoupper($configuredPort) === 'AUTO') {
-            return $this->resolvePort($controller,
-                $controller->baudrate ?? config('tn.baudrate'),
-                $controller->parity ?? config('tn.parity'),
-                $controller->stopbits ?? config('tn.stopbits'),
-                config('tn.timeout'));
-        }
-
-        // Jika port spesifik diset (e.g. COM3), pastikan port tersebut masih ada di sistem
-        $available = $this->listAvailablePorts();
-        $portExists = false;
-        foreach ($available as $p) {
-            if (strcasecmp($p['device'] ?? '', $configuredPort) === 0) {
-                $portExists = true;
-                break;
-            }
-        }
-
-        // Jika port spesifik tidak terpasang di Windows, coba auto-resolve
-        if (!$portExists) {
-            $this->clearPortCache($controller);
             return $this->resolvePort($controller,
                 $controller->baudrate ?? config('tn.baudrate'),
                 $controller->parity ?? config('tn.parity'),

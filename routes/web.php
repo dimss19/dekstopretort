@@ -106,8 +106,6 @@ Route::group([], function () {
         Route::post('/{tn}/scada/upload-bg', [\App\Http\Controllers\ScadaController::class, 'uploadBackground'])->name('tn.scada.upload-bg');
     });
 
-    Route::post('/historian/{history}/export-pdf', [\App\Http\Controllers\TnMonitorController::class, 'exportPdf'])->name('historian.export-pdf');
-    Route::post('/historian/{history}/print-native', [\App\Http\Controllers\TnMonitorController::class, 'printNative'])->name('historian.print-native');
 });
 
 require __DIR__.'/auth.php';

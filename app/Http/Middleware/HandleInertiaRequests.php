@@ -56,6 +56,14 @@ class HandleInertiaRequests extends Middleware
                 'active_tn_model' => $request->session()->get('active_tn_model'),
                 'unverified_count' => $unverifiedCount,
             ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+                'message' => fn () => $request->session()->get('message'),
+                'all_identical' => fn () => (bool) $request->session()->get('all_identical', false),
+                'scan_result' => fn () => $request->session()->get('scan_result'),
+            ],
         ];
     }
 }
+
