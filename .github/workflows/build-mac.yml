@@ -60,6 +60,8 @@ jobs:
         run: |
           mkdir -p packages/nativephp/php-bin/bin/mac/${{ matrix.arch }}
           curl -L "https://raw.githubusercontent.com/NativePHP/php-bin/main/bin/mac/${{ matrix.arch }}/php-8.3.zip" -o "packages/nativephp/php-bin/bin/mac/${{ matrix.arch }}/php-8.3.zip"
+          mkdir -p vendor/nativephp/php-bin/bin/mac/${{ matrix.arch }}
+          cp packages/nativephp/php-bin/bin/mac/${{ matrix.arch }}/php-8.3.zip vendor/nativephp/php-bin/bin/mac/${{ matrix.arch }}/php-8.3.zip
 
       - name: Build macOS DMG (${{ matrix.label }})
         env:

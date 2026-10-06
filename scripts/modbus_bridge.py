@@ -181,7 +181,7 @@ def list_ports(args=None):
     existing_devs = {p.device for p in ports}
 
     if os.name != 'nt':
-        for pattern in ['/dev/ttyUSB*', '/dev/ttyACM*', '/dev/ttyAMA*', '/dev/ttyS*']:
+        for pattern in ['/dev/ttyUSB*', '/dev/ttyACM*', '/dev/ttyAMA*', '/dev/ttyS*', '/dev/tty.usbserial*', '/dev/cu.usbserial*', '/dev/tty.wch*', '/dev/cu.wch*', '/dev/tty.SLAB*']:
             for dev in glob.glob(pattern):
                 if dev not in existing_devs:
                     class _P:

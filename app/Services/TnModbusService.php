@@ -55,7 +55,7 @@ class TnModbusService
             $this->stopWorker();
         }
 
-        $exePath = base_path('scripts/modbus_bridge.exe');
+        $exePath = PHP_OS_FAMILY === 'Windows' ? base_path('scripts/modbus_bridge.exe') : base_path('scripts/modbus_bridge');
         if (file_exists($exePath)) {
             $cmd = [$exePath];
         } else {
@@ -164,7 +164,7 @@ class TnModbusService
 
     protected function runPython(array $args, int $timeout = 10): array
     {
-        $exePath = base_path('scripts/modbus_bridge.exe');
+        $exePath = PHP_OS_FAMILY === 'Windows' ? base_path('scripts/modbus_bridge.exe') : base_path('scripts/modbus_bridge');
         if (file_exists($exePath)) {
             $cmd = array_merge([$exePath], $args);
         } else {

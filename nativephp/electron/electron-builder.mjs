@@ -116,8 +116,10 @@ export default {
         oneClick: false,
         allowToChangeInstallationDirectory: true,
         license: 'build/LICENSE.txt',
+        installerSidebar: 'build/installerSidebar.bmp',
+        installerHeader: 'build/installerHeader.bmp',
         include: 'build/installer.nsh',
-        perMachine: false,
+        perMachine: true,
         runAfterFinish: true,
     },
     protocols: {

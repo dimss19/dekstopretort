@@ -17,10 +17,14 @@ if not exist "packages\nativephp\php-bin\bin\win\x64\php-8.3.zip" (
     exit /b 1
 )
 echo [OK] Runtime PHP 8.3 Portable siap dibundel otomatis.
+:: 2. Sinkronisasi Logo Aplikasi (Master: desktop-app\assets\icon.png)
+echo [2/6] Menyelaraskan Logo Aplikasi ke Format ICO, ICNS, dan PNG...
+python desktop-app\scripts\convert_icon.py
+echo [OK] Logo aplikasi tersinkronisasi.
 echo.
 
-:: 2. Kompilasi Modbus Bridge Standalone EXE (Zero Python Dependency)
-echo [2/5] Menyiapkan Standalone Modbus Bridge EXE (Zero Python Dependency)...
+:: 3. Kompilasi Modbus Bridge Standalone EXE (Zero Python Dependency)
+echo [3/6] Menyiapkan Standalone Modbus Bridge EXE (Zero Python Dependency)...
 if not exist "scripts\modbus_bridge.exe" (
     call pyinstaller --onefile --console --name modbus_bridge --distpath scripts scripts\modbus_bridge.py
 )
@@ -31,8 +35,8 @@ if exist "scripts\modbus_bridge.exe" (
 )
 echo.
 
-:: 3. Build Frontend Assets
-echo [3/5] Mengkompilasi Aset Frontend (React + Vite)...
+:: 4. Build Frontend Assets
+echo [4/6] Mengkompilasi Aset Frontend (React + Vite)...
 call npm run build
 if %errorlevel% neq 0 (
     echo [ERROR] Gagal mengkompilasi frontend assets!
@@ -42,18 +46,18 @@ if %errorlevel% neq 0 (
 echo [OK] Aset frontend berhasil dikompilasi ke public\build.
 echo.
 
-:: 4. Optimasi Cache Laravel
-echo [4/5] Mengoptimasi Cache Laravel...
+:: 5. Optimasi Cache Laravel
+echo [5/6] Mengoptimasi Cache Laravel...
 php artisan config:clear
 php artisan route:clear
 php artisan view:clear
 echo [OK] Cache dibersihkan.
 echo.
 
-:: 5. Build Executable Windows NSIS Wizard Installer
-echo [5/5] Membuat Wizard Installer Desktop Windows (.exe)...
+:: 6. Build Executable Windows NSIS Wizard Installer
+echo [6/6] Membuat Wizard Installer Desktop Windows (.exe)...
 echo Ini akan membungkus Electron, PHP 8.3, Modbus Bridge, dan Driver CH340 ke dalam NSIS Setup Wizard.
-php artisan native:build win
+php artisan native:build win x64 --no-interaction
 if %errorlevel% neq 0 (
     echo [ERROR] Build NativePHP gagal!
     pause

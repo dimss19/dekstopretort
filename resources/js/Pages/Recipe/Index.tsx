@@ -213,31 +213,6 @@ export default function Index({ recipes = [], controllers = [] }: { recipes?: Re
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
-                        {/* Controller Selector */}
-                        {controllers.length > 0 && (
-                            <div className="flex items-center gap-2 bg-white/95 px-3 py-1.5 rounded-xl border border-slate-300 shadow-sm text-xs backdrop-blur-md">
-                                <span className="text-slate-500 font-bold">Target Controller:</span>
-                                <div className="relative flex items-center">
-                                    <span
-                                        className={`inline-block w-2 h-2 rounded-full mr-1.5 ${
-                                            activeControllerObj?.is_online ? 'bg-emerald-500 animate-pulse' : 'bg-rose-400'
-                                        }`}
-                                    />
-                                    <select
-                                        value={selectedController}
-                                        onChange={(e) => setSelectedController(e.target.value)}
-                                        className="bg-transparent border-none text-xs font-black text-slate-900 focus:ring-0 py-0.5 pl-0 pr-6 cursor-pointer"
-                                    >
-                                        {controllers.map((c) => (
-                                            <option key={c.id} value={c.id}>
-                                                {c.name} {c.is_online ? '(Online)' : '(Offline)'}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                        )}
-
                         <Link
                             href={route('tn.recipes.create')}
                             className="inline-flex items-center gap-1.5 rounded-xl bg-blue-900 hover:bg-blue-800 text-white text-xs font-black px-4 py-2.5 shadow-md transition-all border border-blue-800"
