@@ -37,18 +37,23 @@ class LicenseService
 
         // 1. Dukungan Kode Demo / Trial Lokal Siap Pakai
         $demoCodes = [
+            'IM-CORP-CV-INDAH-MESIN' => [
+                'company_name' => 'CV Indah Mesin',
+                'license_type' => 'Lifetime Enterprise',
+                'expires_at'   => 'Lifetime',
+            ],
             'IM-CORP-77A1-88B2-99C3' => [
-                'company_name' => 'PT Indah Pangan Makmur',
+                'company_name' => 'CV Indah Mesin',
                 'license_type' => 'Lifetime Enterprise',
                 'expires_at'   => 'Lifetime',
             ],
             'IM-CORP-44D4-55E5-66F6' => [
-                'company_name' => 'CV Agro Mesin Nusantara',
+                'company_name' => 'CV Indah Mesin',
                 'license_type' => 'Professional Edition',
                 'expires_at'   => '2027-12-31',
             ],
             'IM-DEMO-LOCAL-2026-TEST' => [
-                'company_name' => 'Indah Mesin Demo Client',
+                'company_name' => 'CV Indah Mesin',
                 'license_type' => 'Demo / Testing',
                 'expires_at'   => '2026-12-31',
             ],
