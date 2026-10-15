@@ -10,7 +10,11 @@ const proc = useNodeRuntime
           stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
           execPath: process.execPath,
       })
-    : spawn(command, args);
+    : spawn(command, args, {
+          cwd: process.cwd(),
+          env: process.env,
+          windowsHide: true,
+      });
 
 process.parentPort.on('message', (message) => {
     proc.stdin.write(message.data);

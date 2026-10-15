@@ -38,7 +38,7 @@ class LicenseService
         // 1. Dukungan Kode Demo / Trial Lokal Siap Pakai
         $demoCodes = [
             'IM-CORP-77A1-88B2-99C3' => [
-                'company_name' => 'PT Indah Pangan Makmur',
+                'company_name' => 'CV Indah Pangan Makmur',
                 'license_type' => 'Lifetime Enterprise',
                 'expires_at'   => 'Lifetime',
             ],

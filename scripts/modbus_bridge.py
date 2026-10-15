@@ -307,6 +307,11 @@ def execute_modbus_req(client, req, lock):
                         results[slave_id] = {"success": True, "data": response.registers}
                 except Exception as e:
                     results[slave_id] = {"success": False, "error": str(e)}
+                    try:
+                        client.close()
+                        client.connect()
+                    except Exception:
+                        pass
             return {"success": True, "controllers": results}
 
         elif cmd in HANDLERS:

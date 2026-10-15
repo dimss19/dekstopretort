@@ -122,8 +122,19 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
         transform((form) => ({
             ...form,
             sync_to_tn: sync,
+            status: form.status || 'Draft',
+            start_condition: form.start_condition || 'SSV',
+            time_unit: form.time_unit || 'MM.SS',
+            pattern_end_state: form.pattern_end_state || 'STOP',
+            process_parameters: form.process_parameters || {},
             tn_controller_id: selectedController || form.tn_controller_id || undefined,
             tn_id: selectedController || form.tn_controller_id || undefined,
+            steps: (form.steps || []).map((s: any, idx: number) => ({
+                ...s,
+                step_number: idx + 1,
+                target_sv: Number(s.target_sv) || 0,
+                duration: Number(s.duration) || 0,
+            })),
         }));
 
         if (isEditing) {
@@ -138,8 +149,19 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
         transform((form) => ({
             ...form,
             sync_to_tn: true,
+            status: form.status || 'Draft',
+            start_condition: form.start_condition || 'SSV',
+            time_unit: form.time_unit || 'MM.SS',
+            pattern_end_state: form.pattern_end_state || 'STOP',
+            process_parameters: form.process_parameters || {},
             tn_controller_id: selectedController || form.tn_controller_id || undefined,
             tn_id: selectedController || form.tn_controller_id || undefined,
+            steps: (form.steps || []).map((s: any, idx: number) => ({
+                ...s,
+                step_number: idx + 1,
+                target_sv: Number(s.target_sv) || 0,
+                duration: Number(s.duration) || 0,
+            })),
         }));
 
         if (isEditing) {

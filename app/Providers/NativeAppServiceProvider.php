@@ -27,17 +27,28 @@ class NativeAppServiceProvider implements ProvidesPhpIni
             $this->ensureDatabaseReady();
         }
 
-        // Set semua controller awalnya offline sampai polling mendeteksi perangkat riil
+        // Hanya tandai offline controller yang sudah lama tidak aktif (> 30 detik) saat boot
         try {
             if (Schema::hasTable('tn_controllers')) {
-                \App\Models\TnController::query()->update(['is_online' => false]);
+                \App\Models\TnController::where('last_seen_at', '<', now()->subSeconds(30))
+                    ->orWhereNull('last_seen_at')
+                    ->update(['is_online' => false]);
+
+                // Reset port serial yang tidak valid/tidak ada di PC ke AUTO agar USB plug-and-play selalu bekerja
+                $available = app(\App\Services\TnModbusService::class)->listAvailablePorts();
+                $validPorts = array_map('strtoupper', array_column($available, 'device'));
+                if (!empty($validPorts)) {
+                    \App\Models\TnController::whereNotIn(DB::raw('UPPER(serial_port)'), array_merge($validPorts, ['AUTO']))
+                        ->orWhereNull('serial_port')
+                        ->update(['serial_port' => 'AUTO']);
+                }
             }
         } catch (\Throwable $e) {
             // Ignore if schema not ready
         }
 
         Window::open()
-            ->title('SCADA Retort - PT Indah Mesin')
+            ->title('SCADA Retort - CV Indah Mesin')
             ->url(route('tn.index'))
             ->width(1400)
             ->height(900)
@@ -46,12 +57,10 @@ class NativeAppServiceProvider implements ProvidesPhpIni
             ->rememberState();
 
         // Otomatis jalankan tn:poll di background desktop app untuk polling serial port USB RS-485
-        if (config('nativephp-internal.running')) {
-            try {
-                ChildProcess::artisan(['tn:poll', '--interval=1'], 'tn_poll', persistent: true);
-            } catch (\Throwable $e) {
-                Log::warning('Native ChildProcess tn:poll failed to start: ' . $e->getMessage());
-            }
+        try {
+            ChildProcess::artisan(['tn:poll', '--interval=1'], 'tn_poll', persistent: true);
+        } catch (\Throwable $e) {
+            Log::warning('Native ChildProcess tn:poll failed to start: ' . $e->getMessage());
         }
     }
 

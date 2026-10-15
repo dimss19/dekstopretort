@@ -21,20 +21,23 @@ function findAppRoot() {
 }
 
 const appRoot = findAppRoot();
-process.env.APP_PATH = appRoot;
 
-const buildPath = (import.meta.env?.MAIN_VITE_NATIVEPHP_BUILD_PATH ? path.resolve(import.meta.dirname, import.meta.env.MAIN_VITE_NATIVEPHP_BUILD_PATH) : null)
-    || process.env.NATIVEPHP_BUILD_PATH
-    || path.join(appRoot, 'vendor', 'nativephp', 'desktop', 'resources', 'build');
+const buildPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'build')
+    : (import.meta.env?.MAIN_VITE_NATIVEPHP_BUILD_PATH ? path.resolve(import.meta.dirname, import.meta.env.MAIN_VITE_NATIVEPHP_BUILD_PATH) : null)
+        || process.env.NATIVEPHP_BUILD_PATH
+        || path.join(appRoot, 'vendor', 'nativephp', 'desktop', 'resources', 'build');
 
 process.env.NATIVEPHP_BUILD_PATH = buildPath;
+
+const appPath = app.isPackaged ? path.join(buildPath, 'app') : appRoot;
+process.env.APP_PATH = appPath;
 
 const defaultIcon = path.join(buildPath, 'icon.png');
 const certificate = path.join(buildPath, 'cacert.pem');
 
 const executable = process.platform === 'win32' ? 'php.exe' : 'php';
 const phpBinary = path.join(buildPath, 'php', executable);
-const appPath = app.isPackaged ? path.join(buildPath, 'app') : appRoot;
 
 let splashWindow;
 

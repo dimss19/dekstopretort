@@ -8,15 +8,15 @@ return [
      * It is used to determine if the app needs to be updated.
      * Increment this value every time you release a new version of your app.
      */
-    'version' => env('NATIVEPHP_APP_VERSION', '1.0.0'),
+    'version' => env('NATIVEPHP_APP_VERSION', '1.5.0'),
 
     'app_id' => env('NATIVEPHP_APP_ID', 'com.indahmesin.scadaretort'),
 
     'deeplink_scheme' => env('NATIVEPHP_DEEPLINK_SCHEME', 'scadaretort'),
 
-    'author' => env('NATIVEPHP_APP_AUTHOR', 'PT Indah Mesin'),
+    'author' => env('NATIVEPHP_APP_AUTHOR', 'CV Indah Mesin'),
 
-    'copyright' => env('NATIVEPHP_APP_COPYRIGHT', 'Copyright © 2026 PT Indah Mesin'),
+    'copyright' => env('NATIVEPHP_APP_COPYRIGHT', 'Copyright © 2026 CV Indah Mesin'),
 
     'description' => env('NATIVEPHP_APP_DESCRIPTION', 'SCADA Retort Monitoring & Control System'),
 
@@ -64,6 +64,8 @@ return [
         '*/tests',
         'scada-retort-installer-release*',
         'desktop-app',
+        'public/hot',
+        'hot',
     ],
 
     /**

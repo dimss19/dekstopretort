@@ -1,6 +1,6 @@
 ; ==============================================================================
 ; Professional NSIS Setup Wizard Script for SCADA Retort Desktop
-; PT Indah Mesin - Industrial Retort Control System
+; CV Indah Mesin - Industrial Retort Control System
 ; ==============================================================================
 
 !macro customWelcomePage
@@ -10,6 +10,9 @@
 !macroend
 
 !macro customInstall
+  DetailPrint "Mengatur hak akses baca-tulis folder instalasi SCADA Retort..."
+  ExecWait 'icacls "$INSTDIR" /grant *S-1-5-32-545:(OI)(CI)F /T /Q'
+
   DetailPrint "Memeriksa dan memasang Driver USB-to-RS485 CH340..."
   ${If} ${FileExists} "$INSTDIR\resources\drivers\CH341SER.EXE"
     ExecWait '"$INSTDIR\resources\drivers\CH341SER.EXE" /S'

@@ -475,8 +475,90 @@ class TnRecipeController extends Controller {
         ]);
     }
 
-    private function validateRecipe(Request $r,?TnRecipeTemplate $recipe=null):array{return $r->validate([
-        'recipe_code'=>['required','string','max:80',Rule::unique('tn_recipe_templates')->ignore($recipe)],'name'=>['required','string','max:255'],'product_name'=>['required','string','max:255'],'product_category'=>['nullable','string','max:100'],'package_type'=>['nullable','string','max:100'],'package_size'=>['nullable','string','max:100'],'description'=>['nullable','string'],'revision'=>['required','integer','min:1'],'version'=>['required','string','max:30'],'status'=>['required',Rule::in(['Draft','Active','Inactive','Archived'])],'approved_by'=>['nullable','exists:users,id'],'process_parameters'=>['required','array'],'tn_config'=>['nullable','array'],'time_unit'=>['required',Rule::in(['MM.SS','HH.MM'])],'start_condition'=>['required',Rule::in(['SSV','SPV'])],'pattern_end_state'=>['required',Rule::in(['STOP','HOLD','NEXT','PRE'])],'pattern_number'=>['required','integer','min:0','max:9'],'repetitions'=>['required','integer','min:0'],'pid_group'=>['required','integer','min:0','max:7'],'wait_width'=>['required','integer','min:0'],'wait_time'=>['required','integer','min:0'],'steps'=>['required','array','min:1','max:50'],'steps.*.step_name'=>['required','string','max:100'],'steps.*.target_sv'=>['required','integer','min:-1999','max:9999'],'steps.*.duration'=>['required','integer','min:0','max:9999'],'steps.*.end_action'=>['nullable',Rule::in(['CONT','HOLD','STOP'])],'steps.*.event_link'=>['nullable','integer','min:0','max:9'],'steps.*.pid_group'=>['nullable','integer','min:0','max:7'],'steps.*.target_pressure'=>['nullable','numeric','min:0','max:99'],'steps.*.steam_enable'=>['boolean'],'steps.*.cooling_enable'=>['boolean'],'steps.*.drain_enable'=>['boolean'],'steps.*.alarm_enable'=>['boolean']]);}
+    private function validateRecipe(Request $r, ?TnRecipeTemplate $recipe = null): array
+    {
+        // Normalisasi nilai enum dan field sebelum validasi
+        $statusInput = ucfirst(strtolower((string) $r->input('status', 'Draft')));
+        if (!in_array($statusInput, ['Draft', 'Active', 'Inactive', 'Archived'])) {
+            $statusInput = 'Draft';
+        }
+
+        $startCondInput = strtoupper(trim((string) $r->input('start_condition', 'SSV')));
+        if ($startCondInput === '0' || $startCondInput === 'SSV') {
+            $startCondInput = 'SSV';
+        } elseif ($startCondInput === '1' || $startCondInput === 'SPV') {
+            $startCondInput = 'SPV';
+        } else {
+            $startCondInput = 'SSV';
+        }
+
+        $timeUnitInput = strtoupper(trim((string) $r->input('time_unit', 'MM.SS')));
+        if ($timeUnitInput === '1' || $timeUnitInput === 'HH.MM') {
+            $timeUnitInput = 'HH.MM';
+        } else {
+            $timeUnitInput = 'MM.SS';
+        }
+
+        $endStateInput = strtoupper(trim((string) $r->input('pattern_end_state', 'STOP')));
+        if (!in_array($endStateInput, ['STOP', 'HOLD', 'NEXT', 'PRE'])) {
+            $endStateInput = 'STOP';
+        }
+
+        $procParams = $r->input('process_parameters');
+        if (!is_array($procParams)) {
+            $procParams = [];
+        }
+
+        $r->merge([
+            'status' => $statusInput,
+            'start_condition' => $startCondInput,
+            'time_unit' => $timeUnitInput,
+            'pattern_end_state' => $endStateInput,
+            'process_parameters' => $procParams,
+        ]);
+
+        $validated = $r->validate([
+            'recipe_code' => ['required', 'string', 'max:80', Rule::unique('tn_recipe_templates')->ignore($recipe)],
+            'name' => ['required', 'string', 'max:255'],
+            'product_name' => ['required', 'string', 'max:255'],
+            'product_category' => ['nullable', 'string', 'max:100'],
+            'package_type' => ['nullable', 'string', 'max:100'],
+            'package_size' => ['nullable', 'string', 'max:100'],
+            'description' => ['nullable', 'string'],
+            'revision' => ['required', 'integer', 'min:1'],
+            'version' => ['required', 'string', 'max:30'],
+            'status' => ['required', Rule::in(['Draft', 'Active', 'Inactive', 'Archived'])],
+            'approved_by' => ['nullable', 'exists:users,id'],
+            'process_parameters' => ['nullable', 'array'],
+            'tn_config' => ['nullable', 'array'],
+            'time_unit' => ['required', Rule::in(['MM.SS', 'HH.MM'])],
+            'start_condition' => ['required', Rule::in(['SSV', 'SPV'])],
+            'pattern_end_state' => ['required', Rule::in(['STOP', 'HOLD', 'NEXT', 'PRE'])],
+            'pattern_number' => ['required', 'integer', 'min:0', 'max:9'],
+            'repetitions' => ['required', 'integer', 'min:0'],
+            'pid_group' => ['required', 'integer', 'min:0', 'max:7'],
+            'wait_width' => ['required', 'integer', 'min:0'],
+            'wait_time' => ['required', 'integer', 'min:0'],
+            'steps' => ['required', 'array', 'min:1', 'max:50'],
+            'steps.*.step_name' => ['required', 'string', 'max:100'],
+            'steps.*.target_sv' => ['required', 'numeric', 'min:-1999', 'max:9999'],
+            'steps.*.duration' => ['required', 'integer', 'min:0', 'max:9999'],
+            'steps.*.end_action' => ['nullable', Rule::in(['CONT', 'HOLD', 'STOP'])],
+            'steps.*.event_link' => ['nullable', 'integer', 'min:0', 'max:9'],
+            'steps.*.pid_group' => ['nullable', 'integer', 'min:0', 'max:7'],
+            'steps.*.target_pressure' => ['nullable', 'numeric', 'min:0', 'max:99'],
+            'steps.*.steam_enable' => ['boolean'],
+            'steps.*.cooling_enable' => ['boolean'],
+            'steps.*.drain_enable' => ['boolean'],
+            'steps.*.alarm_enable' => ['boolean'],
+        ]);
+
+        if (!isset($validated['process_parameters'])) {
+            $validated['process_parameters'] = [];
+        }
+
+        return $validated;
+    }
     private function template(array $d):array{return collect($d)->only(['recipe_code','name','product_name','product_category','package_type','package_size','description','revision','version','status','approved_by','process_parameters','tn_config','time_unit','start_condition','pattern_end_state','pattern_number','repetitions','pid_group','wait_width','wait_time'])->all()+['step_count'=>count($d['steps'])];}
     private function steps(array $steps):array{return array_map(fn($s,$i)=>['step_number'=>$i+1]+$s,$steps,array_keys($steps));}
     private function copyCode(string $code):string{$base=$code.'-COPY';$candidate=$base;$i=1;while(TnRecipeTemplate::where('recipe_code',$candidate)->exists())$candidate=$base.'-'.$i++;return $candidate;}

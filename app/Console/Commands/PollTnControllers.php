@@ -21,15 +21,40 @@ class PollTnControllers extends Command
         ini_set('max_execution_time', '0');
         \Illuminate\Support\Facades\DB::disableQueryLog();
 
+        // 1. Single-instance master lock: cegah multiple process polling membuka COM port yang sama
+        $lockDir = sys_get_temp_dir();
+        $lockFile = $lockDir . DIRECTORY_SEPARATOR . 'scada_retort_tn_poll_master.lock';
+        $fp = @fopen($lockFile, 'c+');
+        if (!$fp) {
+            $this->error("Cannot open lock file: {$lockFile}");
+            return 1;
+        }
+
+        if (!@flock($fp, LOCK_EX | LOCK_NB)) {
+            if ($this->option('once')) {
+                $this->warn('Instance polling tn:poll lain sudah aktif di background.');
+                @fclose($fp);
+                return 0;
+            }
+            $this->warn('Instance polling tn:poll lain sudah aktif di background. Menunggu giliran agar port serial tidak bentrok...');
+            while (!@flock($fp, LOCK_EX | LOCK_NB)) {
+                sleep(3);
+            }
+            $this->info('Lock diperoleh. Melanjutkan polling TN Controller...');
+        }
+
         $baseInterval = max(1, (int) $this->option('interval'));
         $this->info("Starting TN Controller polling every {$baseInterval} second(s)...");
 
-        // Set status awal controller offline sampai Modbus terhubung
-        TnController::query()->update([
-            'is_online' => false,
-            'last_error' => 'Menghubungkan ke controller Autonics TN...',
-        ]);
+        // Hanya reset offline jika controller belum pernah merespons dalam 10 detik terakhir
+        TnController::where('last_seen_at', '<', Carbon::now()->subSeconds(10))
+            ->orWhereNull('last_seen_at')
+            ->update([
+                'is_online' => false,
+                'last_error' => 'Menghubungkan ke controller Autonics TN...',
+            ]);
 
+        $failCounts = [];
         $lastOfflineProbeTime = 0.0;
         $offlineProbeInterval = 20.0; // Probe at most 1 offline controller every 20 seconds
         $offlineIndex = 0;
@@ -37,11 +62,12 @@ class PollTnControllers extends Command
         // Initialize target second to next whole integer second
         $targetSecond = floor(microtime(true)) + 1;
 
-        do {
-            set_time_limit(0);
-            if (!$this->option('once')) {
-                $now = microtime(true);
-                $sleepSeconds = $targetSecond - $now;
+        try {
+            do {
+                set_time_limit(0);
+                if (!$this->option('once')) {
+                    $now = microtime(true);
+                    $sleepSeconds = $targetSecond - $now;
 
                 if ($sleepSeconds > 0) {
                     usleep((int)($sleepSeconds * 1000000));
@@ -209,39 +235,55 @@ class PollTnControllers extends Command
                             }
                         }
 
+                        // Reset fail count on successful read
+                        $failCounts[$controller->id] = 0;
+
                         if (!$wasOnline) {
                             $this->info("Controller {$controller->name} (slave {$slaveId}) is now online.");
                         }
                     } else {
-                        $wasOnline = $controller->is_online;
-                        if ($wasOnline || $controller->last_error !== ($ctrlResult['error'] ?? '')) {
-                            $controller->update([
-                                'is_online' => false,
-                                'last_error' => \Illuminate\Support\Str::limit($ctrlResult['error'] ?? 'Unknown error', 250),
-                            ]);
-                        }
-                        if ($wasOnline) {
-                            $this->error("Controller {$controller->name} (slave {$slaveId}) went offline: {$ctrlResult['error']}");
+                        // Debounce offline status: toleransi hingga 3 siklus gagal berturut-turut agar tidak mati-nyala
+                        $failCounts[$controller->id] = ($failCounts[$controller->id] ?? 0) + 1;
+                        if ($failCounts[$controller->id] >= 3) {
+                            $wasOnline = $controller->is_online;
+                            if ($wasOnline || $controller->last_error !== ($ctrlResult['error'] ?? '')) {
+                                $controller->update([
+                                    'is_online' => false,
+                                    'last_error' => \Illuminate\Support\Str::limit($ctrlResult['error'] ?? 'Unknown error', 250),
+                                ]);
+                            }
+                            if ($wasOnline) {
+                                $this->error("Controller {$controller->name} (slave {$slaveId}) went offline: {$ctrlResult['error']}");
+                            }
                         }
                     }
                 }
             }
 
-            // Mark controllers that were polled but didn't respond as offline
+            // Mark controllers that were polled but didn't respond (dengan toleransi 3 siklus)
             foreach ($controllersToPoll as $controller) {
                 if (!in_array($controller->slave_id, $seenSlaves)) {
-                    $wasOnline = $controller->is_online;
-                    if ($wasOnline) {
-                        $controller->update([
-                            'is_online' => false,
-                            'last_error' => 'No response from slave in batch poll.',
-                        ]);
-                        $this->warn("Controller {$controller->name} (slave {$controller->slave_id}) went offline: No data in batch response.");
+                    $failCounts[$controller->id] = ($failCounts[$controller->id] ?? 0) + 1;
+                    if ($failCounts[$controller->id] >= 3) {
+                        $wasOnline = $controller->is_online;
+                        if ($wasOnline) {
+                            $controller->update([
+                                'is_online' => false,
+                                'last_error' => 'No response from slave in batch poll.',
+                            ]);
+                            $this->warn("Controller {$controller->name} (slave {$controller->slave_id}) went offline: No data in batch response.");
+                        }
                     }
                 }
             }
 
             $targetSecond += $baseInterval;
         } while (!$this->option('once'));
+    } finally {
+        if ($fp) {
+            @flock($fp, LOCK_UN);
+            @fclose($fp);
+        }
     }
+}
 }

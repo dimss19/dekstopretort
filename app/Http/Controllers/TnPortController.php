@@ -8,16 +8,32 @@ use Illuminate\Http\Request;
 
 class TnPortController extends Controller
 {
-    public function list(TnController $tn, TnModbusService $modbus)
+    public function list(TnController $tn, Request $request, TnModbusService $modbus)
     {
-        $ports = $modbus->listAvailablePorts();
-        if (empty($ports)) {
-            $ports = [
-                ['device' => 'COM3', 'description' => 'USB-SERIAL CH340 (COM3)'],
-                ['device' => 'COM1', 'description' => 'Communications Port (COM1)'],
-            ];
+        $forceFresh = $request->boolean('fresh');
+        $ports = $modbus->listAvailablePorts($forceFresh);
+
+        $validDevices = array_column($ports, 'device');
+        $validDevicesUpper = array_map('strtoupper', $validDevices);
+        $currentPort = $tn->serial_port;
+
+        if (!empty($validDevices)) {
+            if ($currentPort && strtoupper($currentPort) !== 'AUTO' && !in_array(strtoupper($currentPort), $validDevicesUpper)) {
+                $currentPort = $validDevices[0];
+                $tn->update(['serial_port' => $currentPort]);
+            }
+        } else {
+            if ($currentPort && strtoupper($currentPort) !== 'AUTO') {
+                $tn->update(['serial_port' => 'AUTO']);
+                $currentPort = 'AUTO';
+            }
         }
-        return response()->json(['success' => true, 'ports' => $ports]);
+
+        return response()->json([
+            'success' => true,
+            'current_port' => $currentPort ?: 'AUTO',
+            'ports' => $ports,
+        ]);
     }
 
     public function scan(TnController $tn, TnModbusService $modbus)
@@ -35,23 +51,20 @@ class TnPortController extends Controller
             return response()->json([
                 'success' => true,
                 'port' => $port,
-                'message' => "Port {$port} ditemukan dan merespons. Port telah dipilih."
+                'message' => "Port {$port} terdeteksi dan berhasil merespons controller."
             ]);
         }
 
         $ports = $modbus->listAvailablePorts();
         $portNames = array_column($ports, 'device');
-        if (empty($portNames)) {
-            $portNames = ['COM3', 'COM1'];
-        }
 
-        $defaultPort = $tn->serial_port ?: 'COM3';
+        $defaultPort = $tn->serial_port ?: 'AUTO';
         $tn->update(['serial_port' => $defaultPort, 'last_error' => null]);
 
         return response()->json([
             'success' => true,
             'port' => $defaultPort,
-            'message' => "Port {$defaultPort} aktif (Otomatis). Siap berkomunikasi.",
+            'message' => "Port diatur ke {$defaultPort}.",
             'available_ports' => $portNames,
         ]);
     }
@@ -60,7 +73,7 @@ class TnPortController extends Controller
     {
         $request->validate(['port' => 'nullable|string']);
 
-        $port = $request->port ?: ($tn->serial_port ?: 'COM3');
+        $port = $request->port ?: ($tn->serial_port ?: 'AUTO');
         $result = ['success' => false];
         try {
             $result = $modbus->testPort($tn, $port);
@@ -68,33 +81,30 @@ class TnPortController extends Controller
             $result = ['success' => false, 'error' => $e->getMessage()];
         }
 
-        $pvVal = $tn->current_pv ?? 121.1;
-        $tn->update([
-            'is_online' => true,
-            'last_seen_at' => now(),
-            'last_error' => null,
-            'serial_port' => $port,
-        ]);
-
         if ($result['success']) {
             $rawPv = $result['data'][0] ?? null;
-            $pvText = $rawPv !== null ? ' (PV: ' . number_format($rawPv / 10, 1) . ' °C)' : '';
+            $pvVal = $rawPv !== null ? ($rawPv / 10) : ($tn->current_pv ?? 0.0);
+            $tn->update([
+                'is_online' => true,
+                'last_seen_at' => now(),
+                'last_error' => null,
+                'serial_port' => $port,
+            ]);
 
             return response()->json([
                 'success' => true,
-                'message' => "Koneksi ke {$port} berhasil! Respons controller diterima{$pvText}.",
-                'data' => $result['data'] ?? null,
-                'pv' => $rawPv !== null ? $rawPv / 10 : $pvVal,
+                'message' => "Koneksi ke {$port} berhasil! (PV: " . number_format($pvVal, 1) . " °C)",
+                'pv' => $pvVal,
                 'is_online' => true,
+                'serial_port' => $port,
             ]);
         }
 
         return response()->json([
-            'success' => true,
-            'message' => "Koneksi ke {$port} OK (PV: " . number_format($pvVal, 1) . " °C).",
-            'data' => [$pvVal * 10],
-            'pv' => $pvVal,
-            'is_online' => true,
+            'success' => false,
+            'message' => "Koneksi ke {$port} gagal: " . ($result['error'] ?? 'Tidak ada respons dari controller'),
+            'is_online' => false,
+            'serial_port' => $port,
         ]);
     }
 
@@ -126,24 +136,17 @@ class TnPortController extends Controller
             'mode' => 'sometimes|in:manual,auto',
         ]);
 
-        $mode = $request->mode ?? 'manual';
-
-        if ($mode === 'auto') {
-            $modbus->clearPortCache($tn);
-            $tn->update(['serial_port' => null, 'last_error' => null]);
-            return response()->json([
-                'success' => true,
-                'message' => 'Mode auto-detect diaktifkan. Port akan dideteksi otomatis.',
-                'serial_port' => null,
-            ]);
-        }
+        $rawPort = trim($request->port);
+        $isAuto = strtoupper($rawPort) === 'AUTO' || ($request->mode ?? '') === 'auto';
+        $portToSave = $isAuto ? 'AUTO' : strtoupper($rawPort);
 
         $modbus->clearPortCache($tn);
-        $tn->update(['serial_port' => $request->port, 'last_error' => null]);
+        $tn->update(['serial_port' => $portToSave, 'last_error' => null]);
+
         return response()->json([
             'success' => true,
-            'message' => "Port di-set ke {$request->port}. Error sebelumnya telah di-reset.",
-            'serial_port' => $request->port,
+            'message' => $isAuto ? 'Mode Auto-Detect diaktifkan.' : "Port serial berhasil diatur ke {$portToSave}.",
+            'serial_port' => $portToSave,
         ]);
     }
 

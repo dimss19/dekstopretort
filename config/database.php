@@ -34,9 +34,19 @@ return [
 
         'sqlite' => [
             'driver' => 'sqlite',
-            'database' => env('DB_CONNECTION') === 'sqlite' && str_contains(env('DB_DATABASE', ''), '.') 
-                ? env('DB_DATABASE') 
-                : database_path('database.sqlite'),
+            'database' => (function () {
+                $db = env('DB_DATABASE');
+                if ($db && file_exists($db)) {
+                    return $db;
+                }
+                if ($db && file_exists(database_path($db))) {
+                    return database_path($db);
+                }
+                if (file_exists(database_path('nativephp.sqlite'))) {
+                    return database_path('nativephp.sqlite');
+                }
+                return database_path('database.sqlite');
+            })(),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
             'busy_timeout' => 10000,

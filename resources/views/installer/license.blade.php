@@ -12,7 +12,7 @@
                 <span>Langkah 2: Aktivasi Lisensi Perusahaan</span>
             </h2>
             <p class="text-xs sm:text-sm text-slate-400">
-                Tahap akhir instalasi: Masukkan <strong>Kode Perusahaan (Purchase Code)</strong> resmi yang diterbitkan oleh PT Indah Mesin untuk mengaktifkan fitur SCADA Retort.
+                Tahap akhir instalasi: Masukkan <strong>Kode Perusahaan (Purchase Code)</strong> resmi yang diterbitkan oleh CV Indah Mesin untuk mengaktifkan fitur SCADA Retort.
             </p>
         </div>
 
@@ -30,7 +30,7 @@
                     class="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-left rounded-lg transition flex items-center justify-between group">
                     <div>
                         <div class="font-mono font-bold text-emerald-400 text-xs">IM-CORP-77A1-88B2-99C3</div>
-                        <div class="text-[10px] text-slate-400">PT Indah Pangan Makmur (Lifetime)</div>
+                        <div class="text-[10px] text-slate-400">CV Indah Pangan Makmur (Lifetime)</div>
                     </div>
                     <i class="fa-solid fa-arrow-turn-down text-slate-600 group-hover:text-amber-400 transition text-xs"></i>
                 </button>

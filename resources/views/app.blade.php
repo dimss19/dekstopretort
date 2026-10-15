@@ -18,6 +18,9 @@
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
 
         <!-- Scripts -->
+        @if(config('nativephp-internal.running') && file_exists(public_path('hot')))
+            @php @unlink(public_path('hot')); @endphp
+        @endif
         @routes
         @viteReactRefresh
         @vite(['resources/js/app.tsx', "resources/js/Pages/{$page['component']}.tsx"])

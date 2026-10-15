@@ -1,6 +1,6 @@
 # 🖥️ SCADA Retort - Desktop App Edition (.exe)
 
-Aplikasi Desktop Windows untuk Sistem SCADA Retort PT Indah Mesin, dibangun menggunakan **NativePHP for Laravel (Electron Shell)**.
+Aplikasi Desktop Windows untuk Sistem SCADA Retort CV Indah Mesin, dibangun menggunakan **NativePHP for Laravel (Electron Shell)**.
 
 ---
 
@@ -10,7 +10,7 @@ Aplikasi Desktop Windows untuk Sistem SCADA Retort PT Indah Mesin, dibangun meng
 desktop-app/
 ├── assets/
 │   ├── icon.ico            # Icon aplikasi multi-resolusi (16x16 s/d 256x256)
-│   └── icon.png            # Master logo PT Indah Mesin (transparan)
+│   └── icon.png            # Master logo CV Indah Mesin (transparan)
 ├── scripts/
 │   ├── build.bat           # 1-Click Script untuk membuild installer Windows (.exe)
 │   └── convert_icon.py     # Script Python untuk generate icon.ico dari icon.png
@@ -24,7 +24,7 @@ desktop-app/
 - **Database Client**: Menggunakan database **SQLite** (`database/nativephp.sqlite`), otomatis dikelola secara lokal di komputer klien tanpa perlu instalasi database PostgreSQL/MySQL terpisah.
 - **Database Server**: Server web/cloud tetap menggunakan **PostgreSQL** (`.env`). Codebase shared mendukung dual mode tanpa konflik.
 - **Auto-Update**: **Dinonaktifkan** (`updater.enabled = false`). Pembaruan sistem dikirimkan langsung berupa file installer baru ke klien.
-- **Icon & Branding**: Logo resmi PT Indah Mesin (Gear + Globe) diterapkan pada window bar, taskbar Windows, system tray, dan shortcut installer.
+- **Icon & Branding**: Logo resmi CV Indah Mesin (Gear + Globe) diterapkan pada window bar, taskbar Windows, system tray, dan shortcut installer.
 
 ---
 

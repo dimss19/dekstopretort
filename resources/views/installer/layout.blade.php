@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Setup & Aktivasi') - SCADA Retort PT Indah Mesin</title>
+    <title>@yield('title', 'Setup & Aktivasi') - SCADA Retort CV Indah Mesin</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -22,10 +22,10 @@
         <!-- Header -->
         <div class="bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-900 px-6 py-5 text-center relative overflow-hidden border-b border-blue-500/20">
             <div class="flex items-center justify-center gap-3 mb-2">
-                <img src="/icon.png" alt="PT Indah Mesin Logo" class="w-10 h-10 object-contain drop-shadow">
+                <img src="/icon.png" alt="CV Indah Mesin Logo" class="w-10 h-10 object-contain drop-shadow">
                 <div class="text-left">
                     <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">SCADA Retort</h1>
-                    <p class="text-blue-200 text-xs font-medium">PT Indah Mesin — Desktop Control System</p>
+                    <p class="text-blue-200 text-xs font-medium">CV Indah Mesin — Desktop Control System</p>
                 </div>
             </div>
             <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-200 text-[11px]">
@@ -88,7 +88,7 @@
 
         <!-- Footer -->
         <div class="bg-slate-950/60 px-6 py-3.5 border-t border-slate-800 text-center text-[11px] text-slate-500">
-            &copy; {{ date('Y') }} PT Indah Mesin. Sistem SCADA Retort Terintegrasi.
+            &copy; {{ date('Y') }} CV Indah Mesin. Sistem SCADA Retort Terintegrasi.
         </div>
     </div>
 

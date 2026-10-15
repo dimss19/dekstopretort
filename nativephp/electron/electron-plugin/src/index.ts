@@ -173,7 +173,9 @@ class NativePHP {
     }
 
     private setAppUserModelId(config) {
-        electronApp.setAppUserModelId(config?.app_id);
+        if (config?.app_id) {
+            electronApp.setAppUserModelId(config.app_id);
+        }
     }
 
     private setDeepLinkHandler(config) {

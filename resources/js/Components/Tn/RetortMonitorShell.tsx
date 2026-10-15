@@ -5,6 +5,7 @@ import { ScadaCanvas, ScadaMapping, SensorData } from '@/types';
 import { RetortEvent, RetortTelemetry } from '@/Pages/Tn/retortTelemetry';
 import TnNormalMonitor from './TnNormalMonitor';
 import RetortIndustrialHmi from './RetortIndustrialHmi';
+import TnPortSelector from './TnPortSelector';
 
 interface Props {
     controller: any;
@@ -23,6 +24,7 @@ interface Props {
     onRun: () => void;
     onStop: () => void;
     onResetAlarm: () => void;
+    onPortChanged?: (port: string) => void;
 }
 
 export default function RetortMonitorShell(props: Props) {
@@ -52,10 +54,21 @@ export default function RetortMonitorShell(props: Props) {
                         </span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
-                        <span>Tipe: <strong className="font-mono text-blue-700">{controller.model_type}</strong></span>
+                        <span>Tipe: <strong className="font-mono text-blue-700">{(controller.model_type || 'TN').replace(/TNS/gi, 'TN')}</strong></span>
                         <span className="text-slate-300">•</span>
                         <span>Update: <strong className="text-slate-700">{props.lastUpdate}</strong></span>
                     </div>
+                </div>
+
+                {/* Manual Serial Port Selector (v1.5) */}
+                <div className="flex items-center">
+                    <TnPortSelector
+                        controllerId={controller.id}
+                        controllerModel={controller.model_type}
+                        currentPort={activePortDisplay}
+                        isOnline={isOnline}
+                        onPortChanged={props.onPortChanged}
+                    />
                 </div>
             </div>
         }>

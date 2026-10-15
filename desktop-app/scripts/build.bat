@@ -1,16 +1,16 @@
 @echo off
-title Build SCADA Retort Desktop (.exe) - PT Indah Mesin
+title Build SCADA Retort Desktop (.exe) - CV Indah Mesin
 cd /d "%~dp0\..\.."
 cls
 
 echo ======================================================================
-echo           BUILD SCADA RETORT DESKTOP APP (.EXE) - PT INDAH MESIN
+echo           BUILD SCADA RETORT DESKTOP APP (.EXE) - CV INDAH MESIN
 echo          Bundled: PHP 8.3 + SQLite + Modbus Bridge + CH340 Driver
 echo ======================================================================
 echo.
 
-:: 1. Verifikasi Environment & Bundling Runtime PHP 8.3
-echo [1/5] Memeriksa Environment & Bundling Runtime PHP 8.3...
+:: 1. Verifikasi Environment and Bundling Runtime PHP 8.3
+echo [1/5] Memeriksa Environment ^& Bundling Runtime PHP 8.3...
 if not exist "packages\nativephp\php-bin\bin\win\x64\php-8.3.zip" (
     echo [ERROR] Package PHP Binary Windows tidak ditemukan di 'packages\nativephp\php-bin'.
     pause
@@ -37,12 +37,14 @@ echo.
 
 :: 4. Build Frontend Assets
 echo [4/6] Mengkompilasi Aset Frontend (React + Vite)...
+if exist "public\hot" del /f /q "public\hot"
 call npm run build
 if %errorlevel% neq 0 (
     echo [ERROR] Gagal mengkompilasi frontend assets!
     pause
     exit /b 1
 )
+if exist "public\hot" del /f /q "public\hot"
 echo [OK] Aset frontend berhasil dikompilasi ke public\build.
 echo.
 
@@ -53,7 +55,6 @@ php artisan route:clear
 php artisan view:clear
 echo [OK] Cache dibersihkan.
 echo.
-
 :: 6. Build Executable Windows NSIS Wizard Installer
 echo [6/6] Membuat Wizard Installer Desktop Windows (.exe)...
 echo Ini akan membungkus Electron, PHP 8.3, Modbus Bridge, dan Driver CH340 ke dalam NSIS Setup Wizard.
@@ -66,7 +67,7 @@ if %errorlevel% neq 0 (
 
 if not exist "desktop-app\dist" mkdir "desktop-app\dist"
 for %%F in (nativephp\electron\dist\*-setup.exe nativephp\electron\dist\*-Setup.exe) do (
-    copy /y "%%F" "desktop-app\dist\SCADA-Retort-1.0.0-Setup.exe" >nul
+    copy /y "%%F" "desktop-app\dist\SCADA-Retort-1.5.0-Setup.exe" >nul
 )
 
 echo.
@@ -74,14 +75,14 @@ echo ======================================================================
 echo   BUILD BERHASIL!
 echo ======================================================================
 echo File installer telah dibuat di:
-echo - desktop-app\dist\SCADA-Retort-1.0.0-Setup.exe
+echo - desktop-app\dist\SCADA-Retort-1.5.0-Setup.exe
 echo.
 echo Installer dilengkapi:
 echo  1. Wizard Pemilihan Lokasi Folder Instalasi (C:\Program Files\...)
-echo  2. Persetujuan Lisensi EULA Resmi PT Indah Mesin
+echo  2. Persetujuan Lisensi EULA Resmi CV Indah Mesin
 echo  3. Auto-bundling PHP 8.3 Portable Runtime (Zero PHP Setup)
 echo  4. Auto-bundling Standalone Modbus Bridge (Zero Python Setup)
-echo  5. Auto-bundling & Instalasi Otomatis Driver USB-RS485 CH340
+echo  5. Auto-bundling ^& Instalasi Otomatis Driver USB-RS485 CH340
 echo  6. Akses Langsung Dashboard SCADA Retort (Bebas Login Web)
 echo.
 pause

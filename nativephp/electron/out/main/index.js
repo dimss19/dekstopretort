@@ -2907,7 +2907,9 @@ class NativePHP {
     }
   }
   setAppUserModelId(config) {
-    electronApp.setAppUserModelId(config === null || config === void 0 ? void 0 : config.app_id);
+    if (config === null || config === void 0 ? void 0 : config.app_id) {
+      electronApp.setAppUserModelId(config.app_id);
+    }
   }
   setDeepLinkHandler(config) {
     const deepLinkProtocol = config === null || config === void 0 ? void 0 : config.deeplink_scheme;
@@ -3074,6 +3076,7 @@ function createSplash(appPath2, importMetaDirname) {
   }
   return splash;
 }
+const __vite_import_meta_env__ = {};
 fixPath();
 function findAppRoot() {
   if (process.env.APP_PATH && fs.existsSync(process.env.APP_PATH)) return process.env.APP_PATH;
@@ -3087,14 +3090,14 @@ function findAppRoot() {
   return process.cwd();
 }
 const appRoot = findAppRoot();
-process.env.APP_PATH = appRoot;
-const buildPath = path.resolve(import.meta.dirname, "../../../build") || process.env.NATIVEPHP_BUILD_PATH || path.join(appRoot, "vendor", "nativephp", "desktop", "resources", "build");
+const buildPath = app.isPackaged ? path.join(process.resourcesPath, "build") : (__vite_import_meta_env__?.MAIN_VITE_NATIVEPHP_BUILD_PATH ? path.resolve(import.meta.dirname, void 0) : null) || process.env.NATIVEPHP_BUILD_PATH || path.join(appRoot, "vendor", "nativephp", "desktop", "resources", "build");
 process.env.NATIVEPHP_BUILD_PATH = buildPath;
+const appPath = app.isPackaged ? path.join(buildPath, "app") : appRoot;
+process.env.APP_PATH = appPath;
 const defaultIcon = path.join(buildPath, "icon.png");
 const certificate = path.join(buildPath, "cacert.pem");
 const executable = process.platform === "win32" ? "php.exe" : "php";
 const phpBinary = path.join(buildPath, "php", executable);
-const appPath = app.isPackaged ? path.join(buildPath, "app") : appRoot;
 let splashWindow;
 app.whenReady().then(() => {
   try {

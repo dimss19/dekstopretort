@@ -27,7 +27,7 @@
                 </div>
                 <div class="flex justify-between text-slate-400">
                     <span>Perusahaan:</span>
-                    <span class="text-white font-medium">{{ $license['company_name'] ?? 'Klien PT Indah Mesin' }}</span>
+                    <span class="text-white font-medium">{{ $license['company_name'] ?? 'Klien CV Indah Mesin' }}</span>
                 </div>
                 <div class="flex justify-between text-slate-400">
                     <span>Kode Lisensi:</span>

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Script Build macOS DMG (Intel x64 & Apple Silicon arm64) - SCADA Retort
-# PT Indah Mesin
+# CV Indah Mesin
 # ==============================================================================
 
 set -e
@@ -12,7 +12,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 echo "======================================================================"
-echo "      BUILD SCADA RETORT MACOS DMG (.DMG) - PT INDAH MESIN"
+echo "      BUILD SCADA RETORT MACOS DMG (.DMG) - CV INDAH MESIN"
 echo "======================================================================"
 echo ""
 

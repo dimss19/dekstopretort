@@ -1,5 +1,5 @@
 ================================================================================
-PANDUAN KONEKSI & DRIVER USB-TO-RS485 CH340/CH341 - PT INDAH MESIN
+PANDUAN KONEKSI & DRIVER USB-TO-RS485 CH340/CH341 - CV INDAH MESIN
 ================================================================================
 
 1. CARA PASANG DRIVER:

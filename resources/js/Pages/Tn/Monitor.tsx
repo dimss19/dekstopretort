@@ -321,6 +321,9 @@ export default function Monitor({ controller, latestReading: initialReading }: P
             sensorData={sensorData}
             isOnline={isOnline}
             serialPort={currentPort}
+            onPortChanged={(newPort) => {
+                setCurrentPort(newPort);
+            }}
             commandPending={commandPending}
             lastUpdate={lastUpdate}
             activeTab={activeTab}

@@ -5,6 +5,9 @@
     "scripts": {
         "build": "tsc && vite build --configLoader native",
         "dev": "vite --configLoader native",
+        "dev:all": "concurrently -k -p \"[{name}]\" -n \"vite,tn:poll\" -c \"cyan,magenta\" \"vite --configLoader native\" \"php artisan tn:poll --interval=1\"",
+        "dev:vite": "vite --configLoader native",
+        "dev:poll": "php artisan tn:poll --interval=1",
         "test": "vitest run"
     },
     "devDependencies": {

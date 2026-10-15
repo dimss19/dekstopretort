@@ -203,9 +203,12 @@ class TnModbusService
         }
     }
 
-    public function listAvailablePorts(): array
+    public function listAvailablePorts(bool $forceFresh = false): array
     {
-        return Cache::remember('tn_available_serial_ports', 10, function () {
+        if ($forceFresh) {
+            Cache::forget('tn_available_serial_ports');
+        }
+        return Cache::remember('tn_available_serial_ports', 2, function () {
             $result = $this->runPython(['list_ports'], 10);
             if ($result['success'] && isset($result['ports'])) {
                 return $result['ports'];
@@ -280,6 +283,13 @@ class TnModbusService
         if (count($availablePorts) === 1) {
             $singlePort = $availablePorts[0]['device'];
             Cache::put($cacheKey, $singlePort, 5);
+            if (empty($controller->serial_port) || strtoupper((string) $controller->serial_port) === 'AUTO' || $controller->serial_port !== $singlePort) {
+                try {
+                    $controller->update(['serial_port' => $singlePort]);
+                } catch (\Throwable $e) {
+                    // Ignore DB update errors
+                }
+            }
             return $singlePort;
         }
 
@@ -304,8 +314,11 @@ class TnModbusService
         $stopbits = $controller->stopbits ?? config('tn.stopbits');
         $timeout = config('tn.timeout');
 
+        $availablePorts = $this->listAvailablePorts();
+        $availableDevices = array_map('strtoupper', array_column($availablePorts, 'device'));
+
         $port = $configuredPort;
-        if (strtoupper($configuredPort) === 'AUTO') {
+        if (empty($configuredPort) || strtoupper($configuredPort) === 'AUTO' || (!empty($availableDevices) && !in_array(strtoupper($configuredPort), $availableDevices))) {
             $port = $this->resolvePort($controller, $baud, $parity, $stopbits, $timeout);
         }
 
@@ -322,7 +335,7 @@ class TnModbusService
         $lastError = '';
 
         while ($attempt < $retries) {
-            $lockFile = storage_path('app/modbus_port_' . md5($port) . '.lock');
+            $lockFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'scada_retort_modbus_port_' . md5($port) . '.lock';
             $fp = @fopen($lockFile, 'w+');
             if (!$fp) {
                 $lastError = 'Cannot create lock file.';
@@ -444,6 +457,10 @@ class TnModbusService
                 if ($respLine) {
                     $result = json_decode(trim($respLine), true);
                     if ($result && isset($result['controllers'])) {
+                        $anySuccess = collect($result['controllers'])->contains('success', true);
+                        if (!$anySuccess) {
+                            $this->stopWorker();
+                        }
                         return $result['controllers'];
                     }
                 }
@@ -454,7 +471,7 @@ class TnModbusService
         }
 
         // 2. Fallback: file lock + runPython biasa
-        $lockFile = storage_path('app/modbus_port_' . md5($port) . '.lock');
+        $lockFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'scada_retort_modbus_port_' . md5($port) . '.lock';
         $fp = @fopen($lockFile, 'w+');
         if (!$fp) return [];
 
@@ -509,7 +526,10 @@ class TnModbusService
         $configuredPort = $controller->serial_port
             ?? (strtoupper((string) $configPort) === 'AUTO' ? 'AUTO' : $configPort);
 
-        if (empty($configuredPort) || strtoupper($configuredPort) === 'AUTO') {
+        $availablePorts = $this->listAvailablePorts();
+        $availableDevices = array_map('strtoupper', array_column($availablePorts, 'device'));
+
+        if (empty($configuredPort) || strtoupper($configuredPort) === 'AUTO' || (!empty($availableDevices) && !in_array(strtoupper($configuredPort), $availableDevices))) {
             return $this->resolvePort($controller,
                 $controller->baudrate ?? config('tn.baudrate'),
                 $controller->parity ?? config('tn.parity'),

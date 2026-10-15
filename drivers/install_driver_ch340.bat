@@ -1,10 +1,10 @@
 @echo off
 :: Batch script untuk install Driver USB-RS485 CH340 / CH341
-title Installer Driver USB-RS485 CH340 - PT Indah Mesin
+title Installer Driver USB-RS485 CH340 - CV Indah Mesin
 cd /d "%~dp0"
 
 echo ======================================================================
-echo   INSTALLER DRIVER USB-TO-RS485 (CH340 / CH341) - PT INDAH MESIN
+echo   INSTALLER DRIVER USB-TO-RS485 (CH340 / CH341) - CV INDAH MESIN
 echo ======================================================================
 echo.
 echo Memeriksa izin Administrator...
