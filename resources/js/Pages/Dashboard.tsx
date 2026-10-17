@@ -71,9 +71,9 @@ export default function Dashboard({ auth, tnCount, tnOnline, controllers = [], e
         <AuthenticatedLayout>
             <Head title="Dashboard" />
             <div className="space-y-8 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
-                {/* Hero Banner (Royal Blue & Yellow Accent) */}
+                {/* Hero Banner */}
                 <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-blue-950 to-slate-900 p-8 shadow-xl text-white border border-blue-800/60">
-                    <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl pointer-events-none"></div>
+                    <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-blue-600/10 blur-3xl pointer-events-none"></div>
                     <div className="absolute -left-16 -bottom-16 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl pointer-events-none"></div>
                     <div className="relative z-10">
                         <h3 className="text-3xl font-extrabold text-white sm:text-4xl">Selamat datang kembali, {auth?.user?.name || 'Operator'}</h3>
@@ -86,7 +86,7 @@ export default function Dashboard({ auth, tnCount, tnOnline, controllers = [], e
                 {/* 2 Pilihan Utama: USB RS-485 & ESP Logger */}
                 <div className="grid gap-8 lg:grid-cols-2 items-stretch">
                     {/* Pilihan 1: USB RS-485 */}
-                    <div className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-slate-200/90 bg-white/95 p-7 sm:p-8 text-left shadow-lg backdrop-blur-xl transition-all duration-300 hover:border-amber-400 hover:shadow-2xl">
+                    <div className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-slate-200/90 bg-white/95 p-7 sm:p-8 text-left shadow-lg backdrop-blur-xl transition-all duration-300 hover:border-slate-300 hover:shadow-2xl">
                         <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-blue-100/60 transition-transform duration-500 group-hover:scale-150 pointer-events-none" />
 
                         <div className="relative z-10 flex flex-col h-full justify-between">
@@ -101,7 +101,7 @@ export default function Dashboard({ auth, tnCount, tnOnline, controllers = [], e
                                             ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
                                             : 'bg-rose-50 text-rose-700 border-rose-200'
                                     }`}>
-                                        <span className={`h-2 w-2 rounded-full ${rs485Controller.is_online ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
+                                        <span className={`h-2 w-2 rounded-full ${rs485Controller.is_online ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
                                         {rs485Controller.is_online ? 'Online' : 'Offline'}
                                     </span>
                                 </div>
@@ -138,7 +138,7 @@ export default function Dashboard({ auth, tnCount, tnOnline, controllers = [], e
                             <div className="mt-7 space-y-2.5">
                                 <Link
                                     href={route('tn.index')}
-                                    className="w-full flex items-center justify-between rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-500 px-5 py-3.5 text-sm font-extrabold text-slate-950 shadow-md hover:from-yellow-300 hover:to-amber-400 transition-all cursor-pointer"
+                                    className="w-full flex items-center justify-between rounded-2xl bg-[#0f172a] hover:bg-blue-900 px-5 py-3.5 text-sm font-bold text-white shadow-md transition-all cursor-pointer"
                                 >
                                     <span>Buka Monitoring USB RS-485</span>
                                     <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
@@ -165,7 +165,7 @@ export default function Dashboard({ auth, tnCount, tnOnline, controllers = [], e
                     </div>
 
                     {/* Pilihan 2: ESP Logger (IoT Gateway) */}
-                    <div className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-slate-200/90 bg-white/95 p-7 sm:p-8 text-left shadow-lg backdrop-blur-xl transition-all duration-300 hover:border-amber-400 hover:shadow-2xl">
+                    <div className="group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-slate-200/90 bg-white/95 p-7 sm:p-8 text-left shadow-lg backdrop-blur-xl transition-all duration-300 hover:border-slate-300 hover:shadow-2xl">
                         <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-blue-100/60 transition-transform duration-500 group-hover:scale-150 pointer-events-none" />
 
                         <div className="relative z-10 flex flex-col h-full justify-between">
@@ -177,7 +177,7 @@ export default function Dashboard({ auth, tnCount, tnOnline, controllers = [], e
                                     </span>
                                     {isEspOnline ? (
                                         <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-lg shadow-sm">
-                                            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" /> Online
+                                            <span className="h-2 w-2 rounded-full bg-emerald-500" /> Online
                                         </span>
                                     ) : (
                                         <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-lg">
@@ -221,7 +221,7 @@ export default function Dashboard({ auth, tnCount, tnOnline, controllers = [], e
                             <div className="mt-7">
                                 <Link
                                     href={route('esp.monitor')}
-                                    className="w-full flex items-center justify-between rounded-2xl bg-gradient-to-r from-amber-400 to-yellow-500 px-5 py-3.5 text-sm font-extrabold text-slate-950 shadow-md hover:from-yellow-300 hover:to-amber-400 transition-all cursor-pointer"
+                                    className="w-full flex items-center justify-between rounded-2xl bg-[#0f172a] hover:bg-blue-900 px-5 py-3.5 text-sm font-bold text-white shadow-md transition-all cursor-pointer"
                                 >
                                     <span>Buka Monitoring ESP Logger</span>
                                     <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />

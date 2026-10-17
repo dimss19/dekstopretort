@@ -272,7 +272,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                             <div>
                                 <div className="flex items-center justify-between">
                                     <label className="block text-xs font-extrabold text-slate-700 uppercase">Pilih Pattern (0 – 9)</label>
-                                    <span className="text-[10px] font-mono font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">PTnN</span>
+                                    <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">PTnN</span>
                                 </div>
                                 <select
                                     value={data.pattern_number}
@@ -308,16 +308,13 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                         <button
                             type="button"
                             onClick={() => setActiveTab('PATN')}
-                            className={`px-5 py-3 rounded-2xl text-xs font-black transition-all flex items-center gap-2 shadow-sm ${
+                            className={`px-5 py-3 rounded-2xl text-xs font-black transition-all shadow-sm ${
                                 activeTab === 'PATN'
-                                    ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md ring-2 ring-amber-400/50 scale-[1.02]'
+                                    ? 'bg-[#0f172a] text-white shadow-md'
                                     : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                             }`}
                         >
-                            <span>★ PATN (Pattern & Steps)</span>
-                            <span className="bg-slate-950 text-yellow-400 text-[10px] px-2 py-0.5 rounded-full font-mono">
-                                {data.steps.length} Steps
-                            </span>
+                            PATN (Pattern & Steps)
                         </button>
 
                         <button
@@ -325,7 +322,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                             onClick={() => setActiveTab('IN')}
                             className={`px-4 py-3 rounded-2xl text-xs font-black transition-all shadow-sm ${
                                 activeTab === 'IN'
-                                    ? 'bg-blue-800 text-white shadow-md'
+                                    ? 'bg-[#0f172a] text-white shadow-md'
                                     : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                             }`}
                         >
@@ -337,7 +334,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                             onClick={() => setActiveTab('CNTL')}
                             className={`px-4 py-3 rounded-2xl text-xs font-black transition-all shadow-sm ${
                                 activeTab === 'CNTL'
-                                    ? 'bg-blue-800 text-white shadow-md'
+                                    ? 'bg-[#0f172a] text-white shadow-md'
                                     : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                             }`}
                         >
@@ -349,7 +346,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                             onClick={() => setActiveTab('PIdC')}
                             className={`px-4 py-3 rounded-2xl text-xs font-black transition-all shadow-sm ${
                                 activeTab === 'PIdC'
-                                    ? 'bg-blue-800 text-white shadow-md'
+                                    ? 'bg-[#0f172a] text-white shadow-md'
                                     : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                             }`}
                         >
@@ -361,7 +358,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                             onClick={() => setActiveTab('ALM')}
                             className={`px-4 py-3 rounded-2xl text-xs font-black transition-all shadow-sm ${
                                 activeTab === 'ALM'
-                                    ? 'bg-blue-800 text-white shadow-md'
+                                    ? 'bg-[#0f172a] text-white shadow-md'
                                     : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                             }`}
                         >
@@ -373,7 +370,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                             onClick={() => setActiveTab('COMM')}
                             className={`px-4 py-3 rounded-2xl text-xs font-black transition-all shadow-sm ${
                                 activeTab === 'COMM'
-                                    ? 'bg-blue-800 text-white shadow-md'
+                                    ? 'bg-[#0f172a] text-white shadow-md'
                                     : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                             }`}
                         >
@@ -385,7 +382,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                             onClick={() => setActiveTab('ETC')}
                             className={`px-4 py-3 rounded-2xl text-xs font-black transition-all shadow-sm ${
                                 activeTab === 'ETC'
-                                    ? 'bg-blue-800 text-white shadow-md'
+                                    ? 'bg-[#0f172a] text-white shadow-md'
                                     : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                             }`}
                         >
@@ -397,34 +394,34 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                     {activeTab === 'PATN' && (
                         <div className="space-y-6">
                             {/* Pattern Base Parameters */}
-                            <div className="bg-white p-6 rounded-3xl shadow-lg border border-amber-200/80 bg-gradient-to-b from-amber-50/40 to-white">
-                                <div className="flex items-center justify-between mb-4 border-b border-amber-100 pb-3">
+                            <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-200/90">
+                                <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
                                     <div>
                                         <h3 className="text-base font-black text-slate-900 uppercase">Parameter Dasar PATN</h3>
                                         <p className="text-xs font-semibold text-slate-500">Konfigurasi parameter dasar untuk pola sterilisasi.</p>
                                     </div>
-                                    <span className="text-xs font-black text-amber-900 bg-amber-200/80 px-3 py-1 rounded-xl">
+                                    <span className="text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-xl">
                                         PATN CONFIG
                                     </span>
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                                     <div>
                                         <label className="block text-xs font-mono font-black text-slate-800 uppercase">tUNI (Time unit)</label>
-                                        <select value={data.time_unit} onChange={e => setData('time_unit', e.target.value)} className="mt-1.5 block w-full rounded-xl border-slate-300 bg-white text-slate-900 font-bold focus:border-amber-500 focus:ring-amber-500 text-xs py-2 px-3">
+                                        <select value={data.time_unit} onChange={e => setData('time_unit', e.target.value)} className="mt-1.5 block w-full rounded-xl border-slate-300 bg-slate-50 text-slate-900 font-bold focus:border-blue-600 focus:ring-blue-600 text-xs py-2 px-3">
                                             <option value="MM.SS">MM.SS (Menit.Detik)</option>
                                             <option value="HH.MM">HH.MM (Jam.Menit)</option>
                                         </select>
                                     </div>
                                     <div>
                                         <label className="block text-xs font-mono font-black text-slate-800 uppercase">PTnS (Start condition)</label>
-                                        <select value={data.start_condition} onChange={e => setData('start_condition', e.target.value)} className="mt-1.5 block w-full rounded-xl border-slate-300 bg-white text-slate-900 font-bold focus:border-amber-500 focus:ring-amber-500 text-xs py-2 px-3">
+                                        <select value={data.start_condition} onChange={e => setData('start_condition', e.target.value)} className="mt-1.5 block w-full rounded-xl border-slate-300 bg-slate-50 text-slate-900 font-bold focus:border-blue-600 focus:ring-blue-600 text-xs py-2 px-3">
                                             <option value="SSV">SSV (Starting SV Target)</option>
                                             <option value="SPV">SPV (Current Actual PV)</option>
                                         </select>
                                     </div>
                                     <div>
                                         <label className="block text-xs font-mono font-black text-slate-800 uppercase">P.ENd (Pattern end state)</label>
-                                        <select value={data.pattern_end_state} onChange={e => setData('pattern_end_state', e.target.value)} className="mt-1.5 block w-full rounded-xl border-slate-300 bg-white text-slate-900 font-bold focus:border-amber-500 focus:ring-amber-500 text-xs py-2 px-3">
+                                        <select value={data.pattern_end_state} onChange={e => setData('pattern_end_state', e.target.value)} className="mt-1.5 block w-full rounded-xl border-slate-300 bg-slate-50 text-slate-900 font-bold focus:border-blue-600 focus:ring-blue-600 text-xs py-2 px-3">
                                             <option value="STOP">STOP (Matikan Output)</option>
                                             <option value="HOLD">HOLD (Tahan SV Terakhir)</option>
                                             <option value="NEXT">NEXT (Lanjut Pola Berikutnya)</option>
@@ -436,7 +433,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                                         <select
                                             value={data.pattern_number}
                                             onChange={e => handlePatternSelect(parseInt(e.target.value) || 0)}
-                                            className="mt-1.5 block w-full rounded-xl border-slate-300 bg-white text-slate-900 font-mono font-bold focus:border-amber-500 focus:ring-amber-500 text-xs py-2 px-3"
+                                            className="mt-1.5 block w-full rounded-xl border-slate-300 bg-slate-50 text-slate-900 font-mono font-bold focus:border-blue-600 focus:ring-blue-600 text-xs py-2 px-3"
                                         >
                                             {[...Array(10)].map((_, i) => (
                                                 <option key={i} value={i}>
@@ -447,35 +444,32 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                                     </div>
                                     <div>
                                         <label className="block text-xs font-mono font-black text-slate-800 uppercase">REP (Repetitions)</label>
-                                        <input type="number" min="0" max="10000" value={data.repetitions} onChange={e => setData('repetitions', parseInt(e.target.value) || 0)} className="mt-1.5 block w-full rounded-xl border-slate-300 bg-white text-slate-900 font-mono font-bold focus:border-amber-500 focus:ring-amber-500 text-xs py-2 px-3" />
+                                        <input type="number" min="0" max="10000" value={data.repetitions} onChange={e => setData('repetitions', parseInt(e.target.value) || 0)} className="mt-1.5 block w-full rounded-xl border-slate-300 bg-slate-50 text-slate-900 font-mono font-bold focus:border-blue-600 focus:ring-blue-600 text-xs py-2 px-3" />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-mono font-black text-slate-800 uppercase">P.PId (PID Group 0-7)</label>
-                                        <input type="number" min="0" max="7" value={data.pid_group} onChange={e => setData('pid_group', parseInt(e.target.value) || 0)} className="mt-1.5 block w-full rounded-xl border-slate-300 bg-white text-slate-900 font-mono font-bold focus:border-amber-500 focus:ring-amber-500 text-xs py-2 px-3" />
+                                        <input type="number" min="0" max="7" value={data.pid_group} onChange={e => setData('pid_group', parseInt(e.target.value) || 0)} className="mt-1.5 block w-full rounded-xl border-slate-300 bg-slate-50 text-slate-900 font-mono font-bold focus:border-blue-600 focus:ring-blue-600 text-xs py-2 px-3" />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-mono font-black text-slate-800 uppercase">Wt.b (Wait width)</label>
-                                        <input type="number" min="0" value={data.wait_width} onChange={e => setData('wait_width', parseInt(e.target.value) || 0)} className="mt-1.5 block w-full rounded-xl border-slate-300 bg-white text-slate-900 font-mono font-bold focus:border-amber-500 focus:ring-amber-500 text-xs py-2 px-3" />
+                                        <input type="number" min="0" value={data.wait_width} onChange={e => setData('wait_width', parseInt(e.target.value) || 0)} className="mt-1.5 block w-full rounded-xl border-slate-300 bg-slate-50 text-slate-900 font-mono font-bold focus:border-blue-600 focus:ring-blue-600 text-xs py-2 px-3" />
                                     </div>
                                     <div>
                                         <label className="block text-xs font-mono font-black text-slate-800 uppercase">Wt.t (Wait time)</label>
-                                        <input type="number" min="0" value={data.wait_time} onChange={e => setData('wait_time', parseInt(e.target.value) || 0)} className="mt-1.5 block w-full rounded-xl border-slate-300 bg-white text-slate-900 font-mono font-bold focus:border-amber-500 focus:ring-amber-500 text-xs py-2 px-3" />
+                                        <input type="number" min="0" value={data.wait_time} onChange={e => setData('wait_time', parseInt(e.target.value) || 0)} className="mt-1.5 block w-full rounded-xl border-slate-300 bg-slate-50 text-slate-900 font-mono font-bold focus:border-blue-600 focus:ring-blue-600 text-xs py-2 px-3" />
                                     </div>
                                 </div>
                             </div>
 
                             {/* STERILIZATION CORE STEPS TABLE */}
-                            <div className="bg-white p-6 rounded-3xl shadow-xl border-2 border-amber-300 ring-4 ring-amber-400/10">
-                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-4 border-b border-amber-200">
+                            <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-200/90">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-4 border-b border-slate-100">
                                     <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="flex h-3 w-3 rounded-full bg-amber-500 animate-pulse"></span>
-                                            <h3 className="text-lg font-black text-slate-900 tracking-tight">
-                                                Langkah Operasi Sterilisasi
-                                            </h3>
-                                        </div>
-                                        <p className="text-xs font-bold text-amber-900 mt-1">
-                                            Parameter kunci sterilisasi: Target Suhu (<code className="font-mono bg-amber-100 px-1 py-0.5 rounded text-slate-900">Ts0..Ts19</code>), Durasi Waktu (<code className="font-mono bg-amber-100 px-1 py-0.5 rounded text-slate-900">Tm0..Tm19</code>), dan Aksi Akhir Tiap Langkah.
+                                        <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                                            Langkah Operasi Sterilisasi
+                                        </h3>
+                                        <p className="text-xs font-semibold text-slate-500 mt-1">
+                                            Parameter kunci sterilisasi: Target Suhu (<code className="font-mono bg-slate-100 border border-slate-200 px-1 py-0.5 rounded text-slate-800">Ts0..Ts19</code>), Durasi Waktu (<code className="font-mono bg-slate-100 border border-slate-200 px-1 py-0.5 rounded text-slate-800">Tm0..Tm19</code>), dan Aksi Akhir Tiap Langkah.
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2">
@@ -484,7 +478,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                                             onClick={() => setShowAdvance(!showAdvance)}
                                             className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 text-xs font-black rounded-xl shadow-sm transition-all border ${
                                                 showAdvance
-                                                    ? 'bg-blue-900 text-yellow-400 border-blue-800 ring-2 ring-blue-600/30'
+                                                    ? 'bg-[#0f172a] text-white border-slate-800 ring-2 ring-slate-600/30'
                                                     : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
                                             }`}
                                         >
@@ -498,23 +492,23 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                                             type="button"
                                             onClick={addStep}
                                             disabled={data.steps.length >= 20}
-                                            className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black px-4 py-2.5 text-xs rounded-xl shadow-md transition-all border-none disabled:opacity-50"
+                                            className="inline-flex items-center justify-center gap-2 bg-[#0f172a] hover:bg-blue-900 text-white font-black px-4 py-2.5 text-xs rounded-xl shadow-sm transition-all border-none disabled:opacity-50"
                                         >
                                             + Tambah Step ({data.steps.length}/20)
                                         </button>
                                     </div>
                                 </div>
 
-                                <div className="overflow-x-auto rounded-2xl border border-amber-200">
-                                    <table className="min-w-full divide-y divide-amber-200">
+                                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                                    <table className="min-w-full divide-y divide-slate-200">
                                         <thead className="bg-[#0f172a] text-white">
                                             <tr>
-                                                <th className="py-3 px-3 text-center text-xs font-mono font-black text-yellow-400 w-12">#</th>
+                                                <th className="py-3 px-3 text-center text-xs font-mono font-black text-slate-300 w-12">#</th>
                                                 <th className="py-3 px-3 text-left text-xs font-black uppercase tracking-wider">Nama Step</th>
-                                                <th className="py-3 px-3 text-left text-xs font-mono font-black text-amber-300 uppercase tracking-wider min-w-[140px]">
+                                                <th className="py-3 px-3 text-left text-xs font-mono font-bold text-slate-200 uppercase tracking-wider min-w-[140px]">
                                                     Ts (Target SV °C)
                                                 </th>
-                                                <th className="py-3 px-3 text-left text-xs font-mono font-black text-amber-300 uppercase tracking-wider min-w-[140px]">
+                                                <th className="py-3 px-3 text-left text-xs font-mono font-bold text-slate-200 uppercase tracking-wider min-w-[140px]">
                                                     Tm (Durasi {data.time_unit})
                                                 </th>
                                                 <th className="py-3 px-3 text-left text-xs font-black uppercase tracking-wider min-w-[130px]">
@@ -535,10 +529,10 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 bg-white">
                                             {data.steps.map((step: any, index: number) => (
-                                                <tr key={index} className="hover:bg-amber-50/60 transition-colors">
+                                                <tr key={index} className="hover:bg-slate-50 transition-colors">
                                                     {/* Step index (0-based) */}
                                                     <td className="whitespace-nowrap py-3 px-3 text-center">
-                                                        <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-slate-900 text-yellow-400 font-mono text-xs font-bold">
+                                                        <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-slate-900 text-white font-mono text-xs font-bold">
                                                             {index}
                                                         </span>
                                                     </td>
@@ -549,7 +543,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                                                             type="text"
                                                             value={step.step_name || `Step ${index}`}
                                                             onChange={e => updateStep(index, 'step_name', e.target.value)}
-                                                            className="block w-full rounded-xl border-slate-300 bg-slate-50 font-bold text-slate-800 text-xs py-2 px-3 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                                                            className="block w-full rounded-xl border-slate-300 bg-slate-50 font-bold text-slate-800 text-xs py-2 px-3 shadow-sm focus:border-blue-600 focus:ring-blue-600"
                                                             placeholder={`Contoh: Step ${index}`}
                                                         />
                                                     </td>
@@ -557,7 +551,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                                                     {/* Ts□ Input (Target SV) */}
                                                     <td className="whitespace-nowrap py-3 px-3">
                                                         <div className="relative">
-                                                            <span className="absolute left-2.5 top-2 text-[10px] font-mono font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
+                                                            <span className="absolute left-2.5 top-2 text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
                                                                 Ts{index}
                                                             </span>
                                                             <input
@@ -565,7 +559,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                                                                 step="0.1"
                                                                 value={step.target_sv !== undefined && step.target_sv !== null ? (step.target_sv > 300 ? (step.target_sv / 10).toFixed(1) : step.target_sv) : ''}
                                                                 onChange={e => updateStep(index, 'target_sv', e.target.value === '' ? '' : parseFloat(e.target.value))}
-                                                                className="block w-full rounded-xl border-amber-300 bg-amber-50/50 pl-14 pr-7 font-mono font-bold text-slate-900 text-xs py-2 shadow-sm focus:border-amber-500 focus:ring-amber-500 text-right"
+                                                                className="block w-full rounded-xl border-slate-300 bg-white pl-14 pr-7 font-mono font-bold text-slate-900 text-xs py-2 shadow-sm focus:border-blue-600 focus:ring-blue-600 text-right"
                                                                 placeholder="121.0"
                                                             />
                                                             <span className="absolute right-2.5 top-2.5 text-[10px] font-bold text-slate-500">°C</span>
@@ -574,8 +568,8 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
 
                                                     {/* Tm□ Input (Stopwatch MM:SS) */}
                                                     <td className="whitespace-nowrap py-3 px-3">
-                                                        <div className="flex items-center gap-1 rounded-xl border border-blue-300 bg-blue-50/50 p-1 shadow-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-400/20">
-                                                            <span className="shrink-0 text-[10px] font-mono font-bold text-blue-800 bg-blue-100 px-1.5 py-1 rounded">
+                                                        <div className="flex items-center gap-1 rounded-xl border border-slate-300 bg-white p-1 shadow-sm focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-400/20">
+                                                            <span className="shrink-0 text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-1.5 py-1 rounded border border-slate-200">
                                                                 Tm{index}
                                                             </span>
                                                             <div className="flex items-center flex-1 justify-center gap-1 font-mono">
@@ -591,13 +585,13 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                                                                             const currSs = durationToMmSs(step.duration).ss;
                                                                             updateStep(index, 'duration', mmSsToDuration(newMm, currSs));
                                                                         }}
-                                                                        className="w-12 text-center py-1 px-0.5 rounded-lg bg-white border border-blue-200 font-mono font-black text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-inner"
+                                                                        className="w-12 text-center py-1 px-0.5 rounded-lg bg-slate-50 border border-slate-300 font-mono font-bold text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-sm"
                                                                         placeholder="00"
                                                                     />
                                                                     <span className="text-[9px] font-bold text-slate-400 ml-0.5">m</span>
                                                                 </div>
 
-                                                                <span className="font-mono font-black text-blue-600 text-xs">:</span>
+                                                                <span className="font-mono font-black text-slate-500 text-xs">:</span>
 
                                                                 {/* Seconds (SS, max 59) */}
                                                                 <div className="relative flex items-center">
@@ -613,7 +607,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                                                                             const currMm = durationToMmSs(step.duration).mm;
                                                                             updateStep(index, 'duration', mmSsToDuration(currMm, newSs));
                                                                         }}
-                                                                        className="w-12 text-center py-1 px-0.5 rounded-lg bg-white border border-blue-200 font-mono font-black text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-inner"
+                                                                        className="w-12 text-center py-1 px-0.5 rounded-lg bg-slate-50 border border-slate-300 font-mono font-bold text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 shadow-sm"
                                                                         placeholder="00"
                                                                     />
                                                                     <span className="text-[9px] font-bold text-slate-400 ml-0.5">s</span>
@@ -629,7 +623,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                                                             onChange={e => updateStep(index, 'end_action', e.target.value)}
                                                             className={`block w-full rounded-xl text-xs font-black py-2 px-2.5 shadow-sm border ${
                                                                 step.end_action === 'HOLD'
-                                                                    ? 'bg-amber-100 text-amber-950 border-amber-400 font-extrabold'
+                                                                    ? 'bg-slate-100 text-slate-900 border-slate-300 font-extrabold'
                                                                     : step.end_action === 'STOP'
                                                                     ? 'bg-rose-100 text-rose-950 border-rose-300 font-extrabold'
                                                                     : 'bg-slate-50 text-slate-800 border-slate-300'
@@ -1193,7 +1187,7 @@ export default function Form({ recipe, users = [], controllers = [] }: { recipe?
                             type="button"
                             onClick={() => handleSubmitWithSync(true)}
                             disabled={processing}
-                            className="px-7 py-3 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-xs rounded-xl shadow-lg transition-all border-none disabled:opacity-50"
+                            className="px-7 py-3 bg-[#0f172a] hover:bg-blue-900 text-white font-black text-xs rounded-xl shadow-md transition-all border-none disabled:opacity-50"
                         >
                             Save & Write
                         </button>

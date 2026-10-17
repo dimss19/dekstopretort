@@ -155,11 +155,11 @@ export default function TnPortSelector({
     return (
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
             {/* Port Selector Dropdown & Actions */}
-            <div className={`inline-flex items-center gap-1.5 p-1 bg-white/90 backdrop-blur border rounded-xl shadow-sm transition-colors ${
-                hasPorts ? 'border-slate-200/90' : 'border-amber-300 bg-amber-50/50'
+            <div className={`inline-flex items-center gap-1.5 p-1 backdrop-blur border rounded-xl shadow-sm transition-colors ${
+                hasPorts ? 'border-slate-200/90 bg-white/90' : 'border-slate-300 bg-slate-50/70'
             }`}>
                 <div className="flex items-center gap-1.5 pl-2 pr-1 text-slate-500 text-xs font-bold">
-                    <Usb className={`w-3.5 h-3.5 ${hasPorts ? 'text-blue-600' : 'text-amber-500'}`} />
+                    <Usb className={`w-3.5 h-3.5 ${hasPorts ? 'text-blue-600' : 'text-slate-400'}`} />
                     <span className="hidden sm:inline">Port:</span>
                 </div>
 
@@ -171,7 +171,7 @@ export default function TnPortSelector({
                         className={`text-xs font-mono font-bold rounded-lg py-1.5 pl-2.5 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-xs cursor-pointer ${
                             hasPorts
                                 ? 'text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-300'
-                                : 'text-amber-800 bg-amber-50/90 border border-amber-300'
+                                : 'text-slate-600 bg-slate-100 border border-slate-200'
                         }`}
                     >
                         {hasPorts ? (
@@ -205,15 +205,15 @@ export default function TnPortSelector({
                     title={hasPorts ? `Uji komunikasi ke controller pada ${selectedPort}` : 'Colokkan USB RS-485 terlebih dahulu'}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg text-[11px] font-bold shadow-xs transition disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                 >
-                    <Zap className={`w-3 h-3 ${testing ? 'animate-bounce text-amber-300' : ''}`} />
+                    <Zap className={`w-3 h-3 ${testing ? 'animate-bounce text-white' : ''}`} />
                     <span>{testing ? 'Menguji...' : 'Tes'}</span>
                 </button>
             </div>
 
             {/* USB Disconnected Badge */}
             {!hasPorts && (
-                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-amber-100/80 text-amber-900 border border-amber-300">
-                    <AlertTriangle className="w-3 h-3 text-amber-600" />
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                    <AlertTriangle className="w-3 h-3 text-slate-500" />
                     <span>USB Belum Terpasang</span>
                 </div>
             )}

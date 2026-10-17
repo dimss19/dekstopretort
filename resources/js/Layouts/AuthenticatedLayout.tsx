@@ -98,10 +98,9 @@ export default function Authenticated({
                                         {hasUnverifiedWarning && (
                                             <span
                                                 title={`${unverifiedCount} batch proses belum diverifikasi! Segera lengkapi di menu History.`}
-                                                className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5"
+                                                className="absolute -top-0.5 -right-0.5 flex h-2 w-2"
                                             >
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75 duration-1000"></span>
-                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600 ring-2 ring-white shadow-sm"></span>
+                                                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-400 ring-2 ring-[#0f172a] shadow-sm"></span>
                                             </span>
                                         )}
                                     </Link>

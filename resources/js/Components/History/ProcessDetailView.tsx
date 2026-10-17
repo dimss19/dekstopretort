@@ -1062,11 +1062,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                 Proses #{batch.id} ({machineTitle})
                             </h2>
                             {isUnverified ? (
-                                <span className="inline-flex items-center gap-1.5 rounded-md bg-rose-50 border border-rose-300 px-2.5 py-0.5 text-xs font-black text-rose-700 shadow-sm">
-                                    <span className="relative flex h-2 w-2">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
-                                    </span>
+                                <span className="inline-flex items-center rounded-md bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-black text-blue-700 shadow-sm">
                                     Belum Diverifikasi
                                 </span>
                             ) : (
@@ -1132,21 +1128,15 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                     </dl>
                 </section>
             ) : isUnverified ? (
-                <section className="relative rounded-3xl border-2 border-rose-300 bg-rose-50/20 p-6 sm:p-7 shadow-lg backdrop-blur-xl ring-1 ring-rose-200">
-                    <div className="mb-4 border-b border-rose-200/80 pb-3 flex flex-wrap items-center justify-between gap-2">
+                <section className="relative rounded-3xl border border-blue-200 bg-blue-50/30 p-6 sm:p-7 shadow-lg backdrop-blur-xl ring-1 ring-blue-100">
+                    <div className="mb-4 border-b border-blue-200/80 pb-3 flex flex-wrap items-center justify-between gap-2">
                         <div>
-                            <div className="flex items-center gap-2">
-                                <span className="relative flex h-2.5 w-2.5">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
-                                </span>
-                                <h2 className="font-extrabold text-slate-900 text-lg tracking-tight">Verifikasi (UNVERIFIED)</h2>
-                            </div>
-                            <p className="text-xs text-rose-700 mt-1 font-semibold">
-                                ⚠️ Batch ini belum diverifikasi. F₀ Chamber (Retort Exposure): {systemF0.toFixed(2)} min — Lengkapi data di bawah ini lalu klik Simpan Verifikasi.
+                            <h2 className="font-extrabold text-slate-900 text-lg tracking-tight">Verifikasi (UNVERIFIED)</h2>
+                            <p className="text-xs text-slate-600 mt-1 font-semibold">
+                                ℹ️ Batch ini belum diverifikasi. F₀ Chamber (Retort Exposure): {systemF0.toFixed(2)} min — Lengkapi data di bawah ini lalu klik Simpan Verifikasi.
                             </p>
                         </div>
-                        <span className="text-[11px] font-black px-2.5 py-1 rounded-lg bg-rose-100 text-rose-800 border border-rose-300 uppercase tracking-wide">
+                        <span className="text-[11px] font-black px-2.5 py-1 rounded-lg bg-blue-100 text-blue-900 border border-blue-200 uppercase tracking-wide">
                             Wajib Dilengkapi
                         </span>
                     </div>
@@ -1173,7 +1163,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                 placeholder="Contoh: Rendang Sapi Pouch 250g"
                                 value={product}
                                 onChange={(e) => setProduct(e.target.value)}
-                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm focus:border-blue-600 focus:ring-blue-600 py-2.5 px-3 transition-colors"
                             />
                         </div>
 
@@ -1199,7 +1189,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                 placeholder="Contoh: B2026-0930-01"
                                 value={batchCode}
                                 onChange={(e) => setBatchCode(e.target.value)}
-                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm focus:border-blue-600 focus:ring-blue-600 py-2.5 px-3 transition-colors"
                             />
                         </div>
 
@@ -1225,7 +1215,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                 placeholder="Contoh: 121.1°C / 25 min"
                                 value={scheduledProcess}
                                 onChange={(e) => setScheduledProcess(e.target.value)}
-                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm focus:border-blue-600 focus:ring-blue-600 py-2.5 px-3 transition-colors"
                             />
                         </div>
 
@@ -1249,7 +1239,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                     id="verify-group"
                                     value={groupId}
                                     onChange={(e) => setGroupId(e.target.value)}
-                                    className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
+                                    className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-blue-600 focus:ring-blue-600 py-2.5 px-3 transition-colors"
                                 >
                                     <option value="">— Tanpa Group —</option>
                                     {groups.map((g) => (
@@ -1283,7 +1273,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                 placeholder="Contoh: 4.50"
                                 value={minF0}
                                 onChange={(e) => setMinF0(e.target.value)}
-                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm focus:border-blue-600 focus:ring-blue-600 py-2.5 px-3 transition-colors"
                             />
                         </div>
 
@@ -1311,7 +1301,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                 placeholder="Contoh: 3.00"
                                 value={targetF0}
                                 onChange={(e) => setTargetF0(e.target.value)}
-                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm focus:border-blue-600 focus:ring-blue-600 py-2.5 px-3 transition-colors"
                             />
                         </div>
 
@@ -1335,7 +1325,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                 required
                                 value={deviation}
                                 onChange={(e) => setDeviation(e.target.value)}
-                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-blue-600 focus:ring-blue-600 py-2.5 px-3 transition-colors"
                             >
                                 <option value="None">None (Tidak ada deviasi)</option>
                                 <option value="Minor">Minor (Penyimpangan minor)</option>
@@ -1364,7 +1354,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                 value={effectiveCriterion}
                                 disabled={liveFail}
                                 onChange={(e) => setCriterion(e.target.value)}
-                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors disabled:opacity-60"
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-blue-600 focus:ring-blue-600 py-2.5 px-3 transition-colors disabled:opacity-60"
                             >
                                 <option value="PASS">PASS (Memenuhi Syarat Sterilitas)</option>
                                 <option value="FAIL">FAIL (Tidak Memenuhi Syarat)</option>
@@ -1391,7 +1381,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                 required
                                 value={thermalRecord}
                                 onChange={(e) => setThermalRecord(e.target.value)}
-                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-rose-500 focus:ring-rose-500 py-2.5 px-3 transition-colors"
+                                className="w-full rounded-xl border-slate-300 bg-white text-xs font-bold text-slate-800 shadow-sm focus:border-blue-600 focus:ring-blue-600 py-2.5 px-3 transition-colors"
                             >
                                 <option value="VERIFIED">VERIFIED (Rekaman Data Termal Valid)</option>
                                 <option value="REJECTED">REJECTED (Rekaman Data Termal Ditolak)</option>
@@ -1407,7 +1397,7 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                         <div className="sm:col-span-2 flex justify-end pt-2">
                             <button
                                 type="submit"
-                                className="rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black px-6 py-2.5 shadow-md shadow-rose-200 transition-all flex items-center gap-2"
+                                className="rounded-xl bg-[#0f172a] hover:bg-blue-900 text-white text-xs font-black px-6 py-2.5 shadow-md shadow-slate-200 transition-all flex items-center gap-2"
                             >
                                 <CheckCircle2 size={15} />
                                 Verifikasi Batch
@@ -1525,17 +1515,17 @@ export default function ProcessDetailView({ batch, onBack, groups = [] }: Props)
                                     const mv = dp > 0 && rawMv > 100 ? rawMv / 10 : rawMv;
 
                                     return (
-                                        <tr key={`${log.created_at ?? index}-${index}`} className="hover:bg-blue-50/70 transition-colors">
-                                            <td className="whitespace-nowrap px-5 py-3 text-slate-600 font-bold">
+                                        <tr key={`${log.created_at ?? index}-${index}`} className="hover:bg-slate-50 transition-colors">
+                                            <td className="whitespace-nowrap px-5 py-3 text-slate-900 font-bold">
                                                 {log.created_at ? new Date(log.created_at).toLocaleTimeString('id-ID') : '--'}
                                             </td>
-                                            <td className="px-5 py-3 font-extrabold text-blue-700">
+                                            <td className="px-5 py-3 font-bold text-slate-900">
                                                 {pv.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                             </td>
-                                            <td className="px-5 py-3 font-extrabold text-amber-700">
+                                            <td className="px-5 py-3 font-bold text-slate-900">
                                                 {sv.toLocaleString('id-ID', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                                             </td>
-                                            <td className="px-5 py-3 font-extrabold text-amber-600">
+                                            <td className="px-5 py-3 font-bold text-slate-900">
                                                 {mv.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}%
                                             </td>
                                         </tr>

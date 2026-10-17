@@ -40,7 +40,7 @@ export default function Index() {
                             href={route('tn.quick-start', controller.model)}
                             method="post"
                             as="button"
-                            className="group relative flex min-h-80 flex-col justify-between overflow-hidden rounded-3xl border border-slate-200/90 bg-white/95 p-8 text-left shadow-lg backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:border-amber-400 hover:shadow-2xl"
+                            className="group relative flex min-h-80 flex-col justify-between overflow-hidden rounded-3xl border border-slate-200/90 bg-white/95 p-8 text-left shadow-lg backdrop-blur-xl transition-all duration-300 hover:-translate-y-2 hover:border-slate-300 hover:shadow-2xl"
                         >
                             <div className="absolute -right-14 -top-14 h-40 w-40 rounded-full bg-blue-100/60 transition-transform duration-500 group-hover:scale-150 pointer-events-none" />
                             <div>
@@ -50,7 +50,7 @@ export default function Index() {
                                 <h2 className="mt-5 text-5xl font-black tracking-tight text-slate-900 group-hover:text-blue-700 transition-colors">{controller.model}</h2>
                                 <p className="mt-4 text-sm leading-relaxed text-slate-600">{controller.description}</p>
                             </div>
-                            <div className="mt-8 inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-4 py-3 text-sm font-extrabold text-slate-950 shadow-md group-hover:from-yellow-300 group-hover:to-amber-400 transition-all">
+                            <div className="mt-8 inline-flex items-center justify-center rounded-xl bg-[#0f172a] group-hover:bg-blue-900 px-4 py-3 text-sm font-bold text-white shadow-md transition-all">
                                 <span>Buka Monitoring {controller.model}</span>
                             </div>
                         </Link>

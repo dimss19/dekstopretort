@@ -292,8 +292,8 @@ export default function EspMonitor({
                             onClick={() => setActiveTab('monitor')}
                             className={`rounded-xl px-5 py-2.5 text-xs font-black transition-all shadow-sm ${
                                 activeTab === 'monitor'
-                                    ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md border-none'
-                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:text-blue-800'
+                                    ? 'bg-[#0f172a] text-white shadow-md border-none'
+                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
                             }`}
                         >
                             Monitoring
@@ -303,8 +303,8 @@ export default function EspMonitor({
                             onClick={() => setActiveTab('pattern')}
                             className={`rounded-xl px-5 py-2.5 text-xs font-black transition-all shadow-sm ${
                                 activeTab === 'pattern'
-                                    ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md border-none'
-                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:text-blue-800'
+                                    ? 'bg-[#0f172a] text-white shadow-md border-none'
+                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
                             }`}
                         >
                             Pattern Steps
@@ -314,8 +314,8 @@ export default function EspMonitor({
                             onClick={() => setActiveTab('history')}
                             className={`rounded-xl px-5 py-2.5 text-xs font-black transition-all shadow-sm ${
                                 activeTab === 'history'
-                                    ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md border-none'
-                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:text-blue-800'
+                                    ? 'bg-[#0f172a] text-white shadow-md border-none'
+                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
                             }`}
                         >
                             History Logs
