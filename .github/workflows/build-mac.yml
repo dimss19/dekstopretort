@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - desktopapp
+      - Tampilan
+      - main
     paths:
       - 'app/**'
       - 'config/**'
