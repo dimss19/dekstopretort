@@ -155,12 +155,12 @@ export default function TnPortSelector({
     return (
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
             {/* Port Selector Dropdown & Actions */}
-            <div className={`inline-flex items-center gap-1.5 p-1 bg-white/90 backdrop-blur border rounded-xl shadow-sm transition-colors ${
-                hasPorts ? 'border-slate-200/90' : 'border-amber-300 bg-amber-50/50'
+            <div className={`inline-flex items-center gap-1.5 p-1 bg-[#0b101b]/95 backdrop-blur-md border rounded-xl shadow-lg transition-colors ${
+                hasPorts ? 'border-slate-700/80' : 'border-amber-500/70 bg-amber-950/40'
             }`}>
-                <div className="flex items-center gap-1.5 pl-2 pr-1 text-slate-500 text-xs font-bold">
-                    <Usb className={`w-3.5 h-3.5 ${hasPorts ? 'text-blue-600' : 'text-amber-500'}`} />
-                    <span className="hidden sm:inline">Port:</span>
+                <div className="flex items-center gap-1.5 pl-2.5 pr-1 text-slate-400 text-xs font-mono font-bold">
+                    <Usb className={`w-3.5 h-3.5 ${hasPorts ? 'text-yellow-400' : 'text-amber-500'}`} />
+                    <span className="hidden sm:inline uppercase tracking-wider text-[11px]">PORT:</span>
                 </div>
 
                 <div className="relative">
@@ -168,20 +168,20 @@ export default function TnPortSelector({
                         value={selectedPort}
                         onChange={(e) => handleSelectPort(e.target.value)}
                         disabled={!hasPorts || loading}
-                        className={`text-xs font-mono font-bold rounded-lg py-1.5 pl-2.5 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition shadow-xs cursor-pointer ${
+                        className={`text-xs font-mono font-bold rounded-lg py-1.5 pl-2.5 pr-8 focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 transition cursor-pointer appearance-none ${
                             hasPorts
-                                ? 'text-slate-800 bg-slate-50 hover:bg-slate-100 border border-slate-300'
-                                : 'text-amber-800 bg-amber-50/90 border border-amber-300'
+                                ? 'text-slate-100 bg-[#141b2d] hover:bg-[#1a233a] border border-slate-700/80 shadow-inner'
+                                : 'text-amber-200 bg-amber-950/70 border border-amber-600/60'
                         }`}
                     >
                         {hasPorts ? (
                             availablePorts.map((p) => (
-                                <option key={p.device} value={p.device}>
+                                <option key={p.device} value={p.device} className="bg-slate-900 text-white">
                                     {p.device} {p.description ? `— ${p.description.replace(/\(COM\d+\)/, '').trim()}` : ''}
                                 </option>
                             ))
                         ) : (
-                            <option value="">Tidak ada port terdeteksi</option>
+                            <option value="" className="bg-slate-900 text-amber-300">Tidak ada port terdeteksi</option>
                         )}
                     </select>
                 </div>
@@ -192,9 +192,9 @@ export default function TnPortSelector({
                     onClick={() => loadPorts(true)}
                     disabled={loading}
                     title="Pindai ulang port serial di komputer"
-                    className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition disabled:opacity-50 cursor-pointer"
+                    className="p-1.5 text-slate-400 hover:text-yellow-400 hover:bg-slate-800/80 rounded-lg transition disabled:opacity-50 cursor-pointer border border-transparent hover:border-slate-700"
                 >
-                    <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-blue-600' : ''}`} />
+                    <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-yellow-400' : ''}`} />
                 </button>
 
                 {/* Test Connection Button */}
@@ -203,34 +203,34 @@ export default function TnPortSelector({
                     onClick={handleTestPort}
                     disabled={testing || !hasPorts || !selectedPort}
                     title={hasPorts ? `Uji komunikasi ke controller pada ${selectedPort}` : 'Colokkan USB RS-485 terlebih dahulu'}
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg text-[11px] font-bold shadow-xs transition disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yellow-400 hover:bg-yellow-300 text-black rounded-lg text-[11px] font-mono font-extrabold uppercase tracking-wider shadow-sm transition disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed border border-yellow-300"
                 >
-                    <Zap className={`w-3 h-3 ${testing ? 'animate-bounce text-amber-300' : ''}`} />
-                    <span>{testing ? 'Menguji...' : 'Tes'}</span>
+                    <Zap className={`w-3 h-3 ${testing ? 'animate-bounce text-black' : 'text-black'}`} />
+                    <span>{testing ? 'UJI...' : 'TEST'}</span>
                 </button>
             </div>
 
             {/* USB Disconnected Badge */}
             {!hasPorts && (
-                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold bg-amber-100/80 text-amber-900 border border-amber-300">
-                    <AlertTriangle className="w-3 h-3 text-amber-600" />
-                    <span>USB Belum Terpasang</span>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold bg-amber-950/80 text-amber-300 border border-amber-600/60 shadow-sm animate-pulse">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                    <span>USB BELUM TERDETEKSI</span>
                 </div>
             )}
 
             {/* Status Feedback Toast/Message */}
             {message && (
                 <div
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all animate-in fade-in slide-in-from-top-1 ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-mono font-bold border transition-all animate-in fade-in slide-in-from-top-1 shadow-md ${
                         message.type === 'success'
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : 'bg-rose-50 text-rose-800 border-rose-200'
+                            ? 'bg-emerald-950/90 text-emerald-300 border-emerald-600/60'
+                            : 'bg-rose-950/90 text-rose-300 border-rose-600/60'
                     }`}
                 >
                     {message.type === 'success' ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                     ) : (
-                        <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                        <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
                     )}
                     <span>{message.text}</span>
                 </div>

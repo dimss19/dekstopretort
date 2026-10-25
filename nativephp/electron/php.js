@@ -61,7 +61,7 @@ console.log('PHP version: ' + phpVersion);
 if (platform.phpBinary) {
     try {
         const targetBinary = join(binaryDestDir, platform.phpBinary);
-        if (fs.existsSync(targetBinary) && fs.statSync(targetBinary).size > 1000000) {
+        if (!isBuilding && fs.existsSync(targetBinary) && fs.statSync(targetBinary).size > 1000000) {
             console.log('PHP binary already present at ' + targetBinary + ', reusing existing binary.');
         } else {
             console.log('Unzipping PHP binary from ' + binarySrcDir + ' to ' + binaryDestDir);
@@ -73,37 +73,42 @@ if (platform.phpBinary) {
 
             ensureDirSync(binaryDestDir);
 
-        await new Promise((resolve, reject) => {
-            unzip.open(binarySrcDir, { lazyEntries: true }, function (err, zipfile) {
-                if (err) {
-                    reject(err);
-                    return;
-                }
+            await new Promise((resolve, reject) => {
+                unzip.open(binarySrcDir, { lazyEntries: true }, function (err, zipfile) {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
 
-                zipfile.on('error', reject);
-                zipfile.on('end', resolve);
-                zipfile.on('entry', function (entry) {
-                    zipfile.openReadStream(entry, function (err, readStream) {
-                        if (err) {
-                            reject(err);
+                    zipfile.on('error', reject);
+                    zipfile.on('end', resolve);
+                    zipfile.on('entry', function (entry) {
+                        if (/\/$/.test(entry.fileName)) {
+                            zipfile.readEntry();
                             return;
                         }
 
-                        const binaryPath = join(binaryDestDir, platform.phpBinary);
-                        const writeStream = fs.createWriteStream(binaryPath);
+                        zipfile.openReadStream(entry, function (err, readStream) {
+                            if (err) {
+                                reject(err);
+                                return;
+                            }
 
-                        pipeline(readStream, writeStream)
-                            .then(() => fs.promises.chmod(binaryPath, 0o755))
-                            .then(() => {
-                                console.log('Copied PHP binary to ', binaryPath);
-                                zipfile.readEntry();
-                            })
-                            .catch(reject);
+                            const binaryPath = join(binaryDestDir, platform.phpBinary);
+                            const writeStream = fs.createWriteStream(binaryPath);
+
+                            pipeline(readStream, writeStream)
+                                .then(() => fs.promises.chmod(binaryPath, 0o755))
+                                .then(() => {
+                                    console.log('Copied PHP binary to ', binaryPath);
+                                    zipfile.readEntry();
+                                })
+                                .catch(reject);
+                        });
                     });
+                    zipfile.readEntry();
                 });
-                zipfile.readEntry();
             });
-        });
         }
     } catch (e) {
         console.error('Error copying PHP binary', e);

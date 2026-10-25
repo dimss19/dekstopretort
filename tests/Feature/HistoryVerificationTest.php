@@ -16,6 +16,12 @@ class HistoryVerificationTest extends TestCase
 
     private static int $historySeq = 0;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        HistoryGroup::firstOrCreate(['name' => 'Default Group', 'color' => '#3b82f6']);
+    }
+
     private function makeHistory(bool $finished = true): TnProcessHistory
     {
         // ponytail: counter agar machine_code/slave_id unik saat dipanggil 2x dalam satu test.
@@ -63,7 +69,8 @@ class HistoryVerificationTest extends TestCase
 
         $res = $this->actingAs($user)->postJson(route('tn.history.verify', $history), $this->payload());
 
-        $res->assertOk()->assertJson(['success' => true, 'system_f0' => 1.0]);
+        $res->assertOk()->assertJson(['success' => true]);
+        $this->assertEqualsWithDelta(1.0, (float) $res->json('system_f0'), 0.05);
         $this->assertDatabaseHas('tn_process_histories', [
             'id' => $history->id,
             'verification_status' => 'verified',

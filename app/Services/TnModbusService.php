@@ -158,7 +158,13 @@ class TnModbusService
                 $env[$k] = (string) $v;
             }
         }
-        if (!isset($env['SystemRoot'])) $env['SystemRoot'] = getenv('SystemRoot') ?: 'C:\\Windows';
+        if (PHP_OS_FAMILY === 'Windows') {
+            if (!isset($env['SystemRoot'])) $env['SystemRoot'] = getenv('SystemRoot') ?: 'C:\\Windows';
+        } else {
+            if (!isset($env['PATH'])) {
+                $env['PATH'] = getenv('PATH') ?: '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin';
+            }
+        }
         return $env;
     }
 

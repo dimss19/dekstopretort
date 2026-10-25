@@ -39,6 +39,15 @@ const certificate = path.join(buildPath, 'cacert.pem');
 const executable = process.platform === 'win32' ? 'php.exe' : 'php';
 const phpBinary = path.join(buildPath, 'php', executable);
 
+// Ensure executable permissions on Unix (macOS / Linux)
+if (process.platform !== 'win32' && fs.existsSync(phpBinary)) {
+    try {
+        fs.chmodSync(phpBinary, 0o755);
+    } catch {
+        // Ignore read-only filesystem errors (e.g. read-only DMG mount)
+    }
+}
+
 let splashWindow;
 
 app.whenReady().then(() => {

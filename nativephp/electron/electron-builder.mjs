@@ -1,4 +1,5 @@
 import { execSync } from 'child_process';
+import fs from 'fs';
 import { join } from 'path';
 
 const appUrl = process.env.APP_URL;
@@ -127,7 +128,11 @@ export default {
         schemes: [deepLinkProtocol],
     },
     mac: {
+        category: 'public.app-category.business',
+        entitlements: 'build/entitlements.mac.plist',
         entitlementsInherit: 'build/entitlements.mac.plist',
+        hardenedRuntime: process.env.CSC_IDENTITY_AUTO_DISCOVERY !== 'false' && Boolean(process.env.CSC_LINK || process.env.NATIVEPHP_APPLE_ID),
+        gatekeeperAssess: false,
         artifactName: appName + '-${version}-${arch}.${ext}',
         extendInfo: {
             ...(macBundleName ? { CFBundleName: macBundleName, CFBundleDisplayName: macBundleName } : {}),
@@ -161,18 +166,24 @@ export default {
             to: 'build',
             filter: ['**/*', '!{.git}'],
         },
-        {
-            from: join(process.env.APP_PATH, 'drivers'),
-            to: 'drivers',
-            filter: ['**/*'],
-        },
+        ...(isWindows && fs.existsSync(join(process.env.APP_PATH, 'drivers'))
+            ? [
+                  {
+                      from: join(process.env.APP_PATH, 'drivers'),
+                      to: 'drivers',
+                      filter: ['**/*'],
+                  },
+              ]
+            : []),
     ],
-    extraFiles: [
-        {
-            from: join(process.env.APP_PATH, 'extras'),
-            to: 'extras',
-            filter: ['**/*'],
-        },
-    ],
+    extraFiles: fs.existsSync(join(process.env.APP_PATH, 'extras'))
+        ? [
+              {
+                  from: join(process.env.APP_PATH, 'extras'),
+                  to: 'extras',
+                  filter: ['**/*'],
+              },
+          ]
+        : [],
     ...(updaterEnabled ? { publish: updaterConfig } : {}),
 };

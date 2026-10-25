@@ -3098,6 +3098,12 @@ const defaultIcon = path.join(buildPath, "icon.png");
 const certificate = path.join(buildPath, "cacert.pem");
 const executable = process.platform === "win32" ? "php.exe" : "php";
 const phpBinary = path.join(buildPath, "php", executable);
+if (process.platform !== "win32" && fs.existsSync(phpBinary)) {
+  try {
+    fs.chmodSync(phpBinary, 493);
+  } catch {
+  }
+}
 let splashWindow;
 app.whenReady().then(() => {
   try {

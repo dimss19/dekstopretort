@@ -209,39 +209,39 @@ export default function EspMonitor({
     return (
         <AuthenticatedLayout
             navContent={
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 h-full">
                     <button
                         type="button"
                         onClick={() => setActiveTab('monitor')}
-                        className={`shrink-0 rounded-xl px-4 py-2 text-sm font-extrabold transition-all duration-200 ${
+                        className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-mono font-extrabold uppercase tracking-wider transition-all border cursor-pointer ${
                             activeTab === 'monitor'
-                                ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 shadow-[0_0_15px_rgba(250,204,21,0.4)]'
-                                : 'text-slate-200 hover:bg-blue-900/50 hover:text-white'
+                                ? 'bg-yellow-400 text-black border-yellow-300 shadow-[0_0_14px_rgba(250,204,21,0.35)]'
+                                : 'text-slate-300 border-transparent hover:text-white hover:bg-slate-800/80 hover:border-slate-700'
                         }`}
                     >
-                        Monitoring
+                        [F1] MONITORING
                     </button>
                     <button
                         type="button"
                         onClick={() => setActiveTab('pattern')}
-                        className={`shrink-0 rounded-xl px-4 py-2 text-sm font-extrabold transition-all duration-200 ${
+                        className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-mono font-extrabold uppercase tracking-wider transition-all border cursor-pointer ${
                             activeTab === 'pattern'
-                                ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 shadow-[0_0_15px_rgba(250,204,21,0.4)]'
-                                : 'text-slate-200 hover:bg-blue-900/50 hover:text-white'
+                                ? 'bg-yellow-400 text-black border-yellow-300 shadow-[0_0_14px_rgba(250,204,21,0.35)]'
+                                : 'text-slate-300 border-transparent hover:text-white hover:bg-slate-800/80 hover:border-slate-700'
                         }`}
                     >
-                        Pattern
+                        [F2] PATTERN
                     </button>
                     <button
                         type="button"
                         onClick={() => setActiveTab('history')}
-                        className={`shrink-0 rounded-xl px-4 py-2 text-sm font-extrabold transition-all duration-200 ${
+                        className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-mono font-extrabold uppercase tracking-wider transition-all border cursor-pointer ${
                             activeTab === 'history'
-                                ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 shadow-[0_0_15px_rgba(250,204,21,0.4)]'
-                                : 'text-slate-200 hover:bg-blue-900/50 hover:text-white'
+                                ? 'bg-yellow-400 text-black border-yellow-300 shadow-[0_0_14px_rgba(250,204,21,0.35)]'
+                                : 'text-slate-300 border-transparent hover:text-white hover:bg-slate-800/80 hover:border-slate-700'
                         }`}
                     >
-                        History
+                        [F3] HISTORY
                     </button>
                 </div>
             }
@@ -249,76 +249,83 @@ export default function EspMonitor({
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between max-w-7xl mx-auto py-1">
                     <div>
                         <div className="flex flex-wrap items-center gap-3">
-                            <h1 className="text-2xl font-black tracking-tight text-slate-900">
+                            <div className="flex items-center gap-2 mb-0.5">
+                                <span className="px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 text-[10px] font-mono font-bold uppercase tracking-widest">
+                                    IOT GATEWAY // TELEMETRY
+                                </span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-2xl font-black font-mono tracking-tight text-white">
                                 {device.name || 'ESP32 Retort Logger'} ({device.machine_code})
                             </h1>
-                            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-black uppercase tracking-wider border ${
+                            <span className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-0.5 text-xs font-mono font-bold uppercase tracking-wider border ${
                                 isOnline
-                                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                                    : 'bg-rose-100 text-rose-800 border-rose-200'
+                                    ? 'bg-emerald-950/80 text-emerald-300 border-emerald-600/60 shadow-[0_0_10px_rgba(52,211,153,0.3)]'
+                                    : 'bg-rose-950/80 text-rose-300 border-rose-600/60'
                             }`}>
-                                <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
-                                {isOnline ? 'Online' : 'Offline'}
+                                <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`} />
+                                {isOnline ? 'ONLINE // READY' : 'OFFLINE'}
                             </span>
                         </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
-                            <span>Tipe: <strong className="font-mono text-blue-700">ESP32-S3 (RetortLogger)</strong></span>
-                            <span className="text-slate-300">•</span>
-                            <span>Protokol: <strong className="font-mono text-amber-700">MQTT</strong></span>
-                            <span className="text-slate-300">•</span>
-                            <span>Update: <strong className="text-slate-700">{formattedUpdateTime}</strong></span>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-mono text-slate-400">
+                            <span>TIPE: <strong className="font-mono text-cyan-400">ESP32-S3 (RetortLogger)</strong></span>
+                            <span className="text-slate-600">•</span>
+                            <span>PROTOKOL: <strong className="font-mono text-yellow-400">MQTT BROKER</strong></span>
+                            <span className="text-slate-600">•</span>
+                            <span>LAST UPDATE: <strong className="text-slate-200">{formattedUpdateTime}</strong></span>
                         </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2.5">
                         <Link
                             href={route('dashboard')}
-                            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+                            className="rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 px-4 py-2 text-xs font-mono font-bold text-slate-200 hover:text-white transition-all shadow-sm"
                         >
-                            Dashboard
+                            DASHBOARD
                         </Link>
                     </div>
                 </div>
             }
         >
-            <Head title={`Monitor Retort - ${device.name || device.machine_code}`} />
+            <Head title={`Monitor Retort - ${device.name || device.machine_code} - Industrial SCADA`} />
 
-            <div className="py-8">
+            <div className="py-6">
                 <div className="mx-auto max-w-[1600px] space-y-6 px-4 sm:px-6 lg:px-8">
                     {/* Navigation Tabs */}
-                    <div className="flex items-center gap-3 border-b border-slate-200/80 pb-3">
+                    <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
                         <button
                             type="button"
                             onClick={() => setActiveTab('monitor')}
-                            className={`rounded-xl px-5 py-2.5 text-xs font-black transition-all shadow-sm ${
+                            className={`rounded-lg px-4 py-2 text-xs font-mono font-bold transition-all cursor-pointer ${
                                 activeTab === 'monitor'
-                                    ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md border-none'
-                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:text-blue-800'
+                                    ? 'bg-yellow-400 text-black font-extrabold shadow-sm'
+                                    : 'bg-[#0d131f] text-slate-300 border border-slate-700 hover:bg-slate-800'
                             }`}
                         >
-                            Monitoring
+                            MONITORING
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTab('pattern')}
-                            className={`rounded-xl px-5 py-2.5 text-xs font-black transition-all shadow-sm ${
+                            className={`rounded-lg px-4 py-2 text-xs font-mono font-bold transition-all cursor-pointer ${
                                 activeTab === 'pattern'
-                                    ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md border-none'
-                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:text-blue-800'
+                                    ? 'bg-yellow-400 text-black font-extrabold shadow-sm'
+                                    : 'bg-[#0d131f] text-slate-300 border border-slate-700 hover:bg-slate-800'
                             }`}
                         >
-                            Pattern Steps
+                            PATTERN
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTab('history')}
-                            className={`rounded-xl px-5 py-2.5 text-xs font-black transition-all shadow-sm ${
+                            className={`rounded-lg px-4 py-2 text-xs font-mono font-bold transition-all cursor-pointer ${
                                 activeTab === 'history'
-                                    ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-md border-none'
-                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-blue-50 hover:text-blue-800'
+                                    ? 'bg-yellow-400 text-black font-extrabold shadow-sm'
+                                    : 'bg-[#0d131f] text-slate-300 border border-slate-700 hover:bg-slate-800'
                             }`}
                         >
-                            History Logs
+                            HISTORY
                         </button>
                     </div>
 

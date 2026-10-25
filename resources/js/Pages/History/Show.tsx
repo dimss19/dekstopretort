@@ -21,16 +21,21 @@ export default function Show({ batch, groups = [] }: Props) {
                         <div className="flex items-center gap-3">
                             <Link
                                 href={route('historian.index')}
-                                className="inline-flex items-center justify-center p-2 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 hover:text-slate-900 shadow-sm transition-all"
+                                className="inline-flex items-center justify-center p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white shadow-sm transition-all"
                                 title="Kembali ke History"
                             >
                                 <ChevronLeft size={18} />
                             </Link>
                             <div>
-                                <h1 className="text-2xl font-black tracking-tight text-slate-900">
-                                    Detail Proses #{batch.id} ({machineName})
+                                <div className="flex items-center gap-2 mb-0.5">
+                                    <span className="px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 text-[10px] font-mono font-bold uppercase tracking-widest">
+                                        BATCH DETAIL // ARCHIVE
+                                    </span>
+                                </div>
+                                <h1 className="text-2xl font-black font-mono tracking-tight text-white">
+                                    DETAIL PROSES #{batch.id} ({machineName})
                                 </h1>
-                                <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                                <p className="text-xs font-mono text-slate-400 mt-0.5">
                                     Detail log sterilisasi, grafik profil termal, dan verifikasi batch
                                 </p>
                             </div>
@@ -38,10 +43,10 @@ export default function Show({ batch, groups = [] }: Props) {
                     </div>
                     <Link
                         href={route('historian.index')}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50 shadow-sm transition-all shrink-0"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 px-4 py-2.5 text-xs font-mono font-bold text-slate-200 shadow-sm transition-all shrink-0"
                     >
                         <ChevronLeft size={16} />
-                        <span>Kembali ke History</span>
+                        <span>KEMBALI KE RIWAYAT</span>
                     </Link>
                 </div>
             }

@@ -14,7 +14,7 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
     useEffect(() => {
         const timer = setInterval(() => {
             setBlinkToggle(prev => !prev);
-        }, 500); // Berganti setiap 0.5 detik (500ms)
+        }, 500);
         return () => clearInterval(timer);
     }, []);
 
@@ -37,7 +37,6 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
         : '0.0';
 
     // Format SV / Status
-    // Blinking terjadi saat offline atau saat controller dalam kondisi STOP/IDLE.
     const isMv100 = isOnline && telemetry.heatingPercent !== null && telemetry.heatingPercent >= 100;
     const isProcessRunning = Boolean(
         isOnline && (
@@ -51,21 +50,16 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
     );
     const isStopped = !isOnline || !isProcessRunning;
 
-    // Nilai target SV: saat kondisi STOP / standby / offline, SV standby Autonics TN adalah 25.0
-    // sehingga berkedip bergantian antara 'STOP' dan '25.0'
-    // Saat proses RUN, gunakan nilai target SV aktual dari proses/recipe.
     const targetSv = isStopped
         ? 25.0
         : ((telemetry.targetTemperature !== null && telemetry.targetTemperature !== undefined)
             ? telemetry.targetTemperature
             : 25.0);
 
-    // Format SV dengan 1 desimal (misal 25.0), sama seperti tampilan fisik Autonics TN
     const targetSvFormatted = typeof targetSv === 'number'
         ? targetSv.toFixed(1)
         : '25.0';
 
-    // SV berkedip bergantian antara 'STOP' dan SV standby ('25.0') setiap 0.5 detik saat STOP / offline
     const svValueDisplay = isStopped
         ? (blinkToggle ? 'STOP' : targetSvFormatted)
         : targetSvFormatted;
@@ -87,7 +81,6 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
         const hi = Math.floor(num / 100);
         const lo = num % 100;
         if (lo >= 60) {
-            // Fallback for raw seconds input (e.g. 75s -> 01.15)
             const totalSec = (hi * 60) + lo;
             const mm = Math.floor(totalSec / 60);
             const ss = totalSec % 60;
@@ -98,39 +91,102 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
 
     const totDisplay = isOnline ? formatTimeDot(telemetry.processTime) : '00.00';
     const stpDisplay = isOnline ? formatTimeDot(telemetry.remainingTime) : '00.00';
+
+    // Status LED flags
+    const out1Active = Boolean(isOnline && (telemetry.heatingActive || (telemetry.heatingPercent && telemetry.heatingPercent > 0)));
+    const out2Active = Boolean(isOnline && telemetry.coolingActive);
+    const alarmActive = Boolean(isOnline && telemetry.alarmActive);
+
     return (
-        <section className="rounded-3xl border border-slate-800 bg-[#060a12] p-6 shadow-2xl backdrop-blur-xl text-white">
-            {/* Header / Title Bar */}
+        <section className="relative rounded-2xl border-2 border-slate-700/80 bg-[#0c1017] p-5 sm:p-6 shadow-[0_12px_40px_rgba(0,0,0,0.6)] text-white font-mono">
+            {/* Top Industrial Header & Bezel */}
             <div className="mb-4 pb-3 border-b border-slate-800">
-                <div className="flex flex-wrap items-center justify-between text-xs font-mono font-bold text-slate-400 mb-1">
-                    <span className="tracking-wider">UPDATE : {updateTime}</span>
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase ${
-                        isOnline ? 'bg-emerald-950 text-emerald-400 border border-emerald-700' : 'bg-rose-950 text-rose-400 border border-rose-700'
+                <div className="flex flex-wrap items-center justify-between text-xs font-mono font-bold text-slate-400 mb-2">
+                    <span className="tracking-wider flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 bg-yellow-400 rounded-full" />
+                        UPDATE: {updateTime}
+                    </span>
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border ${
+                        isOnline
+                            ? 'bg-emerald-950/80 text-emerald-400 border-emerald-700 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
+                            : 'bg-rose-950/80 text-rose-400 border-rose-700'
                     }`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`}></span>
+                        <span className={`h-1.5 w-1.5 rounded-full ${isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
                         {isOnline ? 'CONNECTED' : 'DISCONNECTED'}
                     </span>
                 </div>
-                <div className="flex items-center justify-between font-mono">
-                    <span className="text-xl font-black tracking-wider text-white">
-                        TN Controller
-                    </span>
-                    <span className="text-xl font-black tracking-[0.2em] text-white">
+
+                {/* Industrial Hardware Model Banner */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <span className="text-lg font-black tracking-wider text-white">
+                            TN Controller
+                        </span>
+                        <span className="px-1.5 py-0.5 bg-slate-800 text-yellow-400 text-[10px] font-bold rounded border border-slate-700">
+                            {modelType}
+                        </span>
+                    </div>
+                    <span className="text-lg font-black tracking-[0.25em] text-white">
                         AUTONICS
+                    </span>
+                </div>
+
+                {/* Industrial Hardware Status Annunciator LED Bar */}
+                <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center gap-2 text-[10px] font-bold">
+                    <span className="text-slate-500 uppercase text-[9px] mr-1">ANNUNCIATOR:</span>
+                    
+                    {/* OUT1 (Heating) */}
+                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded border transition-colors ${
+                        out1Active
+                            ? 'bg-amber-950/90 text-amber-300 border-amber-600 shadow-[0_0_8px_rgba(245,158,11,0.5)]'
+                            : 'bg-slate-900 text-slate-600 border-slate-800'
+                    }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${out1Active ? 'bg-amber-400 animate-pulse' : 'bg-slate-700'}`} />
+                        OUT1 (HEAT)
+                    </span>
+
+                    {/* OUT2 (Cooling) */}
+                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded border transition-colors ${
+                        out2Active
+                            ? 'bg-cyan-950/90 text-cyan-300 border-cyan-600 shadow-[0_0_8px_rgba(6,182,212,0.5)]'
+                            : 'bg-slate-900 text-slate-600 border-slate-800'
+                    }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${out2Active ? 'bg-cyan-400 animate-pulse' : 'bg-slate-700'}`} />
+                        OUT2 (COOL)
+                    </span>
+
+                    {/* ALARM */}
+                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded border transition-colors ${
+                        alarmActive
+                            ? 'bg-rose-950/90 text-rose-300 border-rose-600 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]'
+                            : 'bg-slate-900 text-slate-600 border-slate-800'
+                    }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${alarmActive ? 'bg-rose-400' : 'bg-slate-700'}`} />
+                        ALM
+                    </span>
+
+                    {/* RUN / STOP State */}
+                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded border transition-colors ${
+                        isProcessRunning
+                            ? 'bg-emerald-950/90 text-emerald-300 border-emerald-600'
+                            : 'bg-slate-900 text-yellow-500 border-slate-800'
+                    }`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${isProcessRunning ? 'bg-emerald-400' : 'bg-yellow-500'}`} />
+                        {isProcessRunning ? 'RUN' : 'STANDBY'}
                     </span>
                 </div>
             </div>
 
-            {/* Main Faceplate Digital Grid */}
-            <div className="bg-[#03060c] rounded-2xl border-2 border-slate-800/80 p-5 md:p-7 shadow-inner space-y-4 font-mono">
+            {/* Recessed High-Contrast Digital Glass Screen */}
+            <div className="bg-[#03060c] rounded-xl border-2 border-slate-850 p-4 sm:p-6 shadow-inner space-y-3.5">
                 
                 {/* ROW 1: PV (Present Value) */}
-                <div className="flex items-baseline justify-between border-b border-slate-900 pb-3">
+                <div className="flex items-baseline justify-between border-b border-slate-900/90 pb-3">
                     <div className="flex items-baseline gap-3">
-                        <span className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]">
+                        <span className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.45)]">
                             {pvDisplay}
                         </span>
-                        <span className="text-2xl sm:text-3xl font-bold text-slate-300">
+                        <span className="text-2xl sm:text-3xl font-bold text-slate-400">
                             ℃
                         </span>
                     </div>
@@ -140,11 +196,11 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
                 </div>
 
                 {/* ROW 2: SV (Status & Set Value) */}
-                <div className="flex items-center justify-between border-b border-slate-900 pb-3">
+                <div className="flex items-center justify-between border-b border-slate-900/90 pb-3">
                     <div className="flex items-baseline gap-2 sm:gap-3">
                         <span className="text-2xl sm:text-3xl text-[#00e676] font-black self-center">➔</span>
                         {isStopped ? (
-                            <span className="bg-[#ffeb3b] text-black font-black text-xs sm:text-sm px-2 py-0.5 rounded shadow-sm self-center">
+                            <span className="bg-yellow-400 text-black font-black text-xs sm:text-sm px-2 py-0.5 rounded shadow-sm self-center">
                                 STOP
                             </span>
                         ) : (
@@ -152,7 +208,7 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
                                 RUN
                             </span>
                         )}
-                        <span className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-[#00e676] drop-shadow-[0_0_12px_rgba(0,230,118,0.4)] opacity-100">
+                        <span className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-[#00e676] drop-shadow-[0_0_14px_rgba(0,230,118,0.45)]">
                             {svValueDisplay}
                         </span>
                         {svValueDisplay !== 'STOP' && (
@@ -167,7 +223,7 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
                 </div>
 
                 {/* ROW 3: MV (Manipulated Variable %) */}
-                <div className="flex items-baseline justify-between border-b border-slate-900 pb-3">
+                <div className="flex items-baseline justify-between border-b border-slate-900/90 pb-3">
                     <div className="flex items-baseline gap-2">
                         <span className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-[#ff9800] drop-shadow-[0_0_12px_rgba(255,152,0,0.4)]">
                             {mvDisplay}
@@ -179,7 +235,7 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
                 </div>
 
                 {/* ROW 4: P/S (Pattern / Step) */}
-                <div className="flex items-baseline justify-between border-b border-slate-900 pb-3">
+                <div className="flex items-baseline justify-between border-b border-slate-900/90 pb-3">
                     <div className="flex items-baseline gap-2">
                         <span className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-[#c6ff00] drop-shadow-[0_0_12px_rgba(198,255,0,0.4)]">
                             {psDisplay}
@@ -191,7 +247,7 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
                 </div>
 
                 {/* ROW 5: TOT M:S (Total Process Time) */}
-                <div className="flex items-baseline justify-between border-b border-slate-900 pb-3">
+                <div className="flex items-baseline justify-between border-b border-slate-900/90 pb-3">
                     <div className="flex items-baseline gap-2">
                         <span className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-[#c6ff00] drop-shadow-[0_0_12px_rgba(198,255,0,0.4)]">
                             {totDisplay}

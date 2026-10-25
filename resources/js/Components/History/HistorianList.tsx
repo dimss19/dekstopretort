@@ -17,8 +17,8 @@ import { compareF0, filterHistories, getHistoryStatus, type HistoryStatus } from
 import { calculateF0, calculateF0FromLogs } from '@/Pages/Tn/retortTelemetry';
 
 const Panel = ({ title, children, className = '' }: { title?: string; children: ReactNode; className?: string }) => (
-    <section className={`rounded-3xl border border-slate-200/90 bg-white/95 p-7 shadow-lg backdrop-blur-xl ${className}`}>
-        {title && <h3 className="mb-4 text-xl font-extrabold text-slate-900">{title}</h3>}
+    <section className={`rounded-2xl border border-slate-700/80 bg-[#0d131f]/95 p-5 sm:p-6 shadow-xl text-white ${className}`}>
+        {title && <h3 className="mb-4 text-base font-mono font-black text-white uppercase tracking-wider">{title}</h3>}
         {children}
     </section>
 );
@@ -257,15 +257,15 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
             <Panel>
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
-                        <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-700">Filter Periode</label>
-                        <div className="flex gap-1.5 rounded-2xl bg-slate-100 p-1.5 border border-slate-200">
+                        <label className="mb-1.5 block text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">Filter Periode</label>
+                        <div className="flex gap-1.5 rounded-xl bg-[#070b13] p-1.5 border border-slate-800">
                             {['Semua', 'Hari', 'Minggu', 'Bulan'].map((x) => (
                                 <button
                                     key={x}
                                     onClick={() => { setPeriod(x as any); setCustomDate(''); }}
-                                    className={`rounded-xl px-4 py-2 text-xs font-black transition-all ${period === x && !customDate
-                                            ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-sm'
-                                            : 'text-slate-600 hover:text-slate-900'
+                                    className={`rounded-lg px-3.5 py-1.5 text-xs font-mono font-bold transition-all cursor-pointer ${period === x && !customDate
+                                            ? 'bg-yellow-400 text-black shadow-sm font-extrabold'
+                                            : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                                         }`}
                                 >
                                     {x}
@@ -275,19 +275,19 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                     </div>
                     <div className="flex items-center gap-2">
                         <div>
-                            <label className="mb-1.5 block text-xs font-black uppercase tracking-wider text-slate-700">Tanggal Kustom</label>
+                            <label className="mb-1.5 block text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">Tanggal Spesifik</label>
                             <input
                                 type="date"
                                 value={customDate}
                                 onChange={(e) => setCustomDate(e.target.value)}
-                                className="rounded-xl border-slate-300 bg-slate-50 text-xs font-bold text-slate-800 shadow-sm focus:border-blue-600 focus:ring-blue-600 py-2 px-3"
+                                className="rounded-xl border border-slate-700 bg-[#070b13] text-xs font-mono font-bold text-white shadow-sm focus:border-yellow-400 focus:ring-yellow-400 py-1.5 px-3"
                             />
                         </div>
                         {customDate && (
                             <button
                                 type="button"
                                 onClick={() => setCustomDate('')}
-                                className="mt-6 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+                                className="mt-6 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-mono font-bold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors shadow-sm cursor-pointer"
                             >
                                 Reset
                             </button>
@@ -301,10 +301,10 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                         type="text"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Cari product / batch..."
-                        className="min-w-52 flex-1 rounded-xl border-slate-300 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 shadow-sm focus:border-blue-600 focus:ring-blue-600"
+                        placeholder="Cari nama produk / kode batch..."
+                        className="min-w-52 flex-1 rounded-xl border border-slate-700 bg-[#070b13] px-3.5 py-2 text-xs font-mono font-bold text-white placeholder-slate-500 shadow-sm focus:border-yellow-400 focus:ring-yellow-400"
                     />
-                    <div className="flex gap-1.5 rounded-2xl bg-slate-100 p-1.5 border border-slate-200">
+                    <div className="flex gap-1.5 rounded-xl bg-[#070b13] p-1.5 border border-slate-800">
                         {(['all', 'verified', 'unverified'] as const).map((s) => {
                             const count = s === 'unverified'
                                 ? histories.filter((h) => getHistoryStatus(h) === 'unverified').length
@@ -316,19 +316,19 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                 <button
                                     key={s}
                                     onClick={() => setStatusFilter(s)}
-                                    className={`relative flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-black transition-all ${statusFilter === s
-                                            ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 shadow-sm'
-                                            : 'text-slate-600 hover:text-slate-900'
+                                    className={`relative flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-mono font-bold transition-all cursor-pointer ${statusFilter === s
+                                            ? 'bg-yellow-400 text-black shadow-sm font-extrabold'
+                                            : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                                         }`}
                                 >
                                     {s === 'unverified' && count > 0 && (
                                         <span className="relative flex h-2 w-2">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                                         </span>
                                     )}
                                     <span>
-                                        {s === 'all' ? 'Semua' : s === 'verified' ? 'Verified' : `Unverified (${count})`}
+                                        {s === 'all' ? 'SEMUA' : s === 'verified' ? 'VERIFIED' : `UNVERIFIED (${count})`}
                                     </span>
                                 </button>
                             );
@@ -340,36 +340,36 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                         <>
                             <button
                                 onClick={() => setGroupFilter('all')}
-                                className={`rounded-full border px-3 py-1 text-xs font-black transition-all ${groupFilter === 'all'
-                                        ? 'bg-slate-900 text-white border-slate-900'
-                                        : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                                className={`rounded-lg border px-3 py-1 text-xs font-mono font-bold transition-all cursor-pointer ${groupFilter === 'all'
+                                        ? 'bg-yellow-400 text-black border-yellow-300 font-extrabold'
+                                        : 'bg-[#070b13] text-slate-300 border-slate-700 hover:bg-slate-800'
                                     }`}
                             >
-                                Semua
+                                SEMUA GROUP
                             </button>
                             {groups.map((g) => (
                                 <span
                                     key={g.id}
-                                    className={`inline-flex items-center gap-1 rounded-full border pl-3 pr-1 py-1 text-xs font-black transition-all ${groupFilter === g.id
-                                            ? 'bg-slate-900 text-white border-slate-900'
-                                            : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                                    className={`inline-flex items-center gap-1 rounded-lg border pl-3 pr-1 py-1 text-xs font-mono font-bold transition-all ${groupFilter === g.id
+                                            ? 'bg-yellow-400 text-black border-yellow-300 font-extrabold'
+                                            : 'bg-[#070b13] text-slate-300 border-slate-700 hover:bg-slate-800'
                                         }`}
                                 >
-                                    <button onClick={() => setGroupFilter(groupFilter === g.id ? 'all' : g.id)} className="flex items-center gap-1.5">
-                                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: g.color }} />
+                                    <button onClick={() => setGroupFilter(groupFilter === g.id ? 'all' : g.id)} className="flex items-center gap-1.5 cursor-pointer">
+                                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: g.color }} />
                                         {g.name}
                                     </button>
                                     <button
                                         title={`Rename ${g.name}`}
                                         onClick={() => openGroupEditor(g)}
-                                        className="rounded-full p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors"
+                                        className="rounded p-0.5 text-slate-400 hover:text-white hover:bg-slate-700/60 transition-colors"
                                     >
                                         <Pencil size={11} />
                                     </button>
                                     <button
                                         title={`Delete ${g.name}`}
                                         onClick={() => handleDeleteGroup(g.id, g.name)}
-                                        className="rounded-full p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-100/60 transition-colors"
+                                        className="rounded p-0.5 text-slate-400 hover:text-rose-400 hover:bg-rose-950/60 transition-colors"
                                     >
                                         <X size={11} />
                                     </button>
@@ -380,75 +380,71 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                     {groups.length < 2 && !creatingGroup && (
                         <button
                             onClick={() => setCreatingGroup(true)}
-                            className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-400 bg-white px-3 py-1 text-xs font-black text-slate-600 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                            className="inline-flex items-center gap-1 rounded-lg border border-dashed border-slate-600 bg-slate-800/80 px-3 py-1 text-xs font-mono font-bold text-slate-300 hover:border-yellow-400 hover:text-yellow-400 transition-all cursor-pointer"
                         >
                             <Plus size={12} />
-                            Create Group
+                            <span>+ GROUP BARU</span>
                         </button>
-                    )}
-                    {groups.length === 0 && !creatingGroup && (
-                        <span className="text-xs text-slate-400 font-semibold">Belum ada group. Buat group untuk mengelompokkan batch.</span>
                     )}
                 </div>
                 {creatingGroup && (
-                    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50/30 p-3">
+                    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-[#070b13] p-3 font-mono">
                         <input
                             type="text"
                             value={newGroupName}
                             maxLength={50}
                             placeholder="Nama group baru..."
                             onChange={(e) => setNewGroupName(e.target.value)}
-                            className="min-w-40 flex-1 rounded-xl border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 shadow-sm focus:border-blue-600 focus:ring-blue-600"
+                            className="min-w-40 flex-1 rounded-lg border border-slate-700 bg-[#0e1422] px-3 py-1.5 text-xs font-bold text-white focus:border-yellow-400 focus:ring-yellow-400"
                             autoFocus
                         />
                         <input
                             type="color"
                             value={newGroupColor}
                             onChange={(e) => setNewGroupColor(e.target.value)}
-                            className="h-9 w-12 cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
+                            className="h-8 w-10 cursor-pointer rounded border border-slate-700 bg-[#0e1422] p-1"
                         />
                         <button
                             onClick={handleCreateGroup}
                             disabled={!newGroupName.trim()}
-                            className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-black text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="rounded-lg bg-yellow-400 px-3.5 py-1.5 text-xs font-black text-black hover:bg-yellow-300 disabled:opacity-50 transition-colors cursor-pointer"
                         >
-                            Simpan Group
+                            SIMPAN
                         </button>
                         <button
                             onClick={() => { setCreatingGroup(false); setNewGroupName(''); setNewGroupColor('#3b82f6'); }}
-                            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-100 transition-colors"
+                            className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700 transition-colors cursor-pointer"
                         >
-                            Batal
+                            BATAL
                         </button>
-                        <span className="text-[10px] text-slate-400 font-semibold">Maks. 2 group</span>
                     </div>
                 )}
                 {editingGroup && (
-                    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-700 bg-[#070b13] p-3 font-mono">
                         <input
                             type="text"
                             value={editName}
                             maxLength={50}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="min-w-40 flex-1 rounded-xl border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 shadow-sm focus:border-blue-600 focus:ring-blue-600"
+                            className="min-w-40 flex-1 rounded-lg border border-slate-700 bg-[#0e1422] px-3 py-1.5 text-xs font-bold text-white focus:border-yellow-400 focus:ring-yellow-400"
                         />
                         <input
                             type="color"
                             value={editColor}
                             onChange={(e) => setEditColor(e.target.value)}
-                            className="h-9 w-12 cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
+                            className="h-8 w-10 cursor-pointer rounded border border-slate-700 bg-[#0e1422] p-1"
                         />
                         <button
                             onClick={saveGroupRename}
-                            className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-black text-white hover:bg-slate-700 transition-colors"
+                            className="rounded-lg bg-yellow-400 px-3.5 py-1.5 text-xs font-black text-black hover:bg-yellow-300 transition-colors cursor-pointer"
                         >
-                            Simpan
+                            SIMPAN
                         </button>
                         <button
                             onClick={() => setEditingGroup(null)}
-                            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-black text-slate-700 hover:bg-slate-100 transition-colors"
+                            className="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-slate-700 transition-colors cursor-pointer"
                         >
-                            Batal
+                            BATAL
                         </button>
                     </div>
                 )}
@@ -456,17 +452,17 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
 
             {/* Unverified Alert Banner */}
             {totalUnverifiedCount > 0 && (
-                <div className="rounded-3xl border-2 border-rose-300 bg-rose-50/80 p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                <div className="rounded-2xl border border-rose-600/80 bg-rose-950/70 p-5 shadow-xl flex flex-wrap items-center justify-between gap-4 font-mono">
                     <div className="flex items-center gap-3.5">
-                        <span className="relative flex h-3.5 w-3.5 shrink-0">
+                        <span className="relative flex h-3 w-3 shrink-0">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-600"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
                         </span>
                         <div>
-                            <p className="text-sm font-black text-rose-900">
-                                Perhatian: Terdapat {totalUnverifiedCount} Batch Proses Berstatus UNVERIFIED
+                            <p className="text-xs sm:text-sm font-black text-rose-200 uppercase tracking-wider">
+                                PERHATIAN: TERDAPAT {totalUnverifiedCount} BATCH PROSES BERSTATUS UNVERIFIED
                             </p>
-                            <p className="text-xs font-semibold text-rose-700 mt-0.5">
+                            <p className="text-xs text-rose-300/80 mt-0.5">
                                 Batch selesai memerlukan data verifikasi tertulis. Klik tombol "Verifikasi" pada kartu di bawah ini untuk melengkapi.
                             </p>
                         </div>
@@ -475,13 +471,9 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                         <button
                             type="button"
                             onClick={() => setStatusFilter('unverified')}
-                            className="rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black px-4 py-2.5 shadow-sm transition-all shrink-0 flex items-center gap-2"
+                            className="rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-wider px-4 py-2.5 shadow-md transition-all shrink-0 flex items-center gap-2 cursor-pointer"
                         >
-                            <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-                            </span>
-                            Filter Unverified ({totalUnverifiedCount})
+                            <span>FILTER UNVERIFIED ({totalUnverifiedCount})</span>
                         </button>
                     )}
                 </div>
@@ -490,9 +482,9 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
             {/* Batch Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredHistories.length === 0 ? (
-                    <div className="col-span-full py-16 text-center text-slate-400 font-bold bg-white/95 rounded-3xl border border-slate-200 shadow-sm">
-                        <Clock className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                        Tidak ada riwayat proses yang cocok dengan filter.
+                    <div className="col-span-full py-16 text-center text-slate-400 font-mono font-bold bg-[#0d131f]/95 rounded-2xl border border-slate-700/80 shadow-xl">
+                        <Clock className="w-10 h-10 mx-auto mb-2 opacity-30 text-yellow-400" />
+                        <p className="text-sm uppercase tracking-wider">Tidak ada riwayat proses yang cocok dengan filter.</p>
                     </div>
                 ) : (
                     filteredHistories.map((h: any) => {
@@ -511,29 +503,29 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                         return (
                             <div
                                 key={h.id}
-                                className={`relative rounded-3xl border ${status === 'unverified'
-                                        ? 'border-rose-300 bg-white shadow-md hover:shadow-xl ring-1 ring-rose-200/80'
-                                        : 'border-slate-200 bg-white shadow-md hover:shadow-xl'
-                                    } p-6 transition-all duration-300 flex flex-col justify-between`}
+                                className={`relative rounded-2xl border ${status === 'unverified'
+                                        ? 'border-rose-600/80 bg-[#140a0f]/95 shadow-xl hover:border-rose-500'
+                                        : 'border-slate-700/80 bg-[#0d131f]/95 shadow-xl hover:border-yellow-400/80'
+                                    } p-5 transition-all duration-300 flex flex-col justify-between font-mono`}
                             >
                                 <div>
-                                    <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-3">
+                                    <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-3">
                                         <div className="flex items-center gap-2">
-                                            <span className="font-mono text-xs font-extrabold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-lg">
-                                                Batch #{h.id}
+                                            <span className="font-mono text-xs font-black bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 px-2 py-0.5 rounded">
+                                                BATCH #{h.id}
                                             </span>
                                             {status === 'verified' ? (
                                                 <span
                                                     title={`by ${h.verified_by ?? '-'} · ${h.verified_at ? new Date(h.verified_at).toLocaleString('id-ID') : '-'}`}
-                                                    className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md"
+                                                    className="flex items-center gap-1 text-[10px] font-bold text-emerald-300 bg-emerald-950/80 border border-emerald-600/60 px-2 py-0.5 rounded"
                                                 >
                                                     <CheckCircle2 size={12} /> VERIFIED
                                                 </span>
                                             ) : (
-                                                <span className="flex items-center gap-1.5 text-[10px] font-black text-rose-700 bg-rose-50 border border-rose-300 px-2.5 py-0.5 rounded-md shadow-sm">
+                                                <span className="flex items-center gap-1.5 text-[10px] font-black text-rose-300 bg-rose-950/80 border border-rose-600/60 px-2 py-0.5 rounded shadow-sm">
                                                     <span className="relative flex h-2 w-2">
                                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
+                                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                                                     </span>
                                                     UNVERIFIED
                                                 </span>
@@ -545,37 +537,37 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                             <button
                                                 type="button"
                                                 onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === h.id ? null : h.id); }}
-                                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                                                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
                                             >
                                                 <MoreVertical size={16} />
                                             </button>
                                             {activeMenu === h.id && (
-                                                <div className="absolute right-0 mt-1 w-44 rounded-2xl bg-white p-1.5 shadow-xl border border-slate-200 z-50 animate-in fade-in">
+                                                <div className="absolute right-0 mt-1 w-44 rounded-xl bg-[#0b101b] p-1.5 shadow-2xl border border-slate-700 z-50 animate-in fade-in">
                                                     <Link
                                                         href={route('historian.show', h.id)}
                                                         onClick={() => setActiveMenu(null)}
-                                                        className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left"
+                                                        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 transition-colors text-left"
                                                     >
-                                                        <Eye size={14} className="text-blue-600" /> Lihat Detail Log
+                                                        <Eye size={14} className="text-yellow-400" /> Detail Log
                                                     </Link>
                                                     <button
                                                         type="button"
                                                         onClick={() => { handleDownload(h, 'csv'); setActiveMenu(null); }}
-                                                        className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left"
+                                                        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 transition-colors text-left cursor-pointer"
                                                     >
-                                                        <Download size={14} className="text-emerald-600" /> Export CSV
+                                                        <Download size={14} className="text-emerald-400" /> Export CSV
                                                     </button>
                                                     <button
                                                         type="button"
                                                         onClick={() => { handleDownload(h, 'pdf'); setActiveMenu(null); }}
-                                                        className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors text-left"
+                                                        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-slate-200 hover:bg-slate-800 transition-colors text-left cursor-pointer"
                                                     >
-                                                        <FileText size={14} className="text-amber-600" /> Cetak PDF
+                                                        <FileText size={14} className="text-amber-400" /> Cetak PDF
                                                     </button>
                                                     <button
                                                         type="button"
                                                         onClick={() => { handleDelete(h.id); setActiveMenu(null); }}
-                                                        className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors text-left border-t border-slate-100 mt-1"
+                                                        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-rose-400 hover:bg-rose-950/60 transition-colors text-left border-t border-slate-800 mt-1 cursor-pointer"
                                                     >
                                                         <Trash2 size={14} /> Hapus Log
                                                     </button>
@@ -585,53 +577,53 @@ export default function HistorianList({ histories = [], groups = [] }: { histori
                                     </div>
 
                                     <div className="space-y-2 text-xs">
-                                        <div className="flex items-center justify-between text-slate-600 font-semibold">
-                                            <span>Mesin / Controller:</span>
-                                            <span className="font-bold text-slate-900">{machineName}</span>
+                                        <div className="flex items-center justify-between text-slate-400">
+                                            <span>MESIN:</span>
+                                            <span className="font-bold text-white">{machineName}</span>
                                         </div>
-                                        <div className="flex items-center justify-between text-slate-600 font-semibold">
-                                            <span>Waktu Mulai:</span>
-                                            <span className="font-mono text-slate-900 font-bold">{startTime.toLocaleString('id-ID')}</span>
+                                        <div className="flex items-center justify-between text-slate-400">
+                                            <span>MULAI:</span>
+                                            <span className="font-mono text-slate-200 font-bold">{startTime.toLocaleString('id-ID')}</span>
                                         </div>
-                                        <div className="flex items-center justify-between text-slate-600 font-semibold">
-                                            <span>Waktu Selesai:</span>
-                                            <span className="font-mono text-slate-900 font-bold">{endTime ? endTime.toLocaleString('id-ID') : '--'}</span>
+                                        <div className="flex items-center justify-between text-slate-400">
+                                            <span>SELESAI:</span>
+                                            <span className="font-mono text-slate-200 font-bold">{endTime ? endTime.toLocaleString('id-ID') : '--'}</span>
                                         </div>
-                                        <div className="flex items-center justify-between text-slate-600 font-semibold">
-                                            <span>Durasi:</span>
-                                            <span className="font-mono text-blue-700 font-bold">{durationMinutes !== null ? `${durationMinutes} Menit` : '--'}</span>
+                                        <div className="flex items-center justify-between text-slate-400">
+                                            <span>DURASI:</span>
+                                            <span className="font-mono text-cyan-400 font-bold">{durationMinutes !== null ? `${durationMinutes} Menit` : '--'}</span>
                                         </div>
-                                        <div className="flex items-center justify-between text-slate-600 font-semibold">
-                                            <span>Suhu Puncak (Max PV):</span>
-                                            <span className="font-mono text-rose-600 font-bold">{maxPv > 0 ? `${maxPv.toFixed(1)} °C` : '--'}</span>
+                                        <div className="flex items-center justify-between text-slate-400">
+                                            <span>MAX PV:</span>
+                                            <span className="font-mono text-rose-400 font-bold">{maxPv > 0 ? `${maxPv.toFixed(1)} °C` : '--'}</span>
                                         </div>
-                                        <div className="flex items-center justify-between text-slate-600 font-semibold">
-                                            <span>Data Points:</span>
-                                            <span className="font-mono text-slate-700 font-bold">{logCount} points</span>
+                                        <div className="flex items-center justify-between text-slate-400">
+                                            <span>SAMPLE POINTS:</span>
+                                            <span className="font-mono text-yellow-400 font-bold">{logCount} pts</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                                <div className="mt-5 pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
                                     {status === 'unverified' ? (
                                         <Link
                                             href={route('historian.show', h.id)}
-                                            className="flex-1 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-black py-2.5 px-3 transition-all shadow-sm shadow-rose-200 text-center"
+                                            className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black uppercase tracking-wider py-2.5 px-3 transition-all shadow-md text-center"
                                         >
-                                            Verifikasi
+                                            VERIFIKASI
                                         </Link>
                                     ) : (
                                         <Link
                                             href={route('historian.show', h.id)}
-                                            className="flex-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-black py-2.5 px-3 transition-colors text-center"
+                                            className="flex-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold uppercase tracking-wider py-2.5 px-3 transition-colors text-center border border-slate-700"
                                         >
-                                            Lihat Detail
+                                            LIHAT DETAIL
                                         </Link>
                                     )}
                                     <button
                                         type="button"
                                         onClick={() => handleDownload(h, 'csv')}
-                                        className="rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 p-2.5 transition-colors"
+                                        className="rounded-xl border border-slate-700 hover:bg-slate-800 text-yellow-400 p-2.5 transition-colors cursor-pointer"
                                         title="Export CSV"
                                     >
                                         <Download size={14} />

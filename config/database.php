@@ -35,12 +35,21 @@ return [
         'sqlite' => [
             'driver' => 'sqlite',
             'database' => (function () {
+                if ($nativeDb = env('NATIVEPHP_DATABASE_PATH')) {
+                    return $nativeDb;
+                }
                 $db = env('DB_DATABASE');
+                if ($db === ':memory:') {
+                    return ':memory:';
+                }
                 if ($db && file_exists($db)) {
                     return $db;
                 }
                 if ($db && file_exists(database_path($db))) {
                     return database_path($db);
+                }
+                if ($db) {
+                    return $db;
                 }
                 if (file_exists(database_path('nativephp.sqlite'))) {
                     return database_path('nativephp.sqlite');

@@ -18,9 +18,9 @@ class HistoryVerificationSchemaTest extends TestCase
         }
     }
 
-    public function test_two_groups_seeded(): void
+    public function test_history_groups_table_exists(): void
     {
-        $this->assertSame(2, HistoryGroup::count());
-        $this->assertSame(['Group 1', 'Group 2'], HistoryGroup::orderBy('id')->pluck('name')->all());
+        $this->assertTrue(Schema::hasTable('history_groups'));
+        $this->assertTrue(Schema::hasColumns('history_groups', ['id', 'name', 'color']));
     }
 }

@@ -206,42 +206,47 @@ export default function Index({ recipes = [], controllers = [] }: { recipes?: Re
             header={
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between max-w-7xl mx-auto">
                     <div>
-                        <h1 className="text-2xl font-black tracking-tight text-slate-900">Pattern Management</h1>
-                        <p className="text-sm font-semibold text-slate-600">
-                            Kelola, simpan, dan tulis profil sterilisasi langsung ke controller retort
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="px-2 py-0.5 rounded bg-yellow-400/20 text-yellow-300 border border-yellow-400/40 text-[10px] font-mono font-bold uppercase tracking-widest">
+                                RECIPE // PATTERN REPOSITORY
+                            </span>
+                        </div>
+                        <h1 className="text-2xl font-black tracking-tight text-white font-mono">PATTERN MANAGEMENT</h1>
+                        <p className="text-xs font-mono text-slate-400">
+                            Kelola, simpan, dan tulis profil sterilisasi langsung ke controller retort via Modbus RTU
                         </p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
                         <Link
                             href={route('tn.recipes.create')}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-900 hover:bg-blue-800 text-white text-xs font-black px-4 py-2.5 shadow-md transition-all border border-blue-800"
+                            className="inline-flex items-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-mono font-bold px-4 py-2.5 shadow-md transition-all border border-slate-700"
                         >
                             <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
                             </svg>
-                            Create
+                            <span>+ TAMBAH POLA</span>
                         </Link>
 
                         <button
                             onClick={handleAutoScan}
                             disabled={isScanning || !activeControllerObj}
-                            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 text-xs font-black px-5 py-2.5 shadow-md transition-all border-none disabled:opacity-50"
+                            className="inline-flex items-center gap-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-black text-xs font-mono font-black uppercase tracking-wider px-5 py-2.5 shadow-md transition-all border border-yellow-300 disabled:opacity-50 cursor-pointer"
                         >
                             {isScanning ? (
                                 <>
-                                    <svg className="h-4 w-4 animate-spin text-slate-950" viewBox="0 0 24 24">
+                                    <svg className="h-4 w-4 animate-spin text-black" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                     </svg>
-                                    Scanning Controller...
+                                    <span>SCANNING MEMORY...</span>
                                 </>
                             ) : (
                                 <>
-                                    <svg className="w-4 h-4 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                     </svg>
-                                    Auto Scan
+                                    <span>AUTO SCAN CONTROLLER</span>
                                 </>
                             )}
                         </button>
@@ -249,33 +254,33 @@ export default function Index({ recipes = [], controllers = [] }: { recipes?: Re
                 </div>
             }
         >
-            <Head title="Pattern Management" />
+            <Head title="Pattern Management - Industrial SCADA" />
 
-            <div className="py-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="py-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
                 {/* Alert Notification */}
                 {scanMessage.text && (
                     <div
-                        className={`mb-6 rounded-2xl p-4 text-xs font-bold border shadow-sm flex items-start justify-between gap-3 ${
+                        className={`rounded-xl p-4 text-xs font-mono font-bold border shadow-md flex items-start justify-between gap-3 ${
                             scanMessage.type === 'error'
-                                ? 'bg-rose-50 text-rose-900 border-rose-300'
+                                ? 'bg-rose-950/90 text-rose-300 border-rose-600/60'
                                 : scanMessage.type === 'success'
-                                ? 'bg-amber-50 text-amber-950 border-amber-400'
-                                : 'bg-blue-50 text-blue-900 border-blue-300'
+                                ? 'bg-amber-950/90 text-yellow-300 border-yellow-500/60'
+                                : 'bg-slate-900/90 text-cyan-300 border-cyan-500/60'
                         }`}
                     >
                         <div className="flex items-center gap-2.5">
                             {scanMessage.type === 'error' && (
-                                <svg className="w-5 h-5 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                             )}
                             {scanMessage.type === 'success' && (
-                                <svg className="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5 text-yellow-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                             )}
                             {scanMessage.type === 'info' && (
-                                <svg className="w-5 h-5 text-blue-600 shrink-0 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-5 h-5 text-cyan-400 shrink-0 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                 </svg>
                             )}
@@ -283,7 +288,7 @@ export default function Index({ recipes = [], controllers = [] }: { recipes?: Re
                         </div>
                         <button
                             onClick={() => setScanMessage({ text: '', type: '' })}
-                            className="text-slate-400 hover:text-slate-700 text-sm font-black px-1.5 py-0.5 rounded-lg hover:bg-black/5"
+                            className="text-slate-400 hover:text-white text-sm font-black px-1.5 py-0.5 rounded hover:bg-white/10"
                         >
                             ✕
                         </button>
@@ -292,35 +297,35 @@ export default function Index({ recipes = [], controllers = [] }: { recipes?: Re
 
                 {/* Empty State */}
                 {recipes.length === 0 ? (
-                    <div className="rounded-3xl border border-dashed border-slate-300 p-16 text-center text-slate-500 bg-white/90 shadow-sm backdrop-blur-xl">
-                        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700">
+                    <div className="rounded-2xl border border-dashed border-slate-700/80 p-16 text-center text-slate-400 bg-[#0d131f]/95 shadow-xl">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-yellow-400/10 border border-yellow-400/30 flex items-center justify-center text-yellow-400">
                             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                             </svg>
                         </div>
-                        <p className="text-xl font-black text-slate-900">Belum ada pattern ditemukan.</p>
-                        <p className="text-xs font-semibold text-slate-500 mt-1 max-w-md mx-auto">
+                        <p className="text-xl font-mono font-black text-white">BELUM ADA PATTERN DITEMUKAN</p>
+                        <p className="text-xs font-mono text-slate-400 mt-1 max-w-md mx-auto">
                             Mulai dengan memindai dari memori hardware Controller Autonics TN atau buat pola profil baru secara manual.
                         </p>
                         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
                             <button
                                 onClick={handleAutoScan}
                                 disabled={isScanning || !activeControllerObj}
-                                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 text-xs font-black px-5 py-2.5 shadow-md transition-all border-none disabled:opacity-50"
+                                className="inline-flex items-center gap-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-black text-xs font-mono font-black uppercase px-5 py-2.5 shadow-md transition-all border border-yellow-300 disabled:opacity-50"
                             >
-                                <svg className="w-4 h-4 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                 </svg>
-                                {isScanning ? 'Memindai...' : `Auto Scan dari ${activeControllerObj?.name || 'Controller'}`}
+                                <span>{isScanning ? 'MEMINDAI...' : `AUTO SCAN DARI ${activeControllerObj?.name || 'CONTROLLER'}`}</span>
                             </button>
                             <Link
                                 href={route('tn.recipes.create')}
-                                className="inline-flex items-center gap-2 rounded-xl bg-blue-900 hover:bg-blue-800 text-white text-xs font-black px-5 py-2.5 shadow-md transition-all border border-blue-800"
+                                className="inline-flex items-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-mono font-bold px-5 py-2.5 shadow-md transition-all border border-slate-700"
                             >
                                 <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
                                 </svg>
-                                Buat Pattern Baru
+                                <span>+ BUAT PATTERN BARU</span>
                             </Link>
                         </div>
                     </div>
@@ -336,59 +341,59 @@ export default function Index({ recipes = [], controllers = [] }: { recipes?: Re
                             return (
                                 <div
                                     key={recipe.id}
-                                    className="flex flex-col justify-between rounded-3xl bg-white p-6 shadow-lg border border-slate-200/90 transition-all hover:shadow-xl backdrop-blur-xl group hover:border-amber-300"
+                                    className="flex flex-col justify-between rounded-2xl bg-[#0d131f]/95 p-5 shadow-xl border border-slate-700/80 transition-all hover:border-yellow-400/80 group"
                                 >
                                     <div>
-                                        <div className="flex items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
-                                            <h3 className="text-base font-black text-slate-900 truncate" title={recipe.name}>
+                                        <div className="flex items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-800">
+                                            <h3 className="text-base font-black text-white truncate font-mono" title={recipe.name}>
                                                 {recipe.name}
                                             </h3>
-                                            <span className="shrink-0 rounded-lg bg-amber-100 border border-amber-300 px-2.5 py-1 text-[11px] font-black text-amber-900">
+                                            <span className="shrink-0 rounded-lg bg-yellow-400/20 border border-yellow-400/40 px-2 py-0.5 text-[10px] font-mono font-bold text-yellow-300 uppercase">
                                                 {recipe.status}
                                             </span>
                                         </div>
 
-                                        <div className="space-y-2.5 text-xs font-semibold text-slate-600">
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-slate-500">Kode Pattern:</span>
-                                                <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                        <div className="space-y-2 text-xs font-mono text-slate-300">
+                                            <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
+                                                <span className="text-slate-400">KODE PATTERN</span>
+                                                <span className="font-bold text-yellow-400 bg-[#070b13] px-2 py-0.5 rounded border border-slate-800">
                                                     {recipe.recipe_code || 'N/A'}
                                                 </span>
                                             </div>
 
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-slate-500">Jumlah Step:</span>
-                                                <span className="font-mono font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
-                                                    {stepsCount} steps
+                                            <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
+                                                <span className="text-slate-400">JUMLAH STEP</span>
+                                                <span className="font-bold text-cyan-400 bg-cyan-950/40 border border-cyan-800/50 px-2 py-0.5 rounded">
+                                                    {stepsCount} STEPS
                                                 </span>
                                             </div>
 
                                             {recipe.steps && recipe.steps.length > 0 && (
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-slate-500">Total Durasi:</span>
-                                                    <span className="font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                                                <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
+                                                    <span className="text-slate-400">TOTAL DURASI</span>
+                                                    <span className="font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-800/50 px-2 py-0.5 rounded">
                                                         {totalDurationStr}
                                                     </span>
                                                 </div>
                                             )}
 
                                             {maxSv > 0 && (
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-slate-500">Target SV Maks:</span>
-                                                    <span className="font-mono font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                                                <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
+                                                    <span className="text-slate-400">TARGET SV MAKS</span>
+                                                    <span className="font-bold text-amber-400 bg-amber-950/40 border border-amber-800/50 px-2 py-0.5 rounded">
                                                         {formatSv(maxSv)}°C
                                                     </span>
                                                 </div>
                                             )}
 
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-slate-500">Satuan Waktu:</span>
-                                                <span className="font-mono font-bold text-slate-800">{recipe.time_unit || 'MM.SS'}</span>
+                                            <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
+                                                <span className="text-slate-400">SATUAN WAKTU</span>
+                                                <span className="font-bold text-slate-200">{recipe.time_unit || 'MM.SS'}</span>
                                             </div>
 
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-slate-500">Dibuat:</span>
-                                                <span className="text-slate-700">
+                                            <div className="flex justify-between items-center py-1">
+                                                <span className="text-slate-400">TERDAFTAR</span>
+                                                <span className="text-slate-300">
                                                     {recipe.created_at ? new Date(recipe.created_at).toLocaleDateString('id-ID') : '-'}
                                                 </span>
                                             </div>
@@ -396,15 +401,15 @@ export default function Index({ recipes = [], controllers = [] }: { recipes?: Re
 
                                         {/* Steps Preview Pill Bar */}
                                         {recipe.steps && recipe.steps.length > 0 && (
-                                            <div className="mt-4 pt-3 border-t border-slate-100">
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                                                    Preview Step (Target SV / Durasi):
+                                            <div className="mt-4 pt-3 border-t border-slate-800">
+                                                <p className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                                                    PREVIEW STEP (SV / WAKTU):
                                                 </p>
                                                 <div className="flex flex-wrap gap-1.5 max-h-16 overflow-y-auto pr-1">
                                                     {recipe.steps.map((st) => (
                                                         <span
                                                             key={st.id || st.step_number}
-                                                            className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200 text-slate-700"
+                                                            className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#070b13] border border-slate-800 text-slate-300"
                                                         >
                                                             S{st.step_number}: {formatSv(st.target_sv)}°C ({formatStepDuration(st.duration, recipe.time_unit)})
                                                         </span>
@@ -414,48 +419,48 @@ export default function Index({ recipes = [], controllers = [] }: { recipes?: Re
                                         )}
                                     </div>
 
-                                    <div className="mt-6 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                                    <div className="mt-5 pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
                                         <button
                                             onClick={() => {
                                                 if (confirm(`Hapus pattern '${recipe.name}' dari database?`)) {
                                                     router.delete(route('tn.recipes.destroy', recipe.id));
                                                 }
                                             }}
-                                            className="text-xs font-extrabold text-rose-700 hover:text-rose-900 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-2 rounded-xl transition-colors"
+                                            className="text-xs font-mono font-bold text-rose-300 hover:text-white bg-rose-950/60 hover:bg-rose-900 border border-rose-800/60 px-3 py-2 rounded-xl transition-colors cursor-pointer"
                                         >
-                                            Delete
+                                            HAPUS
                                         </button>
 
                                         <div className="flex items-center gap-2">
                                             <button
                                                 onClick={() => handleApplyPattern(recipe.id, recipe.name)}
                                                 disabled={applyingId === recipe.id}
-                                                className="inline-flex items-center gap-1.5 text-xs font-black text-amber-950 bg-gradient-to-r from-amber-400 to-yellow-400 hover:from-yellow-300 hover:to-amber-400 shadow-sm px-3.5 py-2 rounded-xl transition-all disabled:opacity-50"
+                                                className="inline-flex items-center gap-1.5 text-xs font-mono font-black uppercase text-black bg-yellow-400 hover:bg-yellow-300 shadow-sm px-3.5 py-2 rounded-xl transition-all disabled:opacity-50 border border-yellow-300 cursor-pointer"
                                                 title={`Tulis parameter pattern ini ke memori hardware ${activeControllerObj?.name || 'Controller TN'}`}
                                             >
                                                 {applyingId === recipe.id ? (
                                                     <>
-                                                        <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24">
+                                                        <svg className="w-3.5 h-3.5 animate-spin text-black" viewBox="0 0 24 24">
                                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                                         </svg>
-                                                        Writing...
+                                                        <span>WRITING...</span>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <svg className="w-3.5 h-3.5 text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg className="w-3.5 h-3.5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                                                         </svg>
-                                                        Write
+                                                        <span>WRITE [PLC]</span>
                                                     </>
                                                 )}
                                             </button>
 
                                             <Link
                                                 href={route('tn.recipes.edit', recipe.id)}
-                                                className="text-xs font-extrabold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-2 rounded-xl transition-colors"
+                                                className="text-xs font-mono font-bold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3.5 py-2 rounded-xl transition-colors"
                                             >
-                                                Edit
+                                                EDIT
                                             </Link>
                                         </div>
                                     </div>
@@ -468,48 +473,48 @@ export default function Index({ recipes = [], controllers = [] }: { recipes?: Re
 
             {/* Modal Popup: Semua Pattern Berhasil di-Load (Variabel Identik) */}
             <Modal show={showIdenticalModal} onClose={() => setShowIdenticalModal(false)} maxWidth="md">
-                <div className="p-6 sm:p-8 text-center bg-white">
+                <div className="p-6 sm:p-8 text-center bg-[#0d131f] text-white border border-slate-700 rounded-2xl">
                     {/* Glow & Badge */}
-                    <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white shadow-lg shadow-emerald-500/30 mb-5">
-                        <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-lg shadow-emerald-500/20 mb-4">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
                         </svg>
                     </div>
 
                     {/* Modal Heading */}
-                    <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mb-2">
-                        Semua pattern sudah berhasil di load
+                    <h3 className="text-xl font-mono font-black text-white tracking-tight mb-2">
+                        SEMUA PATTERN TELAH SINKRON
                     </h3>
 
                     {/* Description */}
-                    <p className="text-xs sm:text-sm font-semibold text-slate-600 leading-relaxed max-w-sm mx-auto mb-6">
-                        Seluruh pola profil sterilisasi pada <span className="font-bold text-slate-900">{identicalDetails?.controller_name || activeControllerObj?.name || 'Controller'}</span> sudah ada di database dan semua variabelnya (Target SV, durasi, step) sudah 100% identik.
+                    <p className="text-xs font-mono text-slate-300 leading-relaxed max-w-sm mx-auto mb-6">
+                        Seluruh pola profil sterilisasi pada <span className="font-bold text-yellow-400">{identicalDetails?.controller_name || activeControllerObj?.name || 'Controller'}</span> sudah ada di database dan semua variabelnya (Target SV, durasi, step) sudah 100% identik.
                     </p>
 
                     {/* Variable Details Box */}
-                    <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 sm:p-5 mb-6 text-left space-y-2.5 text-xs font-semibold">
-                        <div className="flex justify-between items-center py-1 border-b border-slate-200/60">
-                            <span className="text-slate-500">Controller Sumber:</span>
-                            <span className="font-mono font-bold text-slate-900">
+                    <div className="bg-[#070b13] border border-slate-800 rounded-xl p-4 sm:p-5 mb-6 text-left space-y-2.5 text-xs font-mono">
+                        <div className="flex justify-between items-center py-1 border-b border-slate-800/80">
+                            <span className="text-slate-400">CONTROLLER SUMBER:</span>
+                            <span className="font-bold text-white">
                                 {identicalDetails?.controller_name || activeControllerObj?.name || 'TNS Controller'}
                             </span>
                         </div>
-                        <div className="flex justify-between items-center py-1 border-b border-slate-200/60">
-                            <span className="text-slate-500">Status Variabel:</span>
-                            <span className="inline-flex items-center gap-1.5 font-bold text-emerald-700 bg-emerald-100/90 border border-emerald-300 px-2.5 py-0.5 rounded-lg text-[11px]">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                100% Identik & Sama
+                        <div className="flex justify-between items-center py-1 border-b border-slate-800/80">
+                            <span className="text-slate-400">STATUS VARIABEL:</span>
+                            <span className="inline-flex items-center gap-1.5 font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-600/60 px-2.5 py-0.5 rounded text-[11px]">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                100% IDENTIK & SAMA
                             </span>
                         </div>
-                        <div className="flex justify-between items-center py-1 border-b border-slate-200/60">
-                            <span className="text-slate-500">Pola Terverifikasi:</span>
-                            <span className="font-mono font-bold text-blue-700">
+                        <div className="flex justify-between items-center py-1 border-b border-slate-800/80">
+                            <span className="text-slate-400">POLA TERVERIFIKASI:</span>
+                            <span className="font-bold text-yellow-400">
                                 {identicalDetails?.total_count ?? (recipes.length || 2)} Pola Pattern
                             </span>
                         </div>
                         <div className="flex justify-between items-center py-1">
-                            <span className="text-slate-500">Variabel Dicek:</span>
-                            <span className="text-slate-700 font-medium text-[11px]">
+                            <span className="text-slate-400">VARIABEL DICEK:</span>
+                            <span className="text-slate-300 text-[11px]">
                                 Target SV, Durasi Step, Time Unit, Start Cond
                             </span>
                         </div>
@@ -518,9 +523,9 @@ export default function Index({ recipes = [], controllers = [] }: { recipes?: Re
                     {/* Action Button */}
                     <button
                         onClick={() => setShowIdenticalModal(false)}
-                        className="w-full inline-flex justify-center items-center rounded-xl bg-blue-900 hover:bg-blue-800 active:scale-[0.99] text-white text-xs font-black py-3 px-6 shadow-md shadow-blue-900/20 transition-all border border-blue-800 cursor-pointer"
+                        className="w-full inline-flex justify-center items-center rounded-xl bg-yellow-400 hover:bg-yellow-300 text-black text-xs font-mono font-black uppercase tracking-wider py-3 px-6 shadow-md transition-all cursor-pointer border border-yellow-300"
                     >
-                        Tutup & Selesai
+                        TUTUP & SELESAI
                     </button>
                 </div>
             </Modal>
