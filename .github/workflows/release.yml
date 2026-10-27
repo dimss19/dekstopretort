@@ -96,7 +96,8 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, bcmath, curl
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, sqlite3, bcmath, curl, zip, fileinfo, openssl
+          tools: composer
           coverage: none
 
       - name: Setup Node.js 22
@@ -106,39 +107,41 @@ jobs:
           cache: 'npm'
 
       - name: Configure .env for Windows Desktop Production Build
-        shell: powershell
+        shell: bash
         run: |
-          Copy-Item .env.example .env
-          $envContent = Get-Content .env -Raw
-          $envContent = $envContent -replace '^APP_NAME=.*', 'APP_NAME="SCADA Retort"'
-          $envContent = $envContent -replace '^APP_ENV=.*', 'APP_ENV=production'
-          $envContent = $envContent -replace '^APP_DEBUG=.*', 'APP_DEBUG=false'
-          $envContent = $envContent -replace '^DB_CONNECTION=.*', 'DB_CONNECTION=sqlite'
-          Set-Content .env $envContent
+          cp .env.example .env
+          php -r "
+            \$env = file_get_contents('.env');
+            \$env = preg_replace('/^APP_NAME=.*/m', 'APP_NAME=\"SCADA Retort\"', \$env);
+            \$env = preg_replace('/^APP_ENV=.*/m', 'APP_ENV=production', \$env);
+            \$env = preg_replace('/^APP_DEBUG=.*/m', 'APP_DEBUG=false', \$env);
+            \$env = preg_replace('/^DB_CONNECTION=.*/m', 'DB_CONNECTION=sqlite', \$env);
+            file_put_contents('.env', \$env);
+          "
 
       - name: Install Composer Dependencies
-        shell: powershell
+        shell: bash
         run: |
-          composer install --no-interaction --prefer-dist --optimize-autoloader
+          composer install --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-reqs
           php artisan key:generate
-          (Get-Content vendor/nativephp/desktop/config/nativephp-internal.php) -replace "'packages',", "" | Set-Content vendor/nativephp/desktop/config/nativephp-internal.php
+          sed -i "s/'packages',//g" vendor/nativephp/desktop/config/nativephp-internal.php || true
 
       - name: Install NPM Dependencies & Build Frontend
-        shell: powershell
+        shell: bash
         run: |
           npm ci
           npm run build
 
       - name: Download Windows PHP Binary (x64)
-        shell: powershell
+        shell: bash
         run: |
-          New-Item -ItemType Directory -Force -Path packages/nativephp/php-bin/bin/win/x64
-          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/NativePHP/php-bin/main/bin/win/x64/php-8.3.zip" -OutFile "packages/nativephp/php-bin/bin/win/x64/php-8.3.zip"
-          New-Item -ItemType Directory -Force -Path vendor/nativephp/php-bin/bin/win/x64
-          Copy-Item packages/nativephp/php-bin/bin/win/x64/php-8.3.zip vendor/nativephp/php-bin/bin/win/x64/php-8.3.zip
+          mkdir -p packages/nativephp/php-bin/bin/win/x64
+          curl -L "https://raw.githubusercontent.com/NativePHP/php-bin/main/bin/win/x64/php-8.3.zip" -o "packages/nativephp/php-bin/bin/win/x64/php-8.3.zip"
+          mkdir -p vendor/nativephp/php-bin/bin/win/x64
+          cp packages/nativephp/php-bin/bin/win/x64/php-8.3.zip vendor/nativephp/php-bin/bin/win/x64/php-8.3.zip
 
       - name: Build Windows NSIS Wizard Installer
-        shell: powershell
+        shell: bash
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           NATIVEPHP_APP_NAME: 'SCADA Retort'
@@ -155,6 +158,7 @@ jobs:
   publish-release:
     name: Create & Publish GitHub Release
     needs: [build-mac, build-win]
+    if: always() && (needs.build-mac.result == 'success' || needs.build-win.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
