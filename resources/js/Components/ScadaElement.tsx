@@ -41,15 +41,25 @@ function getSensorValue(mapping: ScadaMapping, sensorData?: SensorData): ScadaVa
         const src = (mapping.data_source || '').toLowerCase();
 
         if (src === 'steam_valve' || id.includes('steam') || src.includes('steam')) {
-            rawValue = sensorData.heating_mv ?? (sensorData.out1_active ? 1000 : 0);
+            if (sensorData.heating_mv !== undefined || sensorData.out1_active !== undefined) {
+                rawValue = sensorData.heating_mv ?? (sensorData.out1_active ? 1000 : 0);
+            }
         } else if (src === 'cooling_mv' || id.includes('cooling') || src.includes('cooling') || id.includes('pump')) {
-            rawValue = sensorData.cooling_mv ?? (sensorData.out2_active ? 1000 : 0);
+            if (sensorData.cooling_mv !== undefined || sensorData.out2_active !== undefined) {
+                rawValue = sensorData.cooling_mv ?? (sensorData.out2_active ? 1000 : 0);
+            }
         } else if (src === 'drain_open' || id.includes('drain')) {
-            rawValue = sensorData.cooling_mv && sensorData.cooling_mv > 0 ? sensorData.cooling_mv : 0;
+            if (sensorData.cooling_mv !== undefined) {
+                rawValue = sensorData.cooling_mv > 0 ? sensorData.cooling_mv : 0;
+            }
         } else if (src === 'gas_ready' || src === 'pilot_flame') {
-            rawValue = sensorData.controller_running ?? (sensorData.run_status ? 1 : 0);
+            if (sensorData.controller_running !== undefined || sensorData.run_status !== undefined) {
+                rawValue = sensorData.controller_running ?? (sensorData.run_status ? 1 : 0);
+            }
         } else if (src === 'door_lock') {
-            rawValue = sensorData.controller_running ? true : false;
+            if (sensorData.controller_running !== undefined) {
+                rawValue = sensorData.controller_running ? true : false;
+            }
         }
     }
 

@@ -172,7 +172,7 @@ export default function TnFaceplateDisplay({ telemetry, modelType = 'TNH-P', isO
                             : 'bg-slate-900 text-yellow-500 border-slate-800'
                     }`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${isProcessRunning ? 'bg-emerald-400' : 'bg-yellow-500'}`} />
-                        {isProcessRunning ? 'RUN' : 'STANDBY'}
+                        {isProcessRunning ? 'PROG' : 'STANDBY'}
                     </span>
                 </div>
             </div>

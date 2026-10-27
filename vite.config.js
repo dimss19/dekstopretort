@@ -20,5 +20,7 @@ export default defineConfig({
         environment: 'jsdom',
         setupFiles: ['./resources/js/setupTests.ts'],
         globals: true,
+        include: ['resources/js/**/*.{test,spec}.{ts,tsx}'],
+        exclude: ['nativephp/**', 'vendor/**', 'node_modules/**', 'dist/**'],
     },
 });

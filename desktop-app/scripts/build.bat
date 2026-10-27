@@ -67,7 +67,7 @@ if %errorlevel% neq 0 (
 
 if not exist "desktop-app\dist" mkdir "desktop-app\dist"
 for %%F in (nativephp\electron\dist\*-setup.exe nativephp\electron\dist\*-Setup.exe) do (
-    copy /y "%%F" "desktop-app\dist\SCADA-Retort-1.5.0-Setup.exe" >nul
+    copy /y "%%F" "desktop-app\dist\SCADA-Retort-1.5.1-Setup.exe" >nul
 )
 
 echo.
@@ -75,7 +75,7 @@ echo ======================================================================
 echo   BUILD BERHASIL!
 echo ======================================================================
 echo File installer telah dibuat di:
-echo - desktop-app\dist\SCADA-Retort-1.5.0-Setup.exe
+echo - desktop-app\dist\SCADA-Retort-1.5.1-Setup.exe
 echo.
 echo Installer dilengkapi:
 echo  1. Wizard Pemilihan Lokasi Folder Instalasi (C:\Program Files\...)

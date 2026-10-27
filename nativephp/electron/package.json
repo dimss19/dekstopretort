@@ -1,6 +1,6 @@
 {
     "name": "laravel-dev",
-    "version": "1.5.0",
+    "version": "1.5.1",
     "description": "SCADA Retort Monitoring & Control System",
     "main": "./out/main/index.js",
     "author": "CV Indah Mesin",

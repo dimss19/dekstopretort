@@ -1,0 +1,219 @@
+name: Build & Release Desktop App (Mac & Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install NPM Dependencies
+        run: npm ci
+
+      - name: Run Vitest
+        run: npx vitest run
+
+  build-mac:
+    name: Build macOS DMG (${{ matrix.arch }})
+    needs: test
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            label: Intel Mac
+          - arch: arm64
+            label: Apple Silicon Mac (M1/M2/M3/M4)
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, bcmath, curl
+          coverage: none
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Configure .env for macOS Desktop Production Build
+        run: |
+          cp .env.example .env
+          php -r "
+            \$env = file_get_contents('.env');
+            \$env = preg_replace('/^APP_NAME=.*/m', 'APP_NAME=\"SCADA Retort\"', \$env);
+            \$env = preg_replace('/^APP_ENV=.*/m', 'APP_ENV=production', \$env);
+            \$env = preg_replace('/^APP_DEBUG=.*/m', 'APP_DEBUG=false', \$env);
+            \$env = preg_replace('/^DB_CONNECTION=.*/m', 'DB_CONNECTION=sqlite', \$env);
+            file_put_contents('.env', \$env);
+          "
+
+      - name: Install Composer Dependencies
+        run: |
+          composer install --no-interaction --prefer-dist --optimize-autoloader
+          php artisan key:generate
+          sed -i '' "s/'packages',//g" vendor/nativephp/desktop/config/nativephp-internal.php || true
+
+      - name: Install NPM Dependencies & Build Frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Download macOS PHP Binary (${{ matrix.arch }})
+        run: |
+          mkdir -p packages/nativephp/php-bin/bin/mac/${{ matrix.arch }}
+          curl -L "https://raw.githubusercontent.com/NativePHP/php-bin/main/bin/mac/${{ matrix.arch }}/php-8.3.zip" -o "packages/nativephp/php-bin/bin/mac/${{ matrix.arch }}/php-8.3.zip"
+          mkdir -p vendor/nativephp/php-bin/bin/mac/${{ matrix.arch }}
+          cp packages/nativephp/php-bin/bin/mac/${{ matrix.arch }}/php-8.3.zip vendor/nativephp/php-bin/bin/mac/${{ matrix.arch }}/php-8.3.zip
+
+      - name: Build macOS DMG (${{ matrix.label }})
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          NATIVEPHP_APP_NAME: 'SCADA Retort'
+        run: |
+          php artisan native:build mac ${{ matrix.arch }} --no-interaction
+
+      - name: Upload DMG Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SCADA-Retort-macOS-${{ matrix.arch }}
+          path: nativephp/electron/dist/*.dmg
+          if-no-files-found: error
+
+  build-win:
+    name: Build Windows Setup (.exe)
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, bcmath, curl
+          coverage: none
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Configure .env for Windows Desktop Production Build
+        shell: powershell
+        run: |
+          Copy-Item .env.example .env
+          $envContent = Get-Content .env -Raw
+          $envContent = $envContent -replace '^APP_NAME=.*', 'APP_NAME="SCADA Retort"'
+          $envContent = $envContent -replace '^APP_ENV=.*', 'APP_ENV=production'
+          $envContent = $envContent -replace '^APP_DEBUG=.*', 'APP_DEBUG=false'
+          $envContent = $envContent -replace '^DB_CONNECTION=.*', 'DB_CONNECTION=sqlite'
+          Set-Content .env $envContent
+
+      - name: Install Composer Dependencies
+        shell: powershell
+        run: |
+          composer install --no-interaction --prefer-dist --optimize-autoloader
+          php artisan key:generate
+          (Get-Content vendor/nativephp/desktop/config/nativephp-internal.php) -replace "'packages',", "" | Set-Content vendor/nativephp/desktop/config/nativephp-internal.php
+
+      - name: Install NPM Dependencies & Build Frontend
+        shell: powershell
+        run: |
+          npm ci
+          npm run build
+
+      - name: Download Windows PHP Binary (x64)
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path packages/nativephp/php-bin/bin/win/x64
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/NativePHP/php-bin/main/bin/win/x64/php-8.3.zip" -OutFile "packages/nativephp/php-bin/bin/win/x64/php-8.3.zip"
+          New-Item -ItemType Directory -Force -Path vendor/nativephp/php-bin/bin/win/x64
+          Copy-Item packages/nativephp/php-bin/bin/win/x64/php-8.3.zip vendor/nativephp/php-bin/bin/win/x64/php-8.3.zip
+
+      - name: Build Windows NSIS Wizard Installer
+        shell: powershell
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          NATIVEPHP_APP_NAME: 'SCADA Retort'
+        run: |
+          php artisan native:build win x64 --no-interaction
+
+      - name: Upload Windows Installer Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SCADA-Retort-Windows-x64
+          path: nativephp/electron/dist/*.exe
+          if-no-files-found: error
+
+  publish-release:
+    name: Create & Publish GitHub Release
+    needs: [build-mac, build-win]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all installer artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-packages
+          merge-multiple: true
+
+      - name: List downloaded packages
+        run: ls -la release-packages
+
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.5.1' }}
+          name: SCADA Retort Desktop ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.5.1' }}
+          draft: false
+          prerelease: false
+          files: |
+            release-packages/*.dmg
+            release-packages/*.exe
+          body: |
+            ## SCADA Retort Desktop v1.5.1
+
+            Rilis resmi aplikasi desktop SCADA Retort untuk monitoring dan kontrol mesin retort sterilisasi via Modbus RTU / RS485.
+
+            ### Perbaikan & Penyesuaian SCADA Mimic View dengan Monitoring:
+            - **Sinkronisasi Parameter Real-Time**: Status `isProcessRunning`, nilai PV aktual (`0.0` saat standby/offline), target SV (`25.0` berkedip `STOP` saat standby), MV output (`0.0%`), dan REST time kini sepenuhnya sinkron antara tab SCADA Mimic View dan Monitoring Faceplate.
+            - **Hardware Annunciator Strip**: Menambahkan indikator status output `OUT1 (HEAT)` dan `OUT2 (COOL)` pada panel status retort.
+            - **Panel Proses Timing Lengkap**: Menampilkan Pattern (`PTN`), Step (`STEP`), Total Process Time (`TOT`), dan Rest Time (`REST`).
+            - **Keyboard Hotkeys F1 & F2**: Navigasi instan `F1` untuk Monitoring Faceplate dan `F2` untuk SCADA Mimic View.
+            - **Penyempurnaan I/O Fallback & Unit Tests**: Memastikan fallback physical I/O akurat tanpa nilai sumber dummy dan seluruh test suite lolos validasi otomatis.
+
+            ### File Installer:
+            - **Windows (x64)**: `SCADA Retort-1.5.1-setup.exe`
+            - **macOS Apple Silicon (M1/M2/M3/M4)**: `SCADA Retort-1.5.1-arm64.dmg`
+            - **macOS Intel**: `SCADA Retort-1.5.1-x64.dmg`
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

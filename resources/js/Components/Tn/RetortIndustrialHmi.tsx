@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { SensorData } from '@/types/scada';
 import { RetortTelemetry } from '@/Pages/Tn/retortTelemetry';
 import { RETORT_HMI_BASE64 } from './hmiAsset';
@@ -16,10 +16,32 @@ export default function RetortIndustrialHmi({
     controllerModel = 'TNH',
     sensorData,
     telemetry,
-    isOnline = false,
+    isOnline: propIsOnline,
 }: Props) {
-    // Live Process Values
-    const isRunning = Boolean(isOnline && (telemetry?.running || (sensorData && sensorData.run_status === false)));
+    const isOnline = propIsOnline !== undefined ? propIsOnline : Boolean(telemetry || sensorData);
+
+    const [blinkToggle, setBlinkToggle] = useState(false);
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setBlinkToggle((prev) => !prev);
+        }, 500);
+        return () => clearInterval(timer);
+    }, []);
+
+    // Live Process Running Status matching Monitoring Faceplate & Normal Monitor
+    const isMv100 = Boolean(isOnline && telemetry?.heatingPercent !== null && telemetry?.heatingPercent !== undefined && telemetry.heatingPercent >= 100);
+    const isProcessRunning = Boolean(
+        isOnline && (
+            telemetry?.running ||
+            isMv100 ||
+            (telemetry?.processTime !== null && telemetry?.processTime !== undefined && telemetry.processTime > 0) ||
+            (typeof sensorData?.process_time === 'number' && sensorData.process_time > 0) ||
+            telemetry?.heatingActive ||
+            telemetry?.coolingActive ||
+            (telemetry?.phase !== undefined && telemetry.phase !== 'Waiting' && telemetry.phase !== 'Offline')
+        )
+    );
+    const isStopped = !isOnline || !isProcessRunning;
 
     // Determine model capabilities (TNS = 2 Alarms, TNH = 4 Alarms, TNL = 6 Alarms)
     const model = (controllerModel || 'TNH').toUpperCase();
@@ -36,39 +58,82 @@ export default function RetortIndustrialHmi({
             const val = rawVal / Math.pow(10, dec);
             return val.toFixed(1);
         }
-        return '--.-';
+        return '0.0';
     };
 
-    const pv = isOnline ? formatValue(telemetry?.actualTemperature, sensorData?.pv, sensorData?.decimal_point ?? 1) : '--.-';
-    const sv = formatValue(telemetry?.targetTemperature, sensorData?.sv, sensorData?.decimal_point ?? 1);
+    // PV: Saat offline / tidak terhubung, default ke '0.0' sama seperti monitoring
+    const pv = isOnline ? formatValue(telemetry?.actualTemperature, sensorData?.pv, sensorData?.decimal_point ?? 1) : '0.0';
 
-    // Valve & MV Logic: Initially 0, becomes active when heating output active
-    const isValveOpen = Boolean(
-        isOnline && (
-            Boolean(sensorData?.out1_active) ||
+    // SV: Saat kondisi STOP / standby / offline, SV standby Autonics TN adalah 25.0
+    // Berkedip bergantian antara 'STOP' dan '25.0' setiap 0.5 detik saat STOP / offline
+    const targetSv = isStopped
+        ? 25.0
+        : ((telemetry?.targetTemperature !== null && telemetry?.targetTemperature !== undefined)
+            ? telemetry.targetTemperature
+            : (typeof sensorData?.sv === 'number' ? sensorData.sv / Math.pow(10, sensorData?.decimal_point ?? 1) : 25.0));
+
+    const targetSvFormatted = typeof targetSv === 'number'
+        ? targetSv.toFixed(1)
+        : '25.0';
+
+    const svDisplay = isStopped
+        ? (blinkToggle ? 'STOP' : targetSvFormatted)
+        : targetSvFormatted;
+
+    // Out1 (Heat) & Out2 (Cool) & Valve Logic matching monitoring
+    const out1Active = Boolean(
+        isOnline && isProcessRunning && (
             Boolean(telemetry?.heatingActive) ||
             (typeof telemetry?.heatingPercent === 'number' && telemetry.heatingPercent > 0) ||
+            Boolean(sensorData?.out1_active) ||
             (typeof sensorData?.heating_mv === 'number' && sensorData.heating_mv > 0)
         )
     );
 
-    const displayMv = (isOnline && isRunning) ? (telemetry?.heatingPercent !== null && telemetry?.heatingPercent !== undefined
-        ? Math.round(telemetry.heatingPercent)
-        : (typeof sensorData?.heating_mv === 'number'
-            ? Math.round(sensorData.heating_mv > 100 ? sensorData.heating_mv / 10 : sensorData.heating_mv)
-            : (isValveOpen ? 100 : 0))) : 0;
+    const out2Active = Boolean(
+        isOnline && isProcessRunning && (
+            Boolean(telemetry?.coolingActive) ||
+            (typeof telemetry?.coolingPercent === 'number' && telemetry.coolingPercent > 0) ||
+            Boolean(sensorData?.out2_active) ||
+            (typeof sensorData?.cooling_mv === 'number' && sensorData.cooling_mv > 0)
+        )
+    );
 
-    const currentStep = isRunning ? Number(sensorData?.step_current ?? telemetry?.step ?? 0) : 0;
-    const currentPattern = isRunning ? Number(sensorData?.pattern_current ?? telemetry?.pattern ?? 0) : 0;
-    const restTime = isRunning && typeof sensorData?.rest_time === 'number'
-        ? sensorData.rest_time
-        : (isRunning && typeof telemetry?.remainingTime === 'number' ? telemetry.remainingTime : 0);
+    const isValveOpen = out1Active;
 
-    const timeFormatted = String(Math.max(0, Math.trunc(restTime))).padStart(2, '0');
-    const timeSec = timeFormatted.slice(-2) || '00';
+    // MV Output %: 0.0 jika tidak running
+    const mvVal = (isOnline && isProcessRunning)
+        ? (telemetry?.heatingPercent !== null && telemetry?.heatingPercent !== undefined
+            ? telemetry.heatingPercent
+            : (typeof sensorData?.heating_mv === 'number'
+                ? (sensorData.heating_mv > 100 ? sensorData.heating_mv / 10 : sensorData.heating_mv)
+                : (isValveOpen ? 100 : 0)))
+        : 0;
+    const displayMv = mvVal.toFixed(1);
+
+    // Format Timing Dots (MM.SS)
+    const formatTimeDot = (val: number | null | undefined): string => {
+        if (val === null || val === undefined || !Number.isFinite(val)) return '00.00';
+        const num = Math.max(0, Math.trunc(val));
+        const hi = Math.floor(num / 100);
+        const lo = num % 100;
+        if (lo >= 60) {
+            const totalSec = (hi * 60) + lo;
+            const mm = Math.floor(totalSec / 60);
+            const ss = totalSec % 60;
+            return `${String(mm).padStart(2, '0')}.${String(ss).padStart(2, '0')}`;
+        }
+        return `${String(hi).padStart(2, '0')}.${String(lo).padStart(2, '0')}`;
+    };
+
+    const currentPattern = isOnline ? String(telemetry?.pattern ?? sensorData?.pattern_current ?? 0).padStart(2, '0') : '00';
+    const currentStep = isOnline ? String(telemetry?.step ?? sensorData?.step_current ?? 0).padStart(2, '0') : '00';
+    const totDisplay = isOnline ? formatTimeDot(telemetry?.processTime ?? sensorData?.process_time) : '00.00';
+    const restDisplay = isOnline ? formatTimeDot(telemetry?.remainingTime ?? sensorData?.rest_time) : '00.00';
 
     // Alarm triggers (support both telemetry.activeAlarms and sensorData flags)
     const isAlActive = (index: number) => {
+        if (!isOnline) return false;
         const alId = `AL${index}`;
         const alLabel = `ALARM ${index}`;
         const alKey = `al${index}`;
@@ -158,12 +223,12 @@ export default function RetortIndustrialHmi({
                 {/* SYSTEM RUN STATUS */}
                 <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-black tracking-wider border ${
-                        isRunning
+                        isProcessRunning
                             ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
                             : 'bg-slate-800 text-slate-400 border-slate-700'
                     }`}>
-                        <span className={`h-2 w-2 rounded-full ${isRunning ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
-                        {isRunning ? 'RETORT RUNNING' : 'RETORT STOPPED'}
+                        <span className={`h-2 w-2 rounded-full ${isProcessRunning ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+                        {isProcessRunning ? 'RETORT RUNNING' : (isOnline ? 'RETORT STANDBY' : 'RETORT OFFLINE')}
                     </span>
                 </div>
             </div>
@@ -223,7 +288,7 @@ export default function RetortIndustrialHmi({
                                 <div className="flex items-center justify-between bg-[#f8fafc]/95 border border-slate-300 rounded-lg px-2.5 py-1 shadow-inner">
                                     <span className="text-[10px] sm:text-xs font-bold text-slate-500">Sv</span>
                                     <span className="text-sm sm:text-xl font-black text-slate-950 tracking-tight">
-                                        {sv}
+                                        {svDisplay}
                                     </span>
                                 </div>
 
@@ -239,32 +304,38 @@ export default function RetortIndustrialHmi({
                                 </div>
                             </div>
 
-                            {/* Blue Header Bar (STEP - Di Bawah MV) */}
+                            {/* Blue Header Bar (STEP & TIME - Di Bawah MV) */}
                             <div className="bg-[#1d4ed8] text-white px-3 py-1 text-center border-y border-[#1e40af] shadow-sm">
                                 <span className="text-[10px] sm:text-xs font-black tracking-widest uppercase text-white drop-shadow">
-                                    STEP
+                                    STEP & TIME
                                 </span>
                             </div>
 
                             {/* Section 2: Step Tiles (Di Bawah MV) */}
                             <div className="p-2 sm:p-2.5">
-                                <div className="grid grid-cols-3 gap-1.5 text-center">
+                                <div className="grid grid-cols-4 gap-1 text-center">
                                     {/* Pattern Tile */}
                                     <div className="bg-[#f8fafc]/95 border border-slate-300 rounded-lg py-1 px-0.5 flex flex-col items-center justify-center shadow-inner">
                                         <span className="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase">PTN</span>
-                                        <span className="text-xs sm:text-base font-black text-slate-950">{currentPattern}</span>
+                                        <span className="text-xs sm:text-sm font-black text-slate-950">{currentPattern}</span>
                                     </div>
 
                                     {/* Step Tile */}
                                     <div className="bg-[#f8fafc]/95 border border-slate-300 rounded-lg py-1 px-0.5 flex flex-col items-center justify-center shadow-inner">
                                         <span className="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase">STEP</span>
-                                        <span className="text-xs sm:text-base font-black text-slate-950">{currentStep}</span>
+                                        <span className="text-xs sm:text-sm font-black text-slate-950">{currentStep}</span>
                                     </div>
 
-                                    {/* Time Tile */}
+                                    {/* TOT Tile */}
+                                    <div className="bg-[#f8fafc]/95 border border-slate-300 rounded-lg py-1 px-0.5 flex flex-col items-center justify-center shadow-inner">
+                                        <span className="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase">TOT</span>
+                                        <span className="text-xs sm:text-sm font-black text-slate-950">{totDisplay}</span>
+                                    </div>
+
+                                    {/* Rest Time Tile */}
                                     <div className="bg-[#f8fafc]/95 border border-slate-300 rounded-lg py-1 px-0.5 flex flex-col items-center justify-center shadow-inner">
                                         <span className="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase">REST</span>
-                                        <span className="text-xs sm:text-base font-black text-blue-900">{timeSec}</span>
+                                        <span className="text-xs sm:text-sm font-black text-blue-900">{restDisplay}</span>
                                     </div>
                                 </div>
                             </div>
@@ -345,6 +416,27 @@ export default function RetortIndustrialHmi({
                                     >
                                         {isOnline ? 'ON' : 'OFF'}
                                     </span>
+                                </div>
+
+                                {/* Hardware Annunciator Status: OUT1 (HEAT) & OUT2 (COOL) */}
+                                <div className="grid grid-cols-2 gap-1.5">
+                                    <div className={`border rounded-lg px-2 py-1 flex items-center justify-center gap-1.5 shadow-inner transition-colors ${
+                                        out1Active
+                                            ? 'bg-amber-950/90 text-amber-300 border-amber-600 shadow-[0_0_8px_rgba(245,158,11,0.4)]'
+                                            : 'bg-[#f8fafc]/95 border-slate-300 text-slate-500'
+                                    }`}>
+                                        <span className={`h-2 w-2 rounded-full ${out1Active ? 'bg-amber-400 animate-pulse' : 'bg-slate-300'}`} />
+                                        <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-tight">OUT1 (HEAT)</span>
+                                    </div>
+
+                                    <div className={`border rounded-lg px-2 py-1 flex items-center justify-center gap-1.5 shadow-inner transition-colors ${
+                                        out2Active
+                                            ? 'bg-cyan-950/90 text-cyan-300 border-cyan-600 shadow-[0_0_8px_rgba(6,182,212,0.4)]'
+                                            : 'bg-[#f8fafc]/95 border-slate-300 text-slate-500'
+                                    }`}>
+                                        <span className={`h-2 w-2 rounded-full ${out2Active ? 'bg-cyan-400 animate-pulse' : 'bg-slate-300'}`} />
+                                        <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-tight">OUT2 (COOL)</span>
+                                    </div>
                                 </div>
 
                                 {/* Dynamic Grid of Round Alarm Indicator Lamps */}

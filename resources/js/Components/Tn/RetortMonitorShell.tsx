@@ -41,6 +41,20 @@ export default function RetortMonitorShell(props: Props) {
 
     const isRunning = Boolean(isOnline && telemetry.running);
 
+    React.useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'F1') {
+                event.preventDefault();
+                props.onTabChange('monitor');
+            } else if (event.key === 'F2') {
+                event.preventDefault();
+                props.onTabChange('scada');
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [props.onTabChange]);
+
     return (
         <AuthenticatedLayout header={
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between max-w-7xl mx-auto py-1">
