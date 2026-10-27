@@ -1,97 +1,108 @@
-# 🖥️ SCADA Retort - Desktop App Edition (.exe)
+# Panduan Distribusi Desktop App - SCADA Retort
 
-Aplikasi Desktop Windows untuk Sistem SCADA Retort CV Indah Mesin, dibangun menggunakan **NativePHP for Laravel (Electron Shell)**.
+Dokumentasi teknis pembuatan paket installer dan distribusi aplikasi desktop SCADA Retort untuk sistem operasi Microsoft Windows dan Apple macOS.
 
 ---
 
-## 📁 Struktur Folder Desktop
+## Struktur Direktori
 
 ```
 desktop-app/
 ├── assets/
-│   ├── icon.ico            # Icon aplikasi multi-resolusi (16x16 s/d 256x256)
-│   └── icon.png            # Master logo CV Indah Mesin (transparan)
+│   ├── icon.ico            # Ikon multi-resolusi aplikasi Windows (16x16 hingga 256x256)
+│   ├── icon.icns           # Ikon aplikasi macOS Apple
+│   └── icon.png            # Master logo resmi CV Indah Mesin
 ├── scripts/
-│   ├── build.bat           # 1-Click Script untuk membuild installer Windows (.exe)
-│   └── convert_icon.py     # Script Python untuk generate icon.ico dari icon.png
-└── README.md               # Dokumentasi ini
+│   ├── build.bat           # Skrip otomatis kompilasi installer Windows (.exe)
+│   ├── build-mac.sh        # Skrip otomatis kompilasi disk image macOS (.dmg)
+│   └── convert_icon.py     # Skrip konversi master icon.png ke format ico dan icns
+└── README.md               # Dokumentasi teknis distribusi ini
 ```
 
 ---
 
-## ⚙️ Karakteristik & Konfigurasi
+## Konfigurasi dan Karakteristik Lingkungan Desktop
 
-- **Database Client**: Menggunakan database **SQLite** (`database/nativephp.sqlite`), otomatis dikelola secara lokal di komputer klien tanpa perlu instalasi database PostgreSQL/MySQL terpisah.
-- **Database Server**: Server web/cloud tetap menggunakan **PostgreSQL** (`.env`). Codebase shared mendukung dual mode tanpa konflik.
-- **Auto-Update**: **Dinonaktifkan** (`updater.enabled = false`). Pembaruan sistem dikirimkan langsung berupa file installer baru ke klien.
-- **Icon & Branding**: Logo resmi CV Indah Mesin (Gear + Globe) diterapkan pada window bar, taskbar Windows, system tray, dan shortcut installer.
-
----
-
-## 🛠️ Cara Menjalankan Mode Pengembangan (Development)
-
-Untuk menjalankan desktop app di lingkungan lokal developer:
-
-```bash
-# Jalankan development server NativePHP
-php artisan native:run
-```
-
-Jendela aplikasi desktop Electron akan otomatis terbuka menampilkan dashboard SCADA Retort.
+1. **Database Klien Mandiri (Standalone Client Database)**:
+   - Aplikasi menggunakan database **SQLite** (`database/nativephp.sqlite`) yang disimpan secara lokal di komputer klien.
+   - Tidak memerlukan instalasi database server terpisah (seperti MySQL atau PostgreSQL) di komputer pabrik.
+2. **Pembaruan Sistem (System Updates)**:
+   - Pembaruan sistem didistribusikan melalui installer rilis resmi baru dari GitHub Releases untuk menjamin stabilitas mesin industri yang beroperasi di lingkungan terisolasi (offline / air-gapped).
+3. **Identitas & Branding**:
+   - Logo resmi CV Indah Mesin disematkan pada window header, taskbar Windows, system dock macOS, system tray, dan shortcut instalasi.
 
 ---
 
-## 📦 Cara Membuild Installer Windows (.exe)
+## Prosedur Pembuatan Installer Windows (.exe)
 
-Cukup jalankan script batch otomatis:
+Kompilasi installer Windows menghasilkan installer setup mandiri (NSIS Wizard):
 
-1. Double-click file:
-   ```
+1. **Menggunakan Skrip Otomatis**:
+   Jalankan berkas skrip melalui Command Prompt atau PowerShell:
+   ```cmd
    desktop-app\scripts\build.bat
    ```
-   *Atau jalankan dari terminal:*
+
+2. **Menggunakan Perintah Artisan**:
    ```bash
-   php artisan native:build win
+   php artisan native:build win x64 --no-interaction
    ```
 
-2. Output installer akan otomatis dihasilkan di folder:
-   ```
-   desktop-app/dist/
-   └── SCADA-Retort-1.0.0-Setup.exe
-   ```
-   *(Serta di `nativephp/electron/dist/Laravel-1.0.0-setup.exe`)*
+3. **Lokasi Berkas Keluaran**:
+   Berkas penginstal akan terbentuk pada lokasi:
+   - `desktop-app/dist/SCADA-Retort-1.5.1-Setup.exe`
+   - `nativephp/electron/dist/SCADA Retort-1.5.1-setup.exe`
+
+Installer Windows telah membundel:
+- Runtime PHP 8.3 Portable (Zero Dependency)
+- Standalone Modbus RTU Engine (Zero Python Setup)
+- Paket Driver USB-to-RS485 CH340
+- Tautan Akses Langsung ke Antarmuka SCADA Retort
 
 ---
 
-## 🍏 Cara Membuild Installer macOS (.dmg)
+## Prosedur Pembuatan Disk Image macOS (.dmg)
 
-Apple mewajibkan lingkungan macOS (tool native `hdiutil` & sistem file APFS) untuk memproduksi file `.dmg`. Binary PHP 8.3 untuk macOS Intel (`x64`) dan Apple Silicon (`arm64`) serta icon `.icns` telah disiapkan di repositori.
+Apple mewajibkan penggunaan utilitas native macOS (`hdiutil`) dan sistem berkas APFS/HFS+ untuk membuat berkas `.dmg`.
 
-Ada 2 cara untuk membuild `.dmg`:
+### Metode 1: Otomatisasi GitHub Actions (Direkomendasikan)
+1. Buat dan kirim tag rilis ke repository GitHub:
+   ```bash
+   git tag v1.5.1
+   git push origin v1.5.1
+   ```
+2. Alur kerja `.github/workflows/release.yml` pada GitHub Actions akan otomatis mem-build dua varian arsitektur:
+   - `SCADA Retort-1.5.1-arm64.dmg` (Apple Silicon M1/M2/M3/M4)
+   - `SCADA Retort-1.5.1-x64.dmg` (Intel Mac)
+3. Hasil build otomatis dipublikasikan ke tab GitHub Releases.
 
-### Pilihan 1: Otomatis via GitHub Actions (Cloud Mac Runner) - Direkomendasikan
-1. Push branch `desktopapp` ke GitHub repositori Anda.
-2. Masuk ke tab **Actions** di GitHub, pilih workflow **"Build macOS Desktop App (.dmg)"**, lalu klik tombol **"Run workflow"**.
-3. GitHub akan menjalankan mesin Mac virtual secara gratis, mengompilasi kedua versi:
-   - `SCADA Retort-1.0.0-x64.dmg` (Intel Mac)
-   - `SCADA Retort-1.0.0-arm64.dmg` (Apple Silicon M1/M2/M3/M4)
-4. Download kedua file `.dmg` langsung dari tab Artifacts hasil build.
-
-### Pilihan 2: Build di Komputer Mac Lokal (MacBook / Mac Mini)
-Jika Anda memiliki komputer Mac:
+### Metode 2: Kompilasi Lokal pada Perangkat Mac
+Jika proses kompilasi dilakukan langsung pada perangkat macOS:
 ```bash
 chmod +x desktop-app/scripts/build-mac.sh
 ./desktop-app/scripts/build-mac.sh
 ```
-File `.dmg` untuk kedua arsitektur akan otomatis terbentuk di folder `desktop-app/dist/`.
 
 ---
 
-## 🚚 Distribusi ke Klien Pabrik
+## Prosedur Penerapan di Komputer Klien (Factory Deployment)
 
-Untuk instalasi di komputer klien pabrik:
-1. **Windows**: Salin file `desktop-app\dist\SCADA-Retort-1.0.0-Setup.exe` ke USB flashdisk atau transfer ke PC target.
-   - Jalankan installer `.exe` di PC target (tanpa perlu install PHP, Node.js, atau database apapun).
-   - Jika menggunakan kabel USB-RS485 CH340, jalankan driver dari folder `drivers\install_driver_ch340.bat` satu kali.
-2. **macOS**: Kirim file `.dmg` sesuai arsitektur Mac klien (`arm64` untuk M1/M2/M3/M4, atau `x64` untuk Intel Mac). Klien cukup membuka `.dmg` dan drag icon ke folder `Applications`.
+### Penerapan pada Komputer Windows
+1. Salin berkas `SCADA-Retort-1.5.1-Setup.exe` ke media penyimpanan (USB Flashdisk) atau kirimkan ke komputer target.
+2. Jalankan berkas installer dan selesaikan wizard instalasi.
+3. Hubungkan konverter USB-to-RS485 dari mesin retort ke komputer.
+4. Apabila sistem operasi belum mengenali konverter, pasang driver melalui skrip yang tersedia pada direktori `drivers/install_driver_ch340.bat`.
+5. Luncurkan aplikasi melalui shortcut "SCADA Retort".
 
+### Penerapan pada Komputer macOS
+1. Salin berkas disk image yang sesuai (`arm64` untuk Apple Silicon atau `x64` untuk Intel Mac).
+2. Buka berkas `.dmg` dan seret ikon aplikasi ke direktori `Applications`.
+3. Aplikasi siap dijalankan melalui Launchpad.
+
+---
+
+## Hak Cipta
+
+CV Indah Mesin  
+Sistem SCADA Mesin Retort Sterilisasi  
+Hak Cipta (c) 2026 CV Indah Mesin. Seluruh hak cipta dilindungi undang-undang.
