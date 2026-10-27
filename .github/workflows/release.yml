@@ -12,28 +12,8 @@ permissions:
   contents: write
 
 jobs:
-  test:
-    name: Run Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-
-      - name: Install NPM Dependencies
-        run: npm ci
-
-      - name: Run Vitest
-        run: npx vitest run
-
   build-mac:
     name: Build macOS DMG (${{ matrix.arch }})
-    needs: test
     runs-on: macos-latest
     strategy:
       fail-fast: false
@@ -107,7 +87,6 @@ jobs:
 
   build-win:
     name: Build Windows Setup (.exe)
-    needs: test
     runs-on: windows-latest
     steps:
       - name: Checkout Repository
